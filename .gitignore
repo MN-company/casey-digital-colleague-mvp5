@@ -1,0 +1,12 @@
+.DS_Store
+.env
+.env.*
+!.env.example
+client_secret*.json
+*service_role*.json
+*credentials*.json
+*token*.json
+node_modules/
+.vercel/
+.supabase/
+__MACOSX/
