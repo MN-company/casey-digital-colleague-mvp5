@@ -26,3 +26,22 @@ Before production: a dedicated test calendar and verified student roster account
 ## Rollback
 
 No production frontend alias, existing Edge Function, secret or schema was changed. Close the preview and continue using the existing demo at its existing URL. To withdraw preview service, remove only the two `casey6-*` functions and archive the Vercel preview after user review. Do not delete shared database records or alter Google connections as rollback.
+
+## Cloud verification — final pass
+
+30 offline tests pass, including timezone/DST, chosen fallback language and forged demo identity checks. TypeScript, JavaScript syntax and diff checks pass.
+
+- Session and health: HTTP 200, correct CORS, configured Gemini 3.8 Flash.
+- Real Calendar FreeBusy filtering returned available slots.
+- Standard: actual response with mode `llm`; EN selected locale respected.
+- Live: token HTTP 200, constrained WebSocket setup succeeded, actual `find_available_slots` function call completed and 483360 bytes of audio generated. Integration found UTC hours being spoken as local: fixed with explicit `local_start/local_end/timezone`; follow-up transcript correctly says 09:00 for 07:00 UTC on 19 October.
+- Commit HTTP 403. No real appointment or email created.
+- Database verified directly: zero documents and zero verified documents.
+- Browser: original Emma/Sofia, presence controls, language selector, Live button and real availability calendar loaded. Mac then locked; further Safari/microphone checks need unlock.
+- AI Studio selected project `Casey Key - FREE test`: Live RPM/RPD unlimited, TPM 65000. Association to Supabase secret and text-model quotas are not verified. No billing changes.
+
+Preview branch alias: https://casey-digital-colleague-live-git-feature-casey-6-393aa8-mnbrain.vercel.app
+
+Google model references:
+https://ai.google.dev/gemini-api/docs/models/gemini-3.8-flash
+https://ai.google.dev/gemini-api/docs/models/gemini-3.8-live
