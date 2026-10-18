@@ -131,6 +131,11 @@
         <option class="text-slate-900" value="en-US">English</option>
         <option class="text-slate-900" value="es-ES">Español</option>
       </select>
+      <button type="button" id="caseyLiveBtn" onclick="CaseyLive.toggle()" title="Conversazione vocale continua con Gemini Live"
+              class="bg-blue-500/25 hover:bg-blue-500/40 text-blue-100 border border-blue-300/40 px-3 py-1.5 rounded-full font-bold">Avvia Live</button>
+      <button type="button" id="caseyLivePause" onclick="CaseyLive.pause()" hidden
+              class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">Pausa</button>
+      <span id="caseyLiveStatus" role="status" aria-live="polite" class="text-[10px] text-blue-100 max-w-[220px] truncate">Live disattivato</span>
       <button onclick="toggleVoiceMute()" id="muteBtn"
               class="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-full font-medium transition">
          ON
@@ -1448,6 +1453,7 @@
   <script src="config.js"></script>
   <script src="auth.0916809e.js"></script>
   <script src="casey-voice.js"></script>
+  <script src="casey-live.js"></script>
   <script src="casey-bridge.js"></script>
 </body>
 </html>
