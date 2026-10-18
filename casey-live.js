@@ -5,7 +5,7 @@
 (() => {
   'use strict';
 
-  const TOKEN_ENDPOINT = 'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-live-token';
+  const TOKEN_ENDPOINT = window.CASEY_CONFIG?.liveTokenUrl || 'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-live-token';
   const LIVE_ENDPOINT = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=';
   const MAX_WS_BUFFERED_BYTES = 400_000;
   const SETUP_TIMEOUT_MS = 15_000;
@@ -151,6 +151,30 @@
     }
     return 'Gemini: ' + message.slice(0, 140);
   }
+  async function handleToolCalls(calls, mine){
+    // Gemini requests actions, NEVER performs a booking directly in the browser.
+    const responses=await Promise.all((Array.isArray(calls)?calls:[]).slice(0,6).map(async call=>{
+      const name=typeof call.name==='string'?call.name:'';
+      const id=typeof call.id==='string'?call.id:'';
+      const args=call.args&&typeof call.args==='object'?call.args:{};
+      const result=await window.CaseyTools?.execute?.(name,args)||{status:'tool_unavailable'};
+      return {name,id,response:{result}};
+    }));
+    if(mine!==revision||!socket||socket.readyState!==WebSocket.OPEN||!responses.length)return;
+    socket.send(JSON.stringify({toolResponse:{functionResponses:responses}}));
+  }
+  function onBookingResult(event){
+    if(!started||!ready||!socket||socket.readyState!==WebSocket.OPEN)return;
+    const d=event?.detail||{};
+    // The bridge event is emitted only from the existing verified commit/cancel workflow.
+    const update=d.status==='confirmed'
+      ?'Casey system result: The booking has been verified and created on Google Calendar.'
+      :d.status==='cancelled'?'Casey system result: The student cancelled. No booking was created.'
+      :d.status==='requires_review'?'Casey system result: Booking saved but Calendar synchronization is not confirmed. Do NOT state that it is confirmed.'
+      :'Casey system result: Booking failed or uncertain. Recommend checking booking status before trying again.';
+    socket.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text:update}]}],turnComplete:true}}));
+  }
+  window.addEventListener('casey:booking-result',onBookingResult);
   function readPacket(packet, mine) {
     if (mine !== revision || !started) return;
     if (packet.error) {
@@ -159,6 +183,7 @@
       void stop(reason);
       return;
     }
+    if(packet.toolCall?.functionCalls){void handleToolCalls(packet.toolCall.functionCalls,mine);return;}
     if (packet.setupComplete) {
       ready = true;
       clearTimeout(setupTimer);

@@ -24,6 +24,7 @@
    state.session=null;state.student=null;state.profile={authenticated:false,registered:false};
    state.events=[];state.bookings=[];state.requests=[];state.pendingRequest='';state.pending=null;
    state.processing=false;
+   try{await window.CaseyLive?.stop?.('Sessione terminata per inattività');}catch{}
    try{clearConfirm();dismissOfficeRequest();hideLogin();}catch{}
    accountUi();
    try{await refreshCalendar();await refreshRequests();}catch{}
@@ -45,6 +46,8 @@
  function uid(){return crypto.randomUUID?crypto.randomUUID():String(Date.now())+Math.random();}
  function notice(text){const el=$('caseyCalendarStatus');if(el)el.textContent=text;state.calendarStatus=text;}
  function caption(text,source=null,avatar='A'){
+  // Never play browser TTS over the native Gemini Live audio stream.
+  if(window.CaseyLive?.active){$('subtitleBox').textContent=String(text||'');return;}
   if(typeof window.streamSubtitles==='function')window.streamSubtitles(text,source,avatar);
   else $('subtitleBox').textContent=text;
  }
@@ -202,13 +205,14 @@
  async function confirmBooking(ok){
   if(!state.pending)return;
   const pending=state.pending;
-  if(!ok){clearConfirm();try{await api('abort');}catch{}caption('Prenotazione annullata: non ho creato alcun evento. Puoi scegliere un altro orario.',null,'A');return;}
+  if(!ok){clearConfirm();try{await api('abort');}catch{}caption('Prenotazione annullata: non ho creato alcun evento. Puoi scegliere un altro orario.',null,'A');window.dispatchEvent(new CustomEvent('casey:booking-result',{detail:{status:'cancelled'}}));return;}
   if(state.processing)return;state.processing=true;$('caseyYes').disabled=true;$('caseyNo').disabled=true;
   try{const r=await api('commit',{request_id:pending.request_id,slot_id:pending.slot.id,confirmation_token:pending.confirmation_token});clearConfirm();
    if(r.google_sync==='created')caption('Prenotazione confermata su Google Calendar per '+human(pending.slot.start)+'. '+(r.email_status==='sent'?'Conferma Gmail inviata.':'Controlla lo stato della conferma email nelle richieste.'),null,'D');
    else caption('La richiesta è stata registrata, ma la sincronizzazione Google non è confermata ('+(r.google_sync||'in verifica')+'). Lo Student Office deve verificarla prima di considerarla definitiva.',null,'F');
+   window.dispatchEvent(new CustomEvent('casey:booking-result',{detail:{status:r.google_sync==='created'?'confirmed':'requires_review',google_sync:r.google_sync||'unconfirmed',start:pending.slot.start,email_status:r.email_status||'unknown'}}));
    await refreshCalendar();await refreshRequests();
-  }catch(e){caption('Non ho potuto confermare: '+errorMessage(e)+'. Verifica lo stato prima di ripetere.',null,'F');}
+  }catch(e){caption('Non ho potuto confermare: '+errorMessage(e)+'. Verifica lo stato prima di ripetere.',null,'F');window.dispatchEvent(new CustomEvent('casey:booking-result',{detail:{status:'error',message:'Verifica lo stato prima di ripetere la prenotazione.'}}));}
   finally{state.processing=false;$('caseyYes').disabled=false;$('caseyNo').disabled=false;}
  }
  function dismissOfficeRequest(){state.pendingRequest='';$('caseyEscalate').hidden=true;}
@@ -219,6 +223,40 @@
   try{const result=await api('student_submit_request',{subject:'Richiesta a Student Office',body:text,scenario:currentScenario});
    dismissOfficeRequest();caption('Richiesta registrata nel sistema Casey. Riferimento: '+result.request.id.slice(0,8)+'. Puoi seguirla nella scheda Le mie richieste.',null,'D');await refreshRequests();
   }catch(e){caption(errorMessage(e),null,'F');}finally{state.processing=false;}
+ }
+ // Adapter for Live tools. All actions call the same authenticated, idempotent backend as Standard.
+ async function liveFindSlots(filters={}){
+  const day=typeof filters.day==='string'&&/^20\d{2}-\d{2}-\d{2}$/.test(filters.day)?filters.day:undefined;
+  const time=typeof filters.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(filters.time)?filters.time:undefined;
+  const period=['morning','afternoon'].includes(filters.period)?filters.period:undefined;
+  const result=await api('slots',{...(day?{day}:{}),...(time?{time}:{}),...(period?{period}:{})});
+  return {slots:(result.slots||[]).slice(0,12),calendar_connected:result.calendar_connected===true};
+ }
+ async function livePrepareBooking(slotId){
+  if(state.pending)return {status:'awaiting_confirmation',slot:state.pending.slot?.start||null};
+  if(!profileReady()){
+   showLogin();
+   return {status:'authentication_required',message:'Per prenotare apri la app College con sessione autenticata oppure accedi a Casey; la demo pubblica non prenota anonimamente.'};
+  }
+  if(typeof slotId!=='string'||!/^[-a-f0-9]{36}$/i.test(slotId))return {status:'invalid_slot'};
+  const found=await api('slot_lookup',{slot_id:slotId});
+  if(!found.slot)return {status:'slot_unavailable'};
+  // Reuses original prepare path and on-screen confirmation, not an alternate commit.
+  await prepareBooking({id:found.slot.id,start:found.slot.starts_at,end:found.slot.ends_at});
+  if(!state.pending)return {status:'preparation_failed'};
+  const button=$('caseyYes');button?.focus({preventScroll:true});
+  $('caseyConfirm')?.scrollIntoView?.({behavior:'smooth',block:'nearest'});
+  return {status:'awaiting_confirmation',request_id:state.pending.request_id,start:found.slot.starts_at,end:found.slot.ends_at,message:'Mostra pulsanti Confermo e Non confermo. Non dichiarare mai prenotato prima del click e della sincronizzazione Calendar.'};
+ }
+ async function liveBookingStatus(requestId){
+  if(typeof requestId!=='string'||!/^[-a-f0-9]{36}$/i.test(requestId))return {status:'invalid_reference'};
+  if(!profileReady())return {status:'authentication_required'};
+  const r=await api('operation_status',{request_id:requestId});
+  return {saved:r.saved===true,google_sync:r.google_sync||null,start:r.start||null,end:r.end||null,email_status:r.email_status||null};
+ }
+ async function liveSearchKnowledge(query){
+  const r=await api('knowledge_lookup',{query:String(query||'').slice(0,360)});
+  return {verified:r.verified===true,matches:r.matches||[],note:r.note||''};
  }
  function parseDesiredDay(text){
   const iso=text.match(/\b20\d{2}-\d{2}-\d{2}\b/);if(iso)return iso[0];
@@ -265,7 +303,7 @@
  }
  function goToday(){state.month=dateRome(new Date().toISOString()).slice(0,7);refreshCalendar();}
  function shiftMonth(offset){const [y,m]=state.month.split('-').map(Number);const date=new Date(Date.UTC(y,m-1+offset,1));state.month=date.toISOString().slice(0,7);refreshCalendar();}
- async function logout(){window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
+ async function logout(){try{await window.CaseyLive?.stop?.('Account disconnesso');}catch{}window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
  async function init(){
   startKioskIdle();
   // Do not consume personal data when switching between Emma/Sofia demonstration steps.
@@ -281,6 +319,6 @@
   const fragment=new URLSearchParams(location.hash.slice(1));if(fragment.has('student_google_error'))notice(fragment.get('student_google_error'));if(fragment.has('student_google'))notice('Account Google collegato. Ricarico il calendario.');if(location.hash)history.replaceState(null,'',location.pathname+location.search);
   window.renderAll();await Promise.all([refreshCalendar(),refreshRequests()]);
  }
- window.CaseyBridge={showLogin,hideLogin,logout,shiftMonth,goToday,connectStudentGoogle,confirmBooking,submitOfficeRequest,dismissOfficeRequest,selectDay,refreshCalendar,refreshRequests};
+ window.CaseyBridge={showLogin,hideLogin,logout,shiftMonth,goToday,connectStudentGoogle,confirmBooking,submitOfficeRequest,dismissOfficeRequest,selectDay,refreshCalendar,refreshRequests,liveFindSlots,livePrepareBooking,liveBookingStatus,liveSearchKnowledge};
  document.addEventListener('DOMContentLoaded',init);
 })();

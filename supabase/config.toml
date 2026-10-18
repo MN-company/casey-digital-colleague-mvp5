@@ -14,3 +14,11 @@ entrypoint = "./functions/casey-tts/index.ts"
 enabled = true
 verify_jwt = false
 entrypoint = "./functions/casey-live-token/index.ts"
+
+[functions.casey6-original-ui]
+verify_jwt = false
+entrypoint = "./functions/casey6-original-ui/index.js"
+
+[functions.casey6-live-token]
+verify_jwt = false
+entrypoint = "./functions/casey6-live-token/index.ts"

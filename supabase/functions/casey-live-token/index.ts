@@ -3,7 +3,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const DB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default || '';
 const API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const MODEL = 'gemini-3.8-live';
-const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app', 'https://casey-digital-colleague-live-p7g86na4v-mnbrain.vercel.app', 'https://casey-digital-colleague-live-git-feature-casey-live-5-2-mnbrain.vercel.app', 'http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:4173', 'http://127.0.0.1:4173']);
+const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app', 'https://casey-digital-colleague-live-p7g86na4v-mnbrain.vercel.app', 'https://casey-digital-colleague-live-297jr3dfv-mnbrain.vercel.app', 'https://casey-digital-colleague-live-git-feature-casey-live-5-2-mnbrain.vercel.app', 'http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:4173', 'http://127.0.0.1:4173']);
 const LANGUAGE: Record<string, string> = { 'it-IT': 'Italian', 'en-US': 'English', 'es-ES': 'Spanish' };
 const encoder = new TextEncoder();
 const cors = (origin: string) => ({ 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://casey-digital-colleague-live.vercel.app', 'Access-Control-Allow-Headers': 'content-type,x-session-token', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Cache-Control': 'no-store', 'Vary': 'Origin' });
@@ -21,9 +21,17 @@ async function authorize(req:Request) {
  const q=new URLSearchParams({select:'id',token_hash:'eq.'+await hash(token),expires_at:'gt.'+new Date().toISOString(),limit:'1'});
  const sessions=await db('dc_sessions?'+q.toString());if(!sessions?.[0]?.id)return false;
  const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0].trim();
- for(const [bucket, limit] of [[`casey-live:session:${sessions[0].id}`,8],[`casey-live:ip:${await hash(ip)}`,20],['casey-live:global',90]] as [string,number][]) {
+ // Casey anti-abuse quotas are separate from Gemini API quotas. Buckets expire after 24h.
+ for(const [type, bucket, limit] of [
+  ['session', `casey-live:session:${sessions[0].id}`, 40],
+  ['ip', `casey-live:ip:${await hash(ip)}`, 60],
+  ['global', 'casey-live:global', 100]
+ ] as [string,string,number][]) {
   const ok=await db('rpc/dc_take_rate',{p_bucket:bucket,p_limit:limit});
-  if(ok!==true)throw Object.assign(new Error('Rate limited'),{status:429});
+  if(ok!==true){
+   console.warn('Casey Live safety limit reached:', type);
+   throw Object.assign(new Error('Casey rate limit reached'),{status:429});
+  }
  }
  return true;
 }
@@ -44,7 +52,7 @@ Deno.serve(async(req:Request)=>{
   // Limit use to one Live session and its approved model/config; API key never reaches browser.
   const google=await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({uses:1,newSessionExpireTime:new Date(now+60000).toISOString(),expireTime:new Date(now+20*60000).toISOString(),bidiGenerateContentSetup:{model:'models/'+MODEL,...config}}),signal:AbortSignal.timeout(9000)});
   const result=await google.json().catch(()=>({}));
-  if(!google.ok||typeof result.name!=='string') {const e=result?.error||{};console.error('Gemini token provisioning failed:',google.status,'code:',String(e.status||'unknown').slice(0,60),'message:',String(e.message||'unspecified').slice(0,350));return json({error:'Gemini Live unavailable'},502,origin);}
+  if(!google.ok||typeof result.name!=='string') {const e=result?.error||{};console.error('Gemini token provisioning failed:',google.status,'code:',String(e.status||'unknown').slice(0,60),'message:',String(e.message||'unspecified').slice(0,350));return google.status===429 ? json({error:'Gemini API quota reached',source:'google'},429,origin) : json({error:'Gemini Live unavailable',source:'google'},502,origin);}
   return json({token:result.name,model:MODEL,config,expiresIn:60},200,origin);
- }catch(error){const status=typeof (error as any)?.status==='number'?(error as any).status:503;console.error('Casey Live token failure:',error instanceof Error?error.message:'Unknown');return json({error:status===429?'Demo session limit reached':'Live session unavailable'},status,origin);}
+ }catch(error){const status=typeof (error as any)?.status==='number'?(error as any).status:503;console.error('Casey Live token failure:',error instanceof Error?error.message:'Unknown');return json({error:status===429?'Casey demo safety limit reached':'Live session unavailable',source:status===429?'casey':'backend'},status,origin);}
 });
