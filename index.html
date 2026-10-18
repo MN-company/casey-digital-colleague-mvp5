@@ -119,20 +119,18 @@
       </div>
     </div>
 
-    <!-- Destra: Controlli Voce Umana / ElevenLabs + Stato Video + Presenza + Architettura + Reset -->
+    <!-- Controlli audio: Google Cloud TTS + fallback nativo browser -->
     <div class="flex flex-wrap items-center gap-2 text-xs">
       <span id="videoStateBadge" class="bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 px-2.5 py-1 rounded-full font-mono text-[11px]">
          Stato A (A.mp4)
       </span>
-      <select id="voiceSelect" onchange="onVoiceChange()"
+      <label for="languageSelect" class="sr-only">Lingua della conversazione</label>
+      <select id="languageSelect" onchange="onLanguageChange()" aria-label="Lingua della conversazione"
               class="bg-white/10 hover:bg-white/15 text-white border border-white/15 rounded-full px-3 py-1.5 text-[11px] font-medium focus:outline-none cursor-pointer max-w-[180px] truncate">
-        <option value=""> Voce Sistema</option>
+        <option class="text-slate-900" value="it-IT">Italiano</option>
+        <option class="text-slate-900" value="en-US">English</option>
+        <option class="text-slate-900" value="es-ES">Español</option>
       </select>
-      <button onclick="configureElevenLabs()" id="elevenBtn"
-              title="Attiva la voce maschile ultra-realistica di ElevenLabs (Piano Free)"
-              class="bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-400/40 text-indigo-100 px-3 py-1.5 rounded-full font-semibold transition">
-         Voce AI
-      </button>
       <button onclick="toggleVoiceMute()" id="muteBtn"
               class="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-full font-medium transition">
          ON
@@ -155,16 +153,6 @@
     </div>
 
   </header>
-
-  <!-- AVVISO AUTOMATICO SU CHROME PER LA VOCE (Nascosto automaticamente su Microsoft Edge) -->
-  <div id="browserVoiceNotice" class="max-w-[1440px] w-full mx-auto mb-2 hidden">
-    <div class="bg-blue-950/90 border border-blue-400/30 text-blue-100 text-[11px] px-4 py-1.5 rounded-full flex items-center justify-between gap-3 shadow">
-      <span>
-         <strong>Nota Audio (Google Chrome):</strong> su Chrome è selezionata di default la <strong>voce femminile fluida</strong> perché le voci maschili gratuite di Google risultano metalliche. Per ascoltare gratuitamente la <strong>voce maschile naturale di Casey</strong>, apri questo link su <strong>Microsoft Edge</strong> (oppure seleziona una voce dal menu  in alto).
-      </span>
-      <button onclick="document.getElementById('browserVoiceNotice').classList.add('hidden')" class="text-blue-300 hover:text-white font-bold px-1.5">✕</button>
-    </div>
-  </div>
 
   <!-- MAIN WORKSPACE -->
   <main class="max-w-[1440px] w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-7 items-center">
@@ -1321,160 +1309,27 @@
     }
 
     /*************************************************************************
-     * 6. MOTORE VOCALE NATURALE (Smart Switch Chrome vs Edge + ElevenLabs Cache)
+     * 6. VOCE CASEY 5.1: Google Cloud Chirp 3 HD / fallback browser
+     * Il motore vive in casey-voice.js. Nessuna credenziale nel frontend.
      *************************************************************************/
-    let availableVoices = [];
-    let chosenVoice = null;
     let voiceMuted = false;
     let subtitleTimer = null;
-    let currentAudioEl = null;
+    let speechSequence = 0;
 
-    // Rileva se siamo su Microsoft Edge
-    const isEdgeBrowser = /Edg\//.test(navigator.userAgent);
-
-    // Cache in memoria per non consumare crediti se usi ElevenLabs Free API
-    const elevenAudioCache = new Map();
-    let elevenApiKey = localStorage.getItem('CASEY_ELEVEN_KEY') || '';
-
-    function updateElevenBtnStyle() {
-      const btn = document.getElementById('elevenBtn');
-      const notice = document.getElementById('browserVoiceNotice');
-      if (elevenApiKey) {
-        btn.textContent = ' ElevenLabs ATTIVO';
-        btn.className = 'bg-emerald-500/30 border border-emerald-400 text-emerald-100 px-3 py-1.5 rounded-full font-bold transition';
-        if (notice) notice.classList.add('hidden');
-      } else {
-        btn.textContent = ' Voce AI';
-        btn.className = 'bg-indigo-500/30 hover:bg-indigo-500/50 border border-indigo-400/40 text-indigo-100 px-3 py-1.5 rounded-full font-semibold transition';
-        if (notice && !isEdgeBrowser) notice.classList.remove('hidden');
-      }
+    function onLanguageChange() {
+      const value = document.getElementById('languageSelect').value;
+      window.CaseyVoice.setLanguage(value);
     }
 
-    function configureElevenLabs() {
-      const key = prompt(
-        "Inserisci la tua API Key gratuita di ElevenLabs (10.000 crediti gratis/mese) per usare la voce neurale maschile 'Brian/Adam'.\nLascia vuoto per tornare alla voce del browser:",
-        elevenApiKey
-      );
-      if (key === null) return;
-      elevenApiKey = key.trim();
-      if (elevenApiKey) localStorage.setItem('CASEY_ELEVEN_KEY', elevenApiKey);
-      else localStorage.removeItem('CASEY_ELEVEN_KEY');
-      updateElevenBtnStyle();
-    }
-
-    function loadHumanVoices() {
-      if (!('speechSynthesis' in window)) return;
-      const all = window.speechSynthesis.getVoices();
-      const itVoices = all.filter(v => v.lang && v.lang.toLowerCase().startsWith('it'));
-      if (itVoices.length === 0) return;
-
-      // Smart Sort:
-      // - Su Microsoft Edge privilegia la voce MASCHILE Neurale Naturale (Diego/Giuseppe Online Natural)
-      // - Su Google Chrome (e altri browser senza voci maschili neurali) privilegia la voce FEMMINILE fluida (Google italiano / Elsa / Alice / Federica)
-      itVoices.sort((a, b) => {
-        const score = (v) => {
-          const n = v.name.toLowerCase();
-          if (isEdgeBrowser) {
-            if ((n.includes('diego') || n.includes('giuseppe')) && (n.includes('natural') || n.includes('online'))) return 160;
-            if (n.includes('diego') || n.includes('giuseppe') || n.includes('cosimo')) return 145;
-            if (n.includes('natural') || n.includes('online')) return 135;
-            return 50;
-          } else {
-            // Su Chrome/Safari privilegia la voce femminile fluida evitando il maschile robotico
-            if (n.includes('google') && !n.includes('male')) return 160;
-            if ((n.includes('elsa') || n.includes('isabella') || n.includes('alice') || n.includes('federica')) && (n.includes('natural') || n.includes('enhanced') || n.includes('premium'))) return 155;
-            if (n.includes('elsa') || n.includes('alice') || n.includes('federica') || n.includes('isabella') || n.includes('siri')) return 145;
-            if ((n.includes('diego') || n.includes('giuseppe')) && n.includes('natural')) return 140;
-            if (n.includes('google')) return 130;
-            return 40;
-          }
-        };
-        return score(b) - score(a);
-      });
-
-      availableVoices = itVoices;
-      chosenVoice = itVoices[0];
-
-      const select = document.getElementById('voiceSelect');
-      select.innerHTML = itVoices.map((v, i) => `
-        <option value="${i}" class="text-slate-900"> ${v.name}</option>
-      `).join('');
-    }
-
-    if ('speechSynthesis' in window) {
-      window.speechSynthesis.onvoiceschanged = loadHumanVoices;
-      setTimeout(loadHumanVoices, 250);
-    }
-
-    function onVoiceChange() {
-      const idx = Number(document.getElementById('voiceSelect').value);
-      if (availableVoices[idx]) chosenVoice = availableVoices[idx];
-    }
-
-    async function speakWithElevenLabsOrBrowser(cleanText, onFinishCallback) {
-      if (voiceMuted) {
-        onFinishCallback();
-        return;
-      }
-
-      // 1. Se l'utente ha inserito la chiave gratuita di ElevenLabs, usa la voce maschile neurale "Brian" (nPczCjzI2devNBz1zQrb)
-      if (elevenApiKey) {
-        try {
-          if (currentAudioEl) {
-            currentAudioEl.pause();
-            currentAudioEl = null;
-          }
-          let audioUrl = elevenAudioCache.get(cleanText);
-          if (!audioUrl) {
-            const resp = await fetch('https://api.elevenlabs.io/v1/text-to-speech/nPczCjzI2devNBz1zQrb', {
-              method: 'POST',
-              headers: {
-                'xi-api-key': elevenApiKey,
-                'Content-Type': 'application/json',
-                'Accept': 'audio/mpeg'
-              },
-              body: JSON.stringify({
-                text: cleanText,
-                model_id: 'eleven_multilingual_v2',
-                voice_settings: { stability: 0.55, similarity_boost: 0.80 }
-              })
-            });
-            if (resp.ok) {
-              const blob = await resp.blob();
-              audioUrl = URL.createObjectURL(blob);
-              elevenAudioCache.set(cleanText, audioUrl);
-            }
-          }
-          if (audioUrl) {
-            currentAudioEl = new Audio(audioUrl);
-            currentAudioEl.onended = onFinishCallback;
-            currentAudioEl.onerror = onFinishCallback;
-            await currentAudioEl.play();
-            return;
-          }
-        } catch (err) {
-          console.warn('Fallback su voce browser:', err);
-        }
-      }
-
-      // 2. Voce del Browser con pitch = 1.0 (Niente distorsione metallica!)
-      if ('speechSynthesis' in window) {
-        window.speechSynthesis.cancel();
-        const utter = new SpeechSynthesisUtterance(cleanText);
-        utter.lang = 'it-IT';
-        if (chosenVoice) utter.voice = chosenVoice;
-        utter.pitch = 1.0; // Pitch 1.0 elimina il suono robotico!
-        utter.rate = 1.03;
-        utter.onend = onFinishCallback;
-        utter.onerror = onFinishCallback;
-        window.speechSynthesis.speak(utter);
-      } else {
-        onFinishCallback();
-      }
+    function speakWithCaseyVoice(text, onFinishCallback) {
+      if (voiceMuted) { onFinishCallback(); return; }
+      window.CaseyVoice.speak(text, onFinishCallback);
     }
 
     function streamSubtitles(text, citation, endState = 'A') {
       if (subtitleTimer) clearInterval(subtitleTimer);
+      window.CaseyVoice.stop();
+      const currentSequence = ++speechSequence;
       const subBox = document.getElementById('subtitleBox');
       const citBox = document.getElementById('citationBox');
       const citText = document.getElementById('citationText');
@@ -1494,7 +1349,7 @@
 
       let speechFinished = false;
       const finishTalking = () => {
-        if (speechFinished) return;
+        if (speechFinished || currentSequence !== speechSequence) return;
         speechFinished = true;
         if (endState === 'D' || endState === 'F' || endState === 'B') {
           setAvatarState(endState);
@@ -1504,7 +1359,7 @@
         }
       };
 
-      speakWithElevenLabsOrBrowser(cleanText, finishTalking);
+      speakWithCaseyVoice(cleanText, finishTalking);
 
       const words = cleanText.split(' ');
       let i = 0;
@@ -1522,21 +1377,32 @@
     function triggerPresence() {
       setAvatarState('B');
       setTimeout(() => {
-        streamSubtitles(
-          currentScenario === 'EMMA'
-            ? "Ciao Emma! Benvenuta allo Student Office di H-FARM College. Come posso aiutarti nella tua prima settimana?"
-            : "Ciao Sofia! Pronta per attivare il tuo tirocinio del terzo anno? Dimmi pure come posso aiutarti.",
-          "BSc AI & Data Science Handbook 2025-26",
-          'A'
-        );
+        const greetings = {
+          'it-IT': [
+            'Ciao Emma! Benvenuta allo Student Office di H-FARM College. Come posso aiutarti nella tua prima settimana?',
+            'Ciao Sofia! Pronta per attivare il tuo tirocinio del terzo anno? Dimmi pure come posso aiutarti.'
+          ],
+          'en-US': [
+            'Hi Emma! Welcome to the H-FARM College Student Office. How can I help you in your first week?',
+            'Hi Sofia! Ready to arrange your third-year internship? How can I help?'
+          ],
+          'es-ES': [
+            '¡Hola, Emma! Bienvenida a la oficina de estudiantes de H-FARM College. ¿Cómo puedo ayudarte en tu primera semana?',
+            '¡Hola, Sofia! ¿Lista para organizar tus prácticas del tercer año? ¿En qué puedo ayudarte?'
+          ]
+        };
+        const phrases = greetings[window.CaseyVoice.getLanguage()] || greetings['it-IT'];
+        streamSubtitles(currentScenario === 'EMMA' ? phrases[0] : phrases[1],
+          'BSc AI & Data Science Handbook 2025-26', 'A');
       }, 1600);
     }
 
     function toggleVoiceMute() {
       voiceMuted = !voiceMuted;
       if (voiceMuted) {
-        if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-        if (currentAudioEl) currentAudioEl.pause();
+        window.CaseyVoice.stop();
+        speechSequence++;
+        setAvatarState('A');
       }
       document.getElementById('muteBtn').textContent = voiceMuted ? ' OFF' : ' ON';
     }
@@ -1545,7 +1411,7 @@
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRec) return alert("Usa Chrome, Edge o Safari per parlare col microfono.");
       const rec = new SpeechRec();
-      rec.lang = 'it-IT';
+      rec.lang = window.CaseyVoice.getLanguage();
       setAvatarState('LISTEN');
       rec.onresult = (e) => sendUserMessage(e.results[0][0].transcript);
       rec.onerror = () => setAvatarState('A');
@@ -1553,8 +1419,9 @@
     }
 
     function resetDemo() {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
-      if (currentAudioEl) currentAudioEl.pause();
+      window.CaseyVoice.stop();
+      speechSequence++;
+      if (subtitleTimer) clearInterval(subtitleTimer);
       document.getElementById('citationBox').classList.add('hidden');
       document.getElementById('subtitleBox').innerHTML =
         `<strong class="font-bold">Hi, I'm Casey, the Student</strong><br/>Office's AI assistant.<br/>How can I help?`;
@@ -1563,7 +1430,7 @@
       setAvatarState('A');
     }
 
-    updateElevenBtnStyle();
+    document.getElementById('languageSelect').value = window.CaseyVoice.getLanguage();
     initScenarioData();
     setAvatarState('A');
   </script>
@@ -1580,6 +1447,7 @@
   </div>
   <script src="config.js"></script>
   <script src="auth.0916809e.js"></script>
+  <script src="casey-voice.js"></script>
   <script src="casey-bridge.js"></script>
 </body>
 </html>

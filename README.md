@@ -40,3 +40,11 @@ Interfaccia originale conservata; calendario navigabile; utenti studenti verific
 Per aprire localmente il frontend puoi usare un server statico (`python3 -m http.server 8000`) e visitare `http://localhost:8000`. Le operazioni autenticabili richiedono il backend Supabase configurato. Per un deploy completo vedi `docs/DEPLOY.md`; per una prova guidata `docs/TESTING.md`.
 
 **Non pubblicare mai** file `client_secret*.json`, chiavi `OPENROUTER_API_KEY`, service-role Supabase, token OAuth, refresh token o segreti di cifratura. Il solo fatto che `config.js` sia pubblico è previsto: contiene esclusivamente una publishable key.
+
+## Aggiornamento 5.1 — Google Cloud Voice (IT/EN/ES)
+
+Il TTS principale ora è Google Cloud Chirp 3 HD, mediato dalla nuova Edge Function `casey-tts` e con fallback automatico Web Speech API. Il riconoscimento vocale (STT) rimane quello del browser; ElevenLabs è stato rimosso. UI e avatar originali invariati, salvo il nuovo selettore lingua. La lingua viene inoltrata anche al modello esistente, mentre alcuni messaggi statici della demo sono tuttora italiani.
+
+**La nuova voce Google non funzionerà finché non verrà salvata in Supabase la credenziale `GOOGLE_TTS_SERVICE_ACCOUNT_JSON` e non verrà distribuita `casey-tts`.** Fino a quel momento viene usata automaticamente la voce del browser.
+
+Vedi [istruzioni complete e test](docs/GOOGLE_CLOUD_VOICE.md).

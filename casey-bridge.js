@@ -239,7 +239,7 @@
   if(state.pending){caption('Ho già preparato un appuntamento. Usa Confermo o Non confermo prima di proseguire.',null,'A');return;}
   dismissOfficeRequest();state.processing=true;
   try{
-   const outcome=await api('turn',{message:text,context:{phase:'awaiting_slot'}});
+   const outcome=await api('turn',{message:text,language:window.CaseyVoice?.getLanguage()||'it-IT',context:{phase:'awaiting_slot'}});
    if(outcome.route==='stop'){clearConfirm();caption('Operazione interrotta. Non ho registrato alcuna prenotazione.',null,'A');return;}
    if(outcome.route==='booking'){
     const day=parseDesiredDay(text),time=parseTime(text);
@@ -252,8 +252,8 @@
     const box=$('caseySlotOptions');box.replaceChildren();for(const slot of slots){const b=document.createElement('button');b.className='text-xs px-3 py-2 rounded-lg font-bold';b.textContent=new Intl.DateTimeFormat('it-IT',{timeZone:TZ,weekday:'short',day:'numeric',month:'short',hour:'2-digit',minute:'2-digit'}).format(new Date(slot.start));b.onclick=()=>prepareBooking(slot);box.append(b);}
     caption(`Ho verificato ${slots.length} disponibilità sul calendario Student Office. Seleziona una proposta nella vista calendario; la prenotazione partirà soltanto dopo la conferma.`,null,'A');return;
    }
-   if(outcome.route==='greeting'){caption('Ciao, sono Casey. Posso verificare disponibilità per un appuntamento o aiutarti a inviare una richiesta allo Student Office.',null,'B');return;}
-   if(outcome.route==='thanks'){caption('Prego. Se non hai altre richieste, ci fermiamo qui.',null,'A');return;}
+   if(outcome.route==='greeting'){const copy={'it-IT':'Ciao, sono Casey. Posso verificare disponibilità per un appuntamento o aiutarti a inviare una richiesta allo Student Office.','en-US':'Hi, I am Casey. I can check appointment availability or help you contact the Student Office.','es-ES':'Hola, soy Casey. Puedo comprobar la disponibilidad de citas o ayudarte a contactar con la oficina de estudiantes.'};caption(copy[window.CaseyVoice.getLanguage()]||copy['it-IT'],null,'B');return;}
+   if(outcome.route==='thanks'){const copy={'it-IT':'Prego. Se non hai altre richieste, ci fermiamo qui.','en-US':'You are welcome. Let me know if you need anything else.','es-ES':'De nada. Dime si necesitas algo más.'};caption(copy[window.CaseyVoice.getLanguage()]||copy['it-IT'],null,'A');return;}
    if(outcome.answer){caption(outcome.answer,outcome.sources?.length?outcome.sources.map(x=>x.title).join(', '):null,outcome.route==='handoff'?'F':'D');}
    if(outcome.route==='handoff'){state.pendingRequest=text;$('caseyEscalate').hidden=false;}
   }catch(e){caption(errorMessage(e),null,'F');}
@@ -275,8 +275,6 @@
   window.setScenario=id=>{old.scenario(id);quickPrompts();};
   window.setPerspective=id=>{old.perspective(id);refreshCalendar();refreshRequests();};
   window.resetDemo=()=>{dismissOfficeRequest();clearConfirm();state.slotsForDay=[];old.reset();refreshCalendar();refreshRequests();};
-  window.configureElevenLabs=()=>caption('La voce AI avanzata non è configurata in questa demo. Puoi usare il microfono e le voci del browser, senza esporre credenziali API.',null,'A');
-  $('elevenBtn').title='Voce AI avanzata non configurata; usa le voci di sistema';
   $('caseyOtpStart').addEventListener('submit',async e=>{e.preventDefault();const email=$('caseyEmail').value.trim();const msg=$('caseyAuthFeedback');msg.textContent='Invio del codice in corso…';try{await window.CaseyAuth.sendCode(email);$('caseyOtpVerify').hidden=false;msg.textContent='Controlla la tua email: inserisci il codice OTP ricevuto. (Richiede template OTP configurato su Supabase.)';}catch(err){msg.textContent=errorMessage(err);}});
   $('caseyOtpVerify').addEventListener('submit',async e=>{e.preventDefault();try{await window.CaseyAuth.verifyCode($('caseyEmail').value.trim(),$('caseyOtp').value.trim());await refreshProfile();if(!profileReady()){$('caseyAuthFeedback').textContent='Email verificata, ma non sei nel registro studenti H-FARM autorizzato. Lo Student Office deve collegare il profilo.';return;}hideLogin();caption('Accesso completato. Il tuo account è associato a '+state.profile.institution+'.',null,'D');await refreshCalendar();await refreshRequests();}catch(err){$('caseyAuthFeedback').textContent=errorMessage(err);}});
   try{await ensureSession();await refreshProfile();}catch(e){caption('Il backend non è disponibile: '+errorMessage(e),null,'F');}

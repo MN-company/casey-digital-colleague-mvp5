@@ -10,3 +10,6 @@ node_modules/
 .vercel/
 .supabase/
 __MACOSX/
+*service-account*.json
+*service_account*.json
+supabase/functions/.env
