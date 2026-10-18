@@ -1,5 +1,5 @@
 /* Casey Live 5.2.1 — Google Gemini Live, browser PCM microphone and streamed audio.
- * No Calendar/Gmail tool execution: use Casey Standard for verified actions.
+ * Controlled tools prepare bookings; only the confirmation button requests a verified backend commit.
  * The Gemini API key remains on Supabase. Never log the WebSocket URL or token.
  */
 (() => {
