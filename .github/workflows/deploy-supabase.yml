@@ -1,0 +1,63 @@
+name: Deploy Supabase Edge Function
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: casey-supabase-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    if: github.repository == 'MN-company/casey-digital-colleague-mvp5' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout main commit
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - name: Check deployment credential
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo '::error::Add repository Actions secret SUPABASE_ACCESS_TOKEN. No deployment performed.'
+            exit 1
+          fi
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@45a513f8c64c0bc8e0e3dfe572b5c95be85f6359 # v3.0.1
+        with:
+          version: 2.121.0
+
+      - name: Deploy only casey-original-ui
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: >-
+          supabase functions deploy casey-original-ui
+          --project-ref oxzraaadxqsruibinlxn
+          --no-verify-jwt
+          --use-api
+
+      - name: Verify public configuration without database writes
+        run: |
+          curl --fail-with-body --silent --show-error --max-time 30 --retry 2 \
+            'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-original-ui' \
+            -H 'Content-Type: application/json' \
+            -H 'Origin: https://casey-digital-colleague-live.vercel.app' \
+            --data '{"action":"public_config"}' --output /tmp/casey-health.json
+          python3 - <<'PY'
+          import json
+          with open('/tmp/casey-health.json') as response:
+              data = json.load(response)
+          assert isinstance(data.get('oauth_configured'), bool), 'Unexpected function response'
+          assert data.get('oauth_url') == 'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-original-ui/oauth/start', 'Unexpected target'
+          print('Edge Function public_config verified (no database writes).')
+          PY

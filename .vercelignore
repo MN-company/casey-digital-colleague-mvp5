@@ -1,0 +1,7 @@
+# Publish only frontend and assets; keep backend source and operational docs off the static host.
+.github/
+supabase/
+docs/
+*.md
+.env*
+.git/

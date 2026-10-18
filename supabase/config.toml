@@ -1,0 +1,6 @@
+project_id = "casey-digital-colleague-mvp5"
+
+[functions.casey-original-ui]
+enabled = true
+verify_jwt = false
+entrypoint = "./functions/casey-original-ui/index.js"
