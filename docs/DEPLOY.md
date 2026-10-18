@@ -1,5 +1,15 @@
 # Deployment Casey MVP 5.0
 
+## Collegamenti operativi
+
+Repository `main` collegata al progetto Vercel esistente; branch di produzione
+`main` con assegnazione automatica del dominio. Il secret Actions
+`SUPABASE_ACCESS_TOKEN` è configurato. Il primo deploy Actions verificato è il
+[run 39124371580](https://github.com/MN-company/casey-digital-colleague-mvp5/actions/runs/39124371580)
+(riesecuzione riuscita del 18 ottobre 2026): sola funzione `casey-original-ui`,
+versione passata da 8 a 9, `verify_jwt=false`, controllo `public_config` riuscito.
+Le altre Edge Functions sono rimaste alla stessa versione.
+
 ## Vercel
 
 Usare **il progetto esistente** `casey-digital-colleague-live` del team `mnbrain`
