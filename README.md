@@ -10,13 +10,13 @@ MVP dimostrativo di assistente digitale per gli studenti di H-FARM College. Ques
 - Impostazioni Student Office: https://casey-digital-colleague-live.vercel.app/settings.html
 - Architettura: https://casey-digital-colleague-live.vercel.app/architettura.html
 
-Nota: l'accesso con email e password è disponibile sull'app in produzione tramite un aggiornamento mirato del file `auth.js`. Per usarlo devi avere un utente creato in **Supabase Authentication → Users** con password impostata ed email confermata, e un profilo attivo in `dc_v4_student_roster` con il medesimo indirizzo email. Creare soltanto una riga nel registro studenti non crea l'identità Supabase Auth.
+Nota: l'accesso con email e password è disponibile sull'app in produzione tramite un aggiornamento mirato del file `auth.0916809e.js`. Per usarlo devi avere un utente creato in **Supabase Authentication → Users** con password impostata ed email confermata, e un profilo attivo in `dc_v4_student_roster` con il medesimo indirizzo email. Creare soltanto una riga nel registro studenti non crea l'identità Supabase Auth.
 
 ## Struttura
 
 - `index.html`, `styles.css`: interfaccia originale e navigazione studente/ufficio.
 - `casey-bridge.js`: collegamento UI ↔ API Supabase.
-- `auth.js`: verifica email OTP oppure accesso con password tramite Supabase Auth.
+- `auth.0916809e.js`: verifica email OTP oppure accesso con password tramite Supabase Auth.
 - `settings.html`, `settings.js`, `settings.css`: connessione dello Student Office, calendario e gestione.
 - `architettura.html`: vista illustrativa dell'architettura.
 - `A.mp4` ... `F.mp4`, immagini: avatar e asset grafici originali.

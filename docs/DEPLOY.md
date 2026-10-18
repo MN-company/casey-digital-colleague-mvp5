@@ -34,7 +34,11 @@ frontend dedicata. CORS non costituisce un isolamento dei dati. Eventuali vecchi
 URL preview già distribuiti non vengono rimossi da questa impostazione.
 `.vercelignore` esclude sorgenti backend, workflow e documentazione dal sito statico.
 
-Controllare che `index.html`, `auth.js`, `casey-bridge.js`, `settings.html` e i video
+Il file Auth usa un nome versionato (`auth.0916809e.js`) per evitare copie CDN
+obsolete sul precedente percorso `auth.js`. Il codice Auth è invariato; quando
+lo si aggiorna, cambiare il suffisso e il riferimento in `index.html`.
+
+Controllare che `index.html`, `auth.0916809e.js`, `casey-bridge.js`, `settings.html` e i video
 siano raggiungibili. La pubblicazione frontend e backend è indipendente, non atomica:
 introdurre modifiche compatibili con entrambe le versioni durante il rilascio.
 
