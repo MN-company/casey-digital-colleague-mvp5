@@ -1,15 +1,107 @@
+# ==========================================
+# CASEY DIGITAL COLLEAGUE MVP 5.1
+# ==========================================
+
+# Sistema operativo
 .DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editor e IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ==========================================
+# CREDENZIALI E VARIABILI D'AMBIENTE
+# ==========================================
+
 .env
 .env.*
 !.env.example
-client_secret*.json
-*service_role*.json
-*credentials*.json
-*token*.json
-node_modules/
-.vercel/
-.supabase/
-__MACOSX/
+
+*.pem
+*.p12
+*.pfx
+*.key
+*.keystore
+
+# Google Cloud Service Account
 *service-account*.json
 *service_account*.json
-supabase/functions/.env
+*credentials*.json
+*secret*.json
+*oauth-client*.json
+*client_secret*.json
+
+# ==========================================
+# SUPABASE
+# ==========================================
+
+supabase/.temp/
+supabase/.branches/
+supabase/.profiles/
+
+# NON ignorare:
+# supabase/config.toml
+# supabase/functions/
+# supabase/migrations/
+
+# ==========================================
+# VERCEL
+# ==========================================
+
+.vercel/
+
+# ==========================================
+# NODE.JS
+# ==========================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ==========================================
+# PYTHON
+# ==========================================
+
+__pycache__/
+*.pyc
+.pytest_cache/
+.venv/
+venv/
+
+# ==========================================
+# BUILD E TEST
+# ==========================================
+
+dist/
+build/
+coverage/
+.nyc_output/
+test-results/
+playwright-report/
+.cache/
+tmp/
+temp/
+
+# ==========================================
+# LOG
+# ==========================================
+
+*.log
+logs/
+
+# ==========================================
+# FILE TEMPORANEI
+# ==========================================
+
+*.bak
+*.backup
+*.tmp
+*.temp
+*.orig
