@@ -3,7 +3,7 @@ const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const DB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default || '';
 const API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const MODEL = 'gemini-3.8-live';
-const ORIGINS = new Set(['https://casey-digital-colleague-live-r04f5708j-mnbrain.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-393aa8-mnbrain.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','http://127.0.0.1:4173']);
+const ORIGINS = new Set(['https://casey-digital-colleague-live-hyjvjv7mf-mnbrain.vercel.app','https://casey-digital-colleague-live-r04f5708j-mnbrain.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-393aa8-mnbrain.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','http://127.0.0.1:4173']);
 const LANGUAGE: Record<string, string> = { 'it-IT': 'Italian', 'en-US': 'English', 'es-ES': 'Spanish' };
 // Intent descriptions are not authorization. The server and College app enforce all permissions.
 const LIVE_TOOLS = [{ functionDeclarations: [

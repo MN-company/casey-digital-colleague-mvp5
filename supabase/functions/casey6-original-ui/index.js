@@ -19,7 +19,7 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const GEMINI_TEXT_MODEL = Deno.env.get('GEMINI_TEXT_MODEL') || 'gemini-3.8-flash';
 const KNOWLEDGE_V6_ENABLED = Deno.env.get('CASEY_KNOWLEDGE_V6_ENABLED') === 'true';
 const VERIFIED_FAQ_ENABLED = Deno.env.get('CASEY_VERIFIED_FAQ_ENABLED') === 'true';
-const ORIGINS = new Set(['https://casey-digital-colleague-live-r04f5708j-mnbrain.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-393aa8-mnbrain.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','http://127.0.0.1:4173']);
+const ORIGINS = new Set(['https://casey-digital-colleague-live-hyjvjv7mf-mnbrain.vercel.app','https://casey-digital-colleague-live-r04f5708j-mnbrain.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-393aa8-mnbrain.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','http://127.0.0.1:4173']);
 const allowOrigin = (origin) => ORIGINS.has(origin);
 const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
