@@ -44,3 +44,22 @@ test('Anonymous knowledge never reads institution-specific documents',async()=>{
  assert.equal(response.status,200);assert.equal((await response.json()).verified,false);
  const lookup=b.calls.find(c=>c.url.includes('dc_v4_documents?'));assert.equal(new URL(lookup.url).searchParams.get('institution'),'in.(SHARED)');
 });
+
+test('Slot presentation handles Italian winter and summer offsets explicitly',()=>{
+ const b=backend();
+ const winter=vm.runInContext("slotPresentation({id:'winter',starts_at:'2026-10-26T08:00:00Z',ends_at:'2026-10-26T08:30:00Z'})",b.context);
+ const summer=vm.runInContext("slotPresentation({id:'summer',starts_at:'2026-10-19T07:00:00Z',ends_at:'2026-10-19T07:30:00Z'})",b.context);
+ assert.equal(winter.local_start,'2026-10-26 09:00');assert.equal(summer.local_start,'2026-10-19 09:00');assert.equal(summer.timezone,'Europe/Rome');
+});
+test('Unverified-information fallback respects selected EN and ES locales',async()=>{
+ for(const [locale,expected] of [['en-US','I do not have'],['es-ES','No tengo']]){
+  const b=backend();
+  vm.runInContext(`fetch=async(url,options={})=>url.includes('dc_take_rate')?Response.json(true):Response.json({candidates:[{content:{parts:[{text:JSON.stringify({intent:'information',response:'unsupported fact',citations:[]})}]}}]})`,b.context);
+  const response=await vm.runInContext(`aiInterpret('Question',{session_id:'test',recent_history:[],state:{}},null,[],'${locale}')`,b.context);
+  assert.ok(response.response.startsWith(expected));assert.equal(response.intent,'handoff');
+ }
+});
+test('Demo identity fields cannot authorize preparing a real booking',async()=>{
+ const b=backend();const response=await b.handle(new Request('https://test.supabase.co/functions/v1/casey6-original-ui',{method:'POST',headers:{origin,'x-session-token':'a'.repeat(72)},body:JSON.stringify({action:'prepare',scenario:'EMMA',student_number:'1234567',slot_id:'11111111-1111-4111-8111-111111111111'})}));
+ assert.equal(response.status,401);assert.ok(b.calls.every(c=>!c.url.includes('dc_v4_booking_confirmations')));
+});
