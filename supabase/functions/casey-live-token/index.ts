@@ -2,8 +2,8 @@
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const DB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default || '';
 const API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
-const MODEL = 'gemini-3.1-flash-live-preview';
-const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app', 'http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:4173', 'http://127.0.0.1:4173']);
+const MODEL = 'gemini-3.8-live';
+const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app', 'https://casey-digital-colleague-live-p7g86na4v-mnbrain.vercel.app', 'https://casey-digital-colleague-live-git-feature-casey-live-5-2-mnbrain.vercel.app', 'http://localhost:8000', 'http://127.0.0.1:8000', 'http://localhost:4173', 'http://127.0.0.1:4173']);
 const LANGUAGE: Record<string, string> = { 'it-IT': 'Italian', 'en-US': 'English', 'es-ES': 'Spanish' };
 const encoder = new TextEncoder();
 const cors = (origin: string) => ({ 'Access-Control-Allow-Origin': ORIGINS.has(origin) ? origin : 'https://casey-digital-colleague-live.vercel.app', 'Access-Control-Allow-Headers': 'content-type,x-session-token', 'Access-Control-Allow-Methods': 'POST,OPTIONS', 'Cache-Control': 'no-store', 'Vary': 'Origin' });
@@ -40,11 +40,11 @@ Deno.serve(async(req:Request)=>{
   if(typeof locale!=='string'||!Object.hasOwn(LANGUAGE,locale))return json({error:'Unsupported language'},400,origin);
   const now=Date.now();
   const instructions=`You are Casey, a helpful concise H-FARM student assistant. RESPOND ONLY IN ${LANGUAGE[locale]}. Never mix languages, regardless of user's accent. Talk naturally, briefly and warmly. When a user is choosing a date, time or option, ask once and silently WAIT for their decision. Do not repeatedly prompt during silence. Never claim to have checked a calendar, accessed Gmail, made a booking, sent an email or verified university policies. You have NO tools in this live conversational prototype. For any real-world action, explain that the user must use the existing Casey booking interface to confirm it. Never invent student records, openings, or institutional facts.`;
-  const config={responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Charon'}}},inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:false,prefixPaddingMs:40,silenceDurationMs:800}},systemInstruction:{parts:[{text:instructions}]}};
+  const config={generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Charon'}}}},inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:false,prefixPaddingMs:40,silenceDurationMs:800}},systemInstruction:{parts:[{text:instructions}]}};
   // Limit use to one Live session and its approved model/config; API key never reaches browser.
-  const google=await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({uses:1,newSessionExpireTime:new Date(now+60000).toISOString(),expireTime:new Date(now+20*60000).toISOString(),liveConnectConstraints:{model:'models/'+MODEL,config}}),signal:AbortSignal.timeout(9000)});
+  const google=await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({uses:1,newSessionExpireTime:new Date(now+60000).toISOString(),expireTime:new Date(now+20*60000).toISOString(),bidiGenerateContentSetup:{model:'models/'+MODEL,...config}}),signal:AbortSignal.timeout(9000)});
   const result=await google.json().catch(()=>({}));
-  if(!google.ok||typeof result.name!=='string') {console.error('Gemini token provisioning failed:',google.status);return json({error:'Gemini Live unavailable'},502,origin);}
+  if(!google.ok||typeof result.name!=='string') {const e=result?.error||{};console.error('Gemini token provisioning failed:',google.status,'code:',String(e.status||'unknown').slice(0,60),'message:',String(e.message||'unspecified').slice(0,350));return json({error:'Gemini Live unavailable'},502,origin);}
   return json({token:result.name,model:MODEL,config,expiresIn:60},200,origin);
  }catch(error){const status=typeof (error as any)?.status==='number'?(error as any).status:503;console.error('Casey Live token failure:',error instanceof Error?error.message:'Unknown');return json({error:status===429?'Demo session limit reached':'Live session unavailable'},status,origin);}
 });
