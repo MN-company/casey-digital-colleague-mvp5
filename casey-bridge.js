@@ -286,6 +286,11 @@
    if(!window.CaseyLive.ready){caption('Attendi che Live sia pronto.',null,'A');return;}
    if(window.CaseyLive.sendText(text))return;
   }
+  if(window.CaseyLive?.startText){
+   state.processing=true;
+   try{await ensureSession();if(await window.CaseyLive.startText()){window.CaseyLive.sendText(text);return;}}
+   finally{state.processing=false;}
+  }
   dismissOfficeRequest();state.processing=true;
   const mine=++turnRevision;turnController=new AbortController();
   const history=(window.CaseyDialogue?.snapshot()||[]).slice(-6).map(t=>({role:t.role,text:t.text.slice(0,900)}));

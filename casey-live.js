@@ -23,6 +23,8 @@
   let started = false;
   let starting = false;
   let ready = false;
+  let settleReady = null;
+  let readyPromise = Promise.resolve(false);
   let paused = false;
   let turnDone = false;
   let revision = 0;
@@ -104,7 +106,7 @@
     }
     if (pause) {
       pause.hidden = !started;
-      pause.textContent = paused ? 'Riprendi ascolto' : 'Pausa';
+      pause.textContent = !mediaStream ? 'Attiva microfono' : paused ? 'Riprendi ascolto' : 'Pausa';
     }
   }
   function sessionToken() {
@@ -178,8 +180,8 @@
       try { source.disconnect(); } catch (_) {}
       if (started && !paused && scheduled.size === 0 && turnDone) {
         finishResponse();
-        avatar('LISTEN');
-        status('In ascolto');
+        avatar(mediaStream?'LISTEN':'A');
+        status(listeningStatus());
       }
     };
     scheduled.add(source);
@@ -242,10 +244,11 @@
     if(packet.toolCall?.functionCalls){void handleToolCalls(packet.toolCall.functionCalls,mine);}
     if (packet.setupComplete) {
       ready = true;
+      settleReady?.(true); settleReady=null;
       clearTimeout(setupTimer);
       setupTimer = null;
-      status(paused ? 'Microfono in pausa' : 'In ascolto');
-      avatar(paused ? 'A' : 'LISTEN');
+      status(paused ? 'Microfono in pausa' : listeningStatus());
+      avatar(paused || !mediaStream ? 'A' : 'LISTEN');
       const history = window.CaseyDialogue?.snapshot() || [];
       if (history.length) socket.send(JSON.stringify({clientContent:{turns:history.map(t=>({role:t.role==='assistant'?'model':'user',parts:[{text:t.text}]})),turnComplete:false}}));
       console.info('Casey Live: sessione pronta' , {ms: Math.round(performance.now() - elapsedStart)});
@@ -259,8 +262,8 @@
     if (content.interrupted) {
       stopOutput();
       turnDone = false;
-      avatar('LISTEN');
-      status('In ascolto');
+      avatar(mediaStream?'LISTEN':'A');
+      status(listeningStatus());
       finishResponse();
     }
     if (content.inputTranscription?.text) {
@@ -284,8 +287,8 @@
       turnDone = true;
       if (!scheduled.size && !paused) {
         finishResponse();
-        status('In ascolto');
-        avatar('LISTEN');
+        status(listeningStatus());
+        avatar(mediaStream?'LISTEN':'A');
       }
     }
   }
@@ -301,6 +304,7 @@
 
   async function stop(reason = 'Live disattivato') {
     ++revision;
+    settleReady?.(false); settleReady=null;
     started = false; starting = false; ready = false; paused = false; turnDone = false;
     clearTimeout(setupTimer); setupTimer = null;
     const oldSocket = socket; socket = null;
@@ -324,9 +328,26 @@
     status(reason);
     render();
   }
-  async function start() {
+  function listeningStatus(){return mediaStream?'In ascolto':'Pronto · microfono spento';}
+  async function connectMicrophone(mine){
+    const stream=await navigator.mediaDevices.getUserMedia({audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true},video:false});
+    if(mine!==revision){for(const track of stream.getTracks())track.stop();return;}
+    mediaStream=stream;
+    mediaSource=audioContext.createMediaStreamSource(mediaStream);
+    if(audioContext.audioWorklet && window.AudioWorkletNode){
+      try{await audioContext.audioWorklet.addModule('casey-mic-worklet.js');if(mine!==revision)return;
+        processor=new window.AudioWorkletNode(audioContext,'casey-microphone');
+        processor.port.onmessage=event=>sendMicChunk({inputBuffer:{getChannelData:()=>event.data}});
+      }catch(_){processor=audioContext.createScriptProcessor(1024,1,1);}
+    }else processor=audioContext.createScriptProcessor(1024,1,1);
+    silentGain=audioContext.createGain();silentGain.gain.value=0;
+    mediaSource.connect(processor);processor.connect(silentGain);silentGain.connect(audioContext.destination);
+    if(!processor.port)processor.onaudioprocess=sendMicChunk;
+  }
+  async function start({microphone=true}={}) {
     if (started || starting) return;
     starting = true;
+    readyPromise=new Promise(resolve=>{settleReady=resolve;});
     window.cancelStandardTurn?.();
     window.stopStandardListening?.();
     window.CaseyVoice?.stop?.();
@@ -337,6 +358,8 @@
     render();
     status('Connessione Gemini...');
     try {
+      // Resume output within the text button's user gesture; no microphone permission is requested.
+      if(!microphone){audioContext=new (window.AudioContext || window.webkitAudioContext)();await audioContext.resume();}
       const session = sessionToken();
       if (!session) throw new Error('Sessione Casey non disponibile: aggiorna la pagina.');
       const language = window.CaseyVoice?.getLanguage?.() || 'it-IT';
@@ -352,32 +375,13 @@
         throw new Error('Configurazione Gemini non valida');
       }
       if (mine !== revision) return;
-      mediaStream = await navigator.mediaDevices.getUserMedia({
-        audio: {echoCancellation: true, noiseSuppression: true, autoGainControl: true},
-        video: false
-      });
-      if (mine !== revision) { for (const track of mediaStream.getTracks()) track.stop(); return; }
-      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+      if(!audioContext)audioContext=new (window.AudioContext || window.webkitAudioContext)();
+      if(microphone)await connectMicrophone(mine);
+      if(mine!==revision)return;
       await audioContext.resume();
-      if (mine !== revision) return;
-      mediaSource = audioContext.createMediaStreamSource(mediaStream);
-      outputGain = audioContext.createGain();
-      outputGain.gain.value = muted ? 0 : 1;
-      outputGain.connect(audioContext.destination);
-      if (audioContext.audioWorklet && window.AudioWorkletNode) {
-        try {
-          await audioContext.audioWorklet.addModule('casey-mic-worklet.js');
-          if (mine !== revision) return;
-          processor = new window.AudioWorkletNode(audioContext, 'casey-microphone');
-          processor.port.onmessage = event => sendMicChunk({inputBuffer:{getChannelData:()=>event.data}});
-        } catch (_) { processor = audioContext.createScriptProcessor(1024, 1, 1); }
-      } else processor = audioContext.createScriptProcessor(1024, 1, 1);
-      silentGain = audioContext.createGain();
-      silentGain.gain.value = 0;
-      mediaSource.connect(processor);
-      processor.connect(silentGain);
-      silentGain.connect(audioContext.destination);
-      if (!processor.port) processor.onaudioprocess = sendMicChunk;
+      if(mine!==revision)return;
+      outputGain=audioContext.createGain();outputGain.gain.value=muted?0:1;outputGain.connect(audioContext.destination);
+      if(mine!==revision)return;
 
       socket = new WebSocket(LIVE_ENDPOINT + encodeURIComponent(credentials.token));
       socket.binaryType = 'arraybuffer'; // required: otherwise setupComplete is delivered as Blob
@@ -431,28 +435,30 @@
       await stop('Live non disponibile: ' + String(error?.message || 'errore').slice(0,130));
     }
   }
-  function pause() {
+  async function pause() {
     if (!started) return;
+    if(!mediaStream){try{await connectMicrophone(revision);render();status(listeningStatus());avatar(mediaStream?'LISTEN':'A');}catch(_){status('Microfono non disponibile; puoi continuare a scrivere.');}return;}
     paused = !paused;
     if (paused) stopOutput();
     // Temporary pause must NOT send audioStreamEnd, which marks the stream as finished.
     for (const track of mediaStream?.getAudioTracks() || []) track.enabled = !paused;
-    status(paused ? 'Microfono in pausa' : ready ? 'In ascolto' : 'Inizializzazione audio...');
-    avatar(paused ? 'A' : 'LISTEN');
+    status(paused ? 'Microfono in pausa' : ready ? listeningStatus() : 'Inizializzazione audio...');
+    avatar(paused || !mediaStream ? 'A' : 'LISTEN');
     render();
   }
   function sendText(text) {
     if (!started || !ready || !socket || socket.readyState !== WebSocket.OPEN) return false;
-    text=String(text||'').trim(); if (!text) return false;
+    text=String(text||'').trim().slice(0,1000); if (!text) return false;
     stopOutput(); turnDone=false; awaitingTurn=true; requestAt=performance.now(); firstAudioAt=0;
     window.CaseyDialogue?.append('user',text); activity();
     socket.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text}]}],turnComplete:true}}));
     status('Casey sta rispondendo…'); return true;
   }
   function setMuted(value) { muted=!!value; if(outputGain)outputGain.gain.value=muted?0:1; }
-  async function changeLanguage() { if (started || starting) { await stop('Cambio lingua…'); await start(); } }
+  async function startText(){await start({microphone:false});return ready || await readyPromise;}
+  async function changeLanguage() { if (started || starting) { const microphone=!!mediaStream;await stop('Cambio lingua…');await start({microphone}); } }
   function toggle() { return started ? stop() : start(); }
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('pagehide', () => { if (started || starting) void stop(); });
-  window.CaseyLive = Object.freeze({toggle, start, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
+  window.CaseyLive = Object.freeze({toggle, start, startText, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
 })();

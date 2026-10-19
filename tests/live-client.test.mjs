@@ -15,6 +15,7 @@ function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true }
   const instances = [];
   const frames = [];
   const tracks = [{enabled: true, stop() {this.stopped = true;}}];
+  let microphoneCalls=0;
   let processor;
   const sources=[],avatars=[],dialogue=[],events=[];
   const context = {
@@ -35,7 +36,7 @@ function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true }
   const listeners={};
   const window = {dispatchEvent(e){events.push(e);},CaseyDialogue:{append:(role,text)=>dialogue.push({role,text}),snapshot:()=>[]},setAvatarState:s=>avatars.push(s),WebSocket, AudioContext: class {constructor(){return context;}}, CaseyVoice:{getLanguage:()=> 'it-IT'}, CaseyTools:{execute:async(name,args)=>({status:'ok',tool:name,args})}, addEventListener(name,handler) {listeners[name]=handler;}};
   const globals = {
-    window, WebSocket, navigator:{mediaDevices:{getUserMedia: async () => ({getTracks:()=>tracks, getAudioTracks:()=>tracks})}},
+    window, WebSocket, navigator:{mediaDevices:{getUserMedia: async () => {microphoneCalls++;return {getTracks:()=>tracks, getAudioTracks:()=>tracks};}}},
     sessionStorage:{getItem:()=>JSON.stringify({token:'session-token', exp:Date.now()+90000})},
     document:{getElementById:el, addEventListener() {}},
     fetch:async()=>({ok:httpStatus===200, status:httpStatus, json:async()=>httpStatus===200?{token:serverToken, model:'gemini-3.8-live', config:{generationConfig:{responseModalities:['AUDIO']}}}:{error:'Forbidden'}}),
@@ -44,7 +45,7 @@ function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true }
     btoa, atob, setTimeout, clearTimeout
   };
   vm.runInNewContext(client, globals, {filename:'casey-live.js'});
-  return {window, context, sources, avatars, dialogue, events, listeners, elems, el, frames, tracks, instances, get processor(){return processor;}};
+  return {get microphoneCalls(){return microphoneCalls;},window, context, sources, avatars, dialogue, events, listeners, elems, el, frames, tracks, instances, get processor(){return processor;}};
 }
 
 test('WebSocket binary ArrayBuffer setupComplete enables 16kHz PCM microphone streaming', async() => {
@@ -165,4 +166,18 @@ test('congested socket drops input with visible feedback',async()=>{
  const e=setup();await e.window.CaseyLive.start();const ws=e.instances[0];ws.onmessage({data:JSON.stringify({setupComplete:{}})});await tick();
  ws.bufferedAmount=33000;const before=e.frames.length;e.processor.onaudioprocess({inputBuffer:{getChannelData:()=>new Float32Array(1024)}});
  assert.equal(e.frames.length,before);assert.match(e.el('caseyLiveStatus').textContent,/Rete lenta/);await e.window.CaseyLive.stop();
+});
+
+test('text streaming starts Live without microphone access, then enables mic on explicit request',async()=>{
+ const e=setup();const ready=e.window.CaseyLive.startText();await tick();
+ assert.equal(e.microphoneCalls,0);assert.equal(e.instances.length,1);
+ e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});assert.equal(await ready,true);
+ assert.equal(e.el('caseyLiveStatus').textContent,'Pronto · microfono spento');
+ assert.equal(e.window.CaseyLive.sendText('Ciao'),true);
+ await e.window.CaseyLive.pause();assert.equal(e.microphoneCalls,1);assert.equal(e.instances.length,1);
+ await e.window.CaseyLive.stop();
+});
+test('language change keeps microphone off in a text-only session',async()=>{
+ const e=setup();const ready=e.window.CaseyLive.startText();await tick();e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});await ready;
+ await e.window.CaseyLive.changeLanguage();assert.equal(e.microphoneCalls,0);assert.equal(e.instances.length,2);await e.window.CaseyLive.stop();
 });
