@@ -44,27 +44,35 @@
     return voices.sort((a, b) => ranking(b) - ranking(a))[0];
   }
 
-  function browserSpeak(text, locale, done, id) {
+  function browserSpeak(text, locale, done, id, onProgress) {
     if (id !== requestNumber) return;
-    if (!('speechSynthesis' in window) || !window.SpeechSynthesisUtterance) { done(); return; }
+    if (!('speechSynthesis' in window) || !window.SpeechSynthesisUtterance) { onProgress?.(text); done(); return; }
     try {
       const synth = window.speechSynthesis;
       synth.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = locale;
-      utterance.voice = preferredBrowserVoice(locale);
-      utterance.rate = 1.0;
-      utterance.pitch = 1.0;
-      utterance.onend = done;
-      utterance.onerror = done;
-      synth.speak(utterance);
+      const sentences = text.match(/[^.!?]+[.!?]*\s*|[.!?]+/g) || [text];
+      let index=0, completed='';
+      const next=()=>{
+        if(id!==requestNumber)return;
+        if(index>=sentences.length){done();return;}
+        const sentence=sentences[index++];
+        const utterance=new SpeechSynthesisUtterance(sentence);
+        utterance.lang=locale;utterance.voice=preferredBrowserVoice(locale);
+        utterance.rate=1;utterance.pitch=1;
+        // Sentence cues also work with voices that never emit word boundaries.
+        utterance.onstart=()=>{if(id===requestNumber)onProgress?.((completed+sentence).trim());};
+        utterance.onend=()=>{if(id!==requestNumber)return;completed+=sentence;onProgress?.(completed.trim());next();};
+        utterance.onerror=()=>{if(id!==requestNumber)return;onProgress?.(text);done();};
+        synth.speak(utterance);
+      };
+      next();
     } catch (error) {
       console.warn('Casey: browser TTS unavailable:', error);
       done();
     }
   }
 
-  function speak(rawText, onFinish) {
+  function speak(rawText, onFinish, onProgress) {
     stop();
     const id = requestNumber;
     const text = String(rawText || '').trim();
@@ -77,7 +85,7 @@
     };
     if (!text) { done(); return; }
     active = {text};
-    browserSpeak(text, language, done, id);
+    browserSpeak(text, language, done, id, onProgress);
   }
 
   window.CaseyVoice = Object.freeze({ setLanguage, getLanguage, speak, stop, supportedLanguages: LANGUAGES });

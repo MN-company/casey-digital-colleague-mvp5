@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Casey — H-FARM College Digital Colleague</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <script src="casey-voice.js"></script>
+  <script src="casey-dialogue.js"></script>
+  <script src="casey-dates.js"></script>
   <style>
     :root {
       --hfarm-navy: #1D2347;
@@ -184,8 +187,8 @@
                class="w-full h-full object-cover"
                onerror="handleAvatarImgError(this)" />
 
-          <video id="videoPlayerA" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted autoplay></video>
-          <video id="videoPlayerB" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted autoplay></video>
+          <video id="videoPlayerA" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted preload="auto"></video>
+          <video id="videoPlayerB" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted preload="auto"></video>
         </div>
 
         <!-- Parte Bassa Kiosk: Sottotitoli + Input + QR Code Reale V1 -->
@@ -193,7 +196,7 @@
 
           <!-- Box Blu Sottotitoli -->
           <div class="bg-[#1D2347]/95 backdrop-blur-sm text-white rounded-2xl p-3.5 shadow-xl">
-            <p id="subtitleBox" class="text-[13px] leading-snug font-medium">
+            <p id="subtitleBox" role="log" aria-live="off" class="text-[13px] leading-snug font-medium" style="max-height:155px;overflow-y:auto;overflow-wrap:anywhere">
               <strong class="font-bold">Hi, I'm Casey, the Student</strong><br/>
               Office's AI assistant.<br/>
               How can I help?
@@ -411,7 +414,8 @@
       F: ['F.mp4', 'D.mp4', 'A.mp4']
     };
 
-    let currentVideoState = 'A';
+    let currentVideoState = null;
+    let videoRevision = 0;
     let activePlayer = document.getElementById('videoPlayerA');
     let standbyPlayer = document.getElementById('videoPlayerB');
     const videoBadge = document.getElementById('videoStateBadge');
@@ -430,6 +434,7 @@
     attachSmartTrim(standbyPlayer);
 
     function playVideoCandidates(candidates, loopVideo, stateLabel) {
+      const generation = ++videoRevision;
       let idx = 0;
       function tryNext() {
         if (idx >= candidates.length) {
@@ -443,6 +448,7 @@
         standbyPlayer.src = file;
 
         standbyPlayer.onloadeddata = () => {
+          if (generation !== videoRevision) return;
           standbyPlayer.muted = true;
 
           // Su A.mp4 parte dal secondo 5.25 (calmo a labbra chiuse); i nuovi C.mp4 e F.mp4 partono da 0:00!
@@ -456,6 +462,7 @@
 
           standbyPlayer.classList.remove('hidden');
           activePlayer.classList.add('hidden');
+          activePlayer.pause();
           standbyPlayer.play().catch(() => {});
           videoBadge.textContent = ` Stato ${stateLabel} (${file})`;
           const tmp = activePlayer;
@@ -472,6 +479,7 @@
     }
 
     function setAvatarState(state) {
+      if (currentVideoState === state) return;
       currentVideoState = state;
       const badge = document.getElementById('kioskBadgeText');
       const dot = document.getElementById('statusDot');
@@ -1320,10 +1328,16 @@
     let voiceMuted = false;
     let subtitleTimer = null;
     let speechSequence = 0;
+    window.cancelStandardSpeech = () => {
+      speechSequence++;
+      if (subtitleTimer) clearInterval(subtitleTimer);
+      window.CaseyVoice.stop();
+    };
 
     function onLanguageChange() {
       const value = document.getElementById('languageSelect').value;
       window.CaseyVoice.setLanguage(value);
+      if (window.CaseyLive?.active) void window.CaseyLive.changeLanguage();
     }
 
     function speakWithCaseyVoice(text, onFinishCallback) {
@@ -1352,34 +1366,25 @@
       // Passa a C.mp4 mentre Casey parla
       setAvatarState('C');
 
-      let speechFinished = false;
       const finishTalking = () => {
-        if (speechFinished || currentSequence !== speechSequence) return;
-        speechFinished = true;
-        if (endState === 'D' || endState === 'F' || endState === 'B') {
-          setAvatarState(endState);
-          setTimeout(() => setAvatarState('A'), 3400);
-        } else {
-          setAvatarState('A');
-        }
+        if (currentSequence !== speechSequence) return;
+        subBox.textContent = cleanText;
+        subBox.scrollTop = subBox.scrollHeight;
+        setAvatarState(endState);
       };
-
-      speakWithCaseyVoice(cleanText, finishTalking);
-
-      const words = cleanText.split(' ');
-      let i = 0;
-      subtitleTimer = setInterval(() => {
-        if (i < words.length) {
-          subBox.textContent += (i === 0 ? '' : ' ') + words[i];
-          i++;
-        } else {
-          clearInterval(subtitleTimer);
-          if (voiceMuted) finishTalking();
-        }
-      }, 115);
+      if (voiceMuted) { finishTalking(); return; }
+      window.CaseyVoice.speak(cleanText, finishTalking, (spoken) => {
+        if (currentSequence !== speechSequence) return;
+        subBox.textContent = spoken;
+        subBox.scrollTop = subBox.scrollHeight;
+      });
     }
 
     function triggerPresence() {
+      if (window.CaseyLive?.active) {
+        window.CaseyLive.sendText('Saluta brevemente e chiedi come puoi aiutarmi.');
+        return;
+      }
       setAvatarState('B');
       setTimeout(() => {
         const greetings = {
@@ -1399,11 +1404,12 @@
         const phrases = greetings[window.CaseyVoice.getLanguage()] || greetings['it-IT'];
         streamSubtitles(currentScenario === 'EMMA' ? phrases[0] : phrases[1],
           'BSc AI & Data Science Handbook 2025-26', 'A');
-      }, 1600);
+      }, 0);
     }
 
     function toggleVoiceMute() {
       voiceMuted = !voiceMuted;
+      window.CaseyLive?.setMuted?.(voiceMuted);
       if (voiceMuted) {
         window.CaseyVoice.stop();
         speechSequence++;
@@ -1412,10 +1418,17 @@
       document.getElementById('muteBtn').textContent = voiceMuted ? ' OFF' : ' ON';
     }
 
+    let standardRecognition = null;
+    window.stopStandardListening = () => { if (standardRecognition) { standardRecognition.abort(); standardRecognition = null; } };
     function toggleListening() {
+      if (window.CaseyLive?.active) { window.CaseyLive.pause(); return; }
+      window.CaseyVoice.stop();
+      window.stopStandardListening();
       const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
       if (!SpeechRec) return alert("Usa Chrome, Edge o Safari per parlare col microfono.");
       const rec = new SpeechRec();
+      standardRecognition = rec;
+      rec.onend = () => { if (standardRecognition === rec) standardRecognition = null; };
       rec.lang = window.CaseyVoice.getLanguage();
       setAvatarState('LISTEN');
       rec.onresult = (e) => sendUserMessage(e.results[0][0].transcript);
@@ -1424,6 +1437,9 @@
     }
 
     function resetDemo() {
+      void window.CaseyLive?.stop?.();
+      window.CaseyDialogue?.clear();
+      window.stopStandardListening();
       window.CaseyVoice.stop();
       speechSequence++;
       if (subtitleTimer) clearInterval(subtitleTimer);
@@ -1452,7 +1468,6 @@
   </div>
   <script src="config.js"></script>
   <script src="auth.0916809e.js"></script>
-  <script src="casey-voice.js"></script>
   <script src="casey-tools.js"></script>
   <script src="casey-live.js"></script>
   <script src="casey-bridge.js"></script>

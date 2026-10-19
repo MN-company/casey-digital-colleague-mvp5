@@ -37,11 +37,11 @@ jobs:
         with:
           version: 2.121.0
 
-      - name: Deploy only casey-original-ui
+      - name: Deploy production chat and Live configuration
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
         run: >-
-          supabase functions deploy casey-original-ui
+          supabase functions deploy casey-original-ui casey-live-token
           --project-ref oxzraaadxqsruibinlxn
           --no-verify-jwt
           --use-api
