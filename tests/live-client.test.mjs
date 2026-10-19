@@ -6,7 +6,7 @@ import test from 'node:test';
 const client = readFileSync(new URL('../casey-live.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function setup({ httpStatus = 200, serverToken = 'token-example' } = {}) {
+function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true } = {}) {
   const elems = new Map();
   function el(id) {
     if (!elems.has(id)) elems.set(id, {textContent: '', title: '', hidden: false, disabled: false});
@@ -16,6 +16,7 @@ function setup({ httpStatus = 200, serverToken = 'token-example' } = {}) {
   const frames = [];
   const tracks = [{enabled: true, stop() {this.stopped = true;}}];
   let processor;
+  const sources=[],avatars=[],dialogue=[],events=[];
   const context = {
     sampleRate: 48000, currentTime: 1, destination: {},
     resume: async () => {}, close: async () => {},
@@ -23,7 +24,7 @@ function setup({ httpStatus = 200, serverToken = 'token-example' } = {}) {
     createScriptProcessor: () => (processor = {connect() {}, disconnect() {}, onaudioprocess: null}),
     createGain: () => ({gain:{value: 1}, connect() {}, disconnect() {}}),
     createBuffer: (_ch, samples, rate) => ({duration: samples/rate, copyToChannel() {}}),
-    createBufferSource: () => ({connect() {}, disconnect() {}, start() {this.onended?.();}, stop() {}})
+    createBufferSource: () => {const source={connect() {}, disconnect() {}, start(when) {this.when=when;if(autoEnd)this.onended?.();}, stop() {}};sources.push(source);return source;}
   };
   class WebSocket {
     static OPEN = 1;
@@ -32,17 +33,18 @@ function setup({ httpStatus = 200, serverToken = 'token-example' } = {}) {
     close() {this.readyState = 3;}
   }
   const listeners={};
-  const window = {WebSocket, AudioContext: class {constructor(){return context;}}, CaseyVoice:{getLanguage:()=> 'it-IT'}, CaseyTools:{execute:async(name,args)=>({status:'ok',tool:name,args})}, addEventListener(name,handler) {listeners[name]=handler;}};
+  const window = {dispatchEvent(e){events.push(e);},CaseyDialogue:{append:(role,text)=>dialogue.push({role,text}),snapshot:()=>[]},setAvatarState:s=>avatars.push(s),WebSocket, AudioContext: class {constructor(){return context;}}, CaseyVoice:{getLanguage:()=> 'it-IT'}, CaseyTools:{execute:async(name,args)=>({status:'ok',tool:name,args})}, addEventListener(name,handler) {listeners[name]=handler;}};
   const globals = {
     window, WebSocket, navigator:{mediaDevices:{getUserMedia: async () => ({getTracks:()=>tracks, getAudioTracks:()=>tracks})}},
     sessionStorage:{getItem:()=>JSON.stringify({token:'session-token', exp:Date.now()+90000})},
     document:{getElementById:el, addEventListener() {}},
     fetch:async()=>({ok:httpStatus===200, status:httpStatus, json:async()=>httpStatus===200?{token:serverToken, model:'gemini-3.8-live', config:{generationConfig:{responseModalities:['AUDIO']}}}:{error:'Forbidden'}}),
+    CustomEvent:class {constructor(type,options){this.type=type;this.detail=options?.detail;}},
     AbortSignal, Blob, ArrayBuffer, DataView, Float32Array, Uint8Array, TextDecoder, console, performance,
     btoa, atob, setTimeout, clearTimeout
   };
   vm.runInNewContext(client, globals, {filename:'casey-live.js'});
-  return {window, listeners, elems, el, frames, tracks, instances, get processor(){return processor;}};
+  return {window, context, sources, avatars, dialogue, events, listeners, elems, el, frames, tracks, instances, get processor(){return processor;}};
 }
 
 test('WebSocket binary ArrayBuffer setupComplete enables 16kHz PCM microphone streaming', async() => {
@@ -137,4 +139,30 @@ test('Backend-verified booking result is reported to Gemini only after button wo
   assert.equal(messages.length,1);
   assert.match(messages[0].clientContent.turns[0].parts[0].text,/verified and created/);
   await env.window.CaseyLive.stop();
+});
+
+test('typed Live input uses the same socket and marks the user turn',async()=>{
+ const e=setup();await e.window.CaseyLive.start();const ws=e.instances[0];
+ assert.equal(e.window.CaseyLive.sendText('Not ready'),false);
+ ws.onmessage({data:JSON.stringify({setupComplete:{}})});await tick();
+ assert.equal(e.window.CaseyLive.sendText('Ricorda martedì'),true);
+ assert.equal(e.frames.at(-1).clientContent.turns[0].parts[0].text,'Ricorda martedì');
+ assert.equal(e.dialogue.at(-1).role,'user');await e.window.CaseyLive.stop();
+});
+test('Live transcript fragments accumulate, finish on audio end, and reset for next turn',async()=>{
+ const e=setup({autoEnd:false});await e.window.CaseyLive.start();const ws=e.instances[0];
+ ws.onmessage({data:JSON.stringify({setupComplete:{}})});await tick();
+ for(const text of ['Ciao ', 'come stai?'])ws.onmessage({data:JSON.stringify({serverContent:{outputTranscription:{text},modelTurn:{parts:[{inlineData:{data:btoa('\0\0'.repeat(2400)),mimeType:'audio/pcm;rate=24000'}}]}}})});
+ ws.onmessage({data:JSON.stringify({serverContent:{turnComplete:true}})});await tick();
+ for(const source of e.sources)source.onended();
+ assert.equal(e.el('subtitleBox').textContent,'Ciao come stai?');
+ assert.equal(e.dialogue.at(-1).text,'Ciao come stai?');
+ ws.onmessage({data:JSON.stringify({serverContent:{outputTranscription:{text:'Seconda frase.'},turnComplete:true}})});await tick();
+ assert.equal(e.el('subtitleBox').textContent,'Seconda frase.');
+ await e.window.CaseyLive.stop();
+});
+test('congested socket drops input with visible feedback',async()=>{
+ const e=setup();await e.window.CaseyLive.start();const ws=e.instances[0];ws.onmessage({data:JSON.stringify({setupComplete:{}})});await tick();
+ ws.bufferedAmount=33000;const before=e.frames.length;e.processor.onaudioprocess({inputBuffer:{getChannelData:()=>new Float32Array(1024)}});
+ assert.equal(e.frames.length,before);assert.match(e.el('caseyLiveStatus').textContent,/Rete lenta/);await e.window.CaseyLive.stop();
 });

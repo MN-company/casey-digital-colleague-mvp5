@@ -11,6 +11,8 @@
  const state={session:null,student:window.CaseyAuth.get(),profile:null,month:new Date().getUTCFullYear()+'-'+String(new Date().getUTCMonth()+1).padStart(2,'0'),
   officeSlots:[],events:[],bookings:[],calendarStatus:'',googleConnected:false,studentGoogleConnected:false,
   requests:[],requestIndex:0,pending:null,pendingRequest:'',slotsForDay:[],selectedDate:null,processing:false};
+ let turnController=null, turnRevision=0;
+ window.cancelStandardTurn=()=>{if(turnController){turnController.abort();turnController=null;++turnRevision;state.processing=false;}};
  const old={render:window.renderAll,scenario:window.setScenario,perspective:window.setPerspective,tab:window.switchTab,reset:window.resetDemo};
 
  // Shared-public-terminal protection: sign out authenticated students and staff after inactivity.
@@ -21,6 +23,7 @@
    if(!hadPrivate)return;
    window.CaseyAuth.clear();
    try{sessionStorage.removeItem('casey-v3-admin');sessionStorage.removeItem('casey-original-ui-session');}catch{}
+   window.CaseyDialogue?.clear();
    state.session=null;state.student=null;state.profile={authenticated:false,registered:false};
    state.events=[];state.bookings=[];state.requests=[];state.pendingRequest='';state.pending=null;
    state.processing=false;
@@ -36,6 +39,7 @@
  }
  function startKioskIdle(){
    for(const event of ['pointerdown','keydown','touchstart'])document.addEventListener(event,armKioskIdle,{passive:true});
+   window.addEventListener('casey:activity',armKioskIdle);
    armKioskIdle();
  }
 
@@ -47,6 +51,7 @@
  function notice(text){const el=$('caseyCalendarStatus');if(el)el.textContent=text;state.calendarStatus=text;}
  function caption(text,source=null,avatar='A'){
   // Never play browser TTS over the native Gemini Live audio stream.
+  window.CaseyDialogue?.append('assistant',String(text||''));
   if(window.CaseyLive?.active){$('subtitleBox').textContent=String(text||'');return;}
   if(typeof window.streamSubtitles==='function')window.streamSubtitles(text,source,avatar);
   else $('subtitleBox').textContent=text;
@@ -55,15 +60,30 @@
  function profileReady(){return !!state.profile?.registered;}
  function authToken(){return window.CaseyAuth.get()?.access_token||null;}
  function adminToken(){return sessionStorage.getItem('casey-v3-admin')||null;}
+ const metrics=[];
+ window.CaseyMetrics={snapshot:()=>metrics.map(x=>({...x}))};
  async function api(action,body={},opts={}){
+  const requestStart=performance.now();let firstTextAt=null;
   if(!state.session&&action!=='session'&&action!=='public_config')await ensureSession();
   const headers={'Content-Type':'application/json'};
   if(state.session)headers['x-session-token']=state.session;
   if(opts.student!==false&&authToken())headers['x-student-token']=authToken();
   if(opts.admin)headers['x-admin-token']=adminToken()||'';
-  const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...body}),signal:AbortSignal.timeout(26000)});
-  const data=await res.json().catch(()=>({error:'Risposta backend non leggibile'}));
+  const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...body}),signal:opts.signal?AbortSignal.any([opts.signal,AbortSignal.timeout(26000)]):AbortSignal.timeout(26000)});
+  let data;
+  if(res.ok && res.headers.get('content-type')?.includes('application/x-ndjson')){
+   const reader=res.body.getReader(),decoder=new TextDecoder();let pending='',complete=false;
+   const accept=line=>{if(!line.trim())return;const frame=JSON.parse(line);
+    if(frame.type==='text'&&typeof frame.text==='string'){if(firstTextAt===null)firstTextAt=performance.now();opts.onText?.(frame.text);}
+    if(frame.type==='done'){data=frame.result;complete=true;}
+    if(frame.type==='error')throw new Error(frame.error||'Risposta interrotta');
+   };
+   try{while(true){const {done,value}=await reader.read();pending+=decoder.decode(value||new Uint8Array(),{stream:!done});let at;while((at=pending.indexOf('\n'))>=0){accept(pending.slice(0,at));pending=pending.slice(at+1);}if(done){if(pending)accept(pending);break;}}}
+   finally{await reader.cancel().catch(()=>{});reader.releaseLock();}
+   if(!complete)throw new Error('Risposta interrotta: riprova.');
+  }else data=await res.json().catch(()=>({error:'Risposta backend non leggibile'}));
   if(!res.ok){const ex=new Error(data.error||'Errore '+res.status);ex.status=res.status;throw ex;}
+  metrics.push({action,durationMs:Math.round(performance.now()-requestStart),firstTextMs:firstTextAt===null?null:Math.round(firstTextAt-requestStart)});if(metrics.length>30)metrics.shift();
   return data;
  }
  async function ensureSession(){
@@ -258,31 +278,31 @@
   const r=await api('knowledge_lookup',{query:String(query||'').slice(0,360)});
   return {verified:r.verified===true,matches:r.matches||[],note:r.note||''};
  }
- function parseDesiredDay(text){
-  const iso=text.match(/\b20\d{2}-\d{2}-\d{2}\b/);if(iso)return iso[0];
-  const t=text.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
-  const names=['domenica','lunedi','martedi','mercoledi','giovedi','venerdi','sabato'];
-  const index=names.findIndex(n=>t.includes(n));
-  const now=new Date();
-  if(t.includes('domani')||t.includes('tomorrow')){const d=new Date(now.getTime()+86400000);return dateRome(d.toISOString());}
-  if(index<0)return null;
-  const current=new Intl.DateTimeFormat('en-US',{timeZone:TZ,weekday:'long'}).format(now).toLowerCase();const dayMap=['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];let offset=(index-dayMap.indexOf(current)+7)%7;if(offset===0)offset=7;
-  if(t.includes('prossim')||t.includes('next week'))offset+=7;
-  const d=new Date(now.getTime()+offset*86400000);return dateRome(d.toISOString());
- }
- function parseTime(text){const match=text.match(/(?:\balle\s*|\bore\s*|\bat\s+)(\d{1,2})(?::(\d{2}))?/i);if(!match)return null;const h=Number(match[1]),m=Number(match[2]||0);if(h>23||m>59)return null;return String(h).padStart(2,'0')+':'+String(m).padStart(2,'0');}
  async function sendUserMessage(customText=null){
   const input=$('userInput');const text=String(customText||input.value||'').trim();if(!text||state.processing)return;
   input.value='';
   if(state.pending){caption('Ho già preparato un appuntamento. Usa Confermo o Non confermo prima di proseguire.',null,'A');return;}
+  if(window.CaseyLive?.active){
+   if(!window.CaseyLive.ready){caption('Attendi che Live sia pronto.',null,'A');return;}
+   if(window.CaseyLive.sendText(text))return;
+  }
   dismissOfficeRequest();state.processing=true;
+  const mine=++turnRevision;turnController=new AbortController();
+  const history=(window.CaseyDialogue?.snapshot()||[]).slice(-6).map(t=>({role:t.role,text:t.text.slice(0,900)}));
+  window.CaseyDialogue?.append('user',text);
+  window.cancelStandardSpeech?.();
+  window.setAvatarState?.('E');
+  $('subtitleBox').textContent='Sto elaborando la richiesta…';
   try{
-   const outcome=await api('turn',{message:text,language:window.CaseyVoice?.getLanguage()||'it-IT',context:{phase:'awaiting_slot'}});
+   const outcome=await api('turn',{message:text,language:window.CaseyVoice?.getLanguage()||'it-IT',history,stream:true},{signal:turnController.signal,onText:value=>{if(mine!==turnRevision)return;$('subtitleBox').textContent=value;$('subtitleBox').scrollTop=$('subtitleBox').scrollHeight;}});
+   if(mine!==turnRevision)return;
    if(outcome.route==='stop'){clearConfirm();caption('Operazione interrotta. Non ho registrato alcuna prenotazione.',null,'A');return;}
    if(outcome.route==='booking'){
-    const day=parseDesiredDay(text),time=parseTime(text);
-    if(!state.googleConnected){caption('Il calendario Student Office non è ancora autorizzato. Senza il collegamento Google non posso proporre disponibilità come se fossero reali.',null,'F');return;}
-    const slots=(await api('slots',{...(day?{day}:{}),...(time?{time}:{})})).slots||[];
+    const {day,time,period,error}=outcome.appointment||window.CaseyDates.parseAppointment(text);
+    if(error){caption(error==='ambiguous_time'?'Intendi mattina o pomeriggio? Specifica per esempio 15:00.':'La data o l’ora non è valida o è già passata. Indica giorno e ora dell’appuntamento.',null,'A');return;}
+    const availability=await api('slots',{...(day?{day}:{}),...(time?{time}:{}),...(period?{period}:{})});
+    if(mine!==turnRevision)return;
+    const slots=availability.slots||[];
     if(slots.length===0){caption('Non trovo disponibilità Google verificate per questa richiesta. Prova un altro giorno oppure chiedi allo Student Office.',null,'F');return;}
     state.slotsForDay=slots;
     if(day){const [y,m]=day.split('-');state.month=y+'-'+m;}
@@ -294,8 +314,8 @@
    if(outcome.route==='thanks'){const copy={'it-IT':'Prego. Se non hai altre richieste, ci fermiamo qui.','en-US':'You are welcome. Let me know if you need anything else.','es-ES':'De nada. Dime si necesitas algo más.'};caption(copy[window.CaseyVoice.getLanguage()]||copy['it-IT'],null,'A');return;}
    if(outcome.answer){caption(outcome.answer,outcome.sources?.length?outcome.sources.map(x=>x.title).join(', '):null,outcome.route==='handoff'?'F':'D');}
    if(outcome.route==='handoff'){state.pendingRequest=text;$('caseyEscalate').hidden=false;}
-  }catch(e){caption(errorMessage(e),null,'F');}
-  finally{state.processing=false;}
+  }catch(e){if(mine===turnRevision)caption(errorMessage(e),null,'F');}
+  finally{if(mine===turnRevision){state.processing=false;turnController=null;}}
  }
  async function connectStudentGoogle(){
   if(!profileReady()){showLogin();return;}
@@ -303,7 +323,7 @@
  }
  function goToday(){state.month=dateRome(new Date().toISOString()).slice(0,7);refreshCalendar();}
  function shiftMonth(offset){const [y,m]=state.month.split('-').map(Number);const date=new Date(Date.UTC(y,m-1+offset,1));state.month=date.toISOString().slice(0,7);refreshCalendar();}
- async function logout(){try{await window.CaseyLive?.stop?.('Account disconnesso');}catch{}window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
+ async function logout(){window.CaseyDialogue?.clear();try{await window.CaseyLive?.stop?.('Account disconnesso');}catch{}window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
  async function init(){
   startKioskIdle();
   // Do not consume personal data when switching between Emma/Sofia demonstration steps.
@@ -312,7 +332,7 @@
   window.switchTab=id=>{currentTab=id==='QUEUE'?'GMAIL':id;window.renderAll();if(currentTab==='CALENDAR')refreshCalendar();if(currentTab==='GMAIL')refreshRequests();};
   window.setScenario=id=>{old.scenario(id);quickPrompts();};
   window.setPerspective=id=>{old.perspective(id);refreshCalendar();refreshRequests();};
-  window.resetDemo=()=>{dismissOfficeRequest();clearConfirm();state.slotsForDay=[];old.reset();refreshCalendar();refreshRequests();};
+  window.resetDemo=()=>{window.CaseyDialogue?.clear();dismissOfficeRequest();clearConfirm();state.slotsForDay=[];old.reset();refreshCalendar();refreshRequests();};
   $('caseyOtpStart').addEventListener('submit',async e=>{e.preventDefault();const email=$('caseyEmail').value.trim();const msg=$('caseyAuthFeedback');msg.textContent='Invio del codice in corso…';try{await window.CaseyAuth.sendCode(email);$('caseyOtpVerify').hidden=false;msg.textContent='Controlla la tua email: inserisci il codice OTP ricevuto. (Richiede template OTP configurato su Supabase.)';}catch(err){msg.textContent=errorMessage(err);}});
   $('caseyOtpVerify').addEventListener('submit',async e=>{e.preventDefault();try{await window.CaseyAuth.verifyCode($('caseyEmail').value.trim(),$('caseyOtp').value.trim());await refreshProfile();if(!profileReady()){$('caseyAuthFeedback').textContent='Email verificata, ma non sei nel registro studenti H-FARM autorizzato. Lo Student Office deve collegare il profilo.';return;}hideLogin();caption('Accesso completato. Il tuo account è associato a '+state.profile.institution+'.',null,'D');await refreshCalendar();await refreshRequests();}catch(err){$('caseyAuthFeedback').textContent=errorMessage(err);}});
   try{await ensureSession();await refreshProfile();}catch(e){caption('Il backend non è disponibile: '+errorMessage(e),null,'F');}

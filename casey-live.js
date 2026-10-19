@@ -7,7 +7,7 @@
 
   const TOKEN_ENDPOINT = window.CASEY_CONFIG?.liveTokenUrl || 'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-live-token';
   const LIVE_ENDPOINT = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=';
-  const MAX_WS_BUFFERED_BYTES = 400_000;
+  const MAX_WS_BUFFERED_BYTES = 32_000;
   const SETUP_TIMEOUT_MS = 15_000;
   const encoder = new TextDecoder();
   const get = (id) => document.getElementById(id);
@@ -30,6 +30,54 @@
   let receiveChain = Promise.resolve();
   let elapsedStart = 0;
   let chunksSent = 0;
+  let muted = false;
+  let outputGain = null;
+  let subtitleTimer = null;
+  let subtitleText = '';
+  let shownCharacters = 0;
+  let responseStart = 0;
+  let responseAudioEnd = 0;
+  let awaitingTurn = false;
+  let inputText = '';
+  let lastInputAt = 0;
+  let requestAt = 0;
+  let firstAudioAt = 0;
+  let droppedChunks = 0;
+  const diagnostics = [];
+  function metric(name, values) {
+    diagnostics.push({name, ...values});
+    if (diagnostics.length > 30) diagnostics.shift();
+  }
+  function activity() { window.dispatchEvent(new CustomEvent('casey:activity')); }
+  function resetSubtitles() {
+    clearTimeout(subtitleTimer); subtitleTimer = null;
+    subtitleText = ''; shownCharacters = 0; responseStart = responseAudioEnd = 0;
+  }
+  function paintSubtitles() {
+    subtitleTimer = null;
+    if (!audioContext || !subtitleText) return;
+    const now = audioContext.currentTime;
+    if (responseStart && now >= responseStart) {
+      const duration = Math.max(0.2, responseAudioEnd - responseStart);
+      const fraction = Math.min(1, Math.max(0, (now - responseStart) / duration));
+      let end = turnDone && !scheduled.size ? subtitleText.length : Math.floor(subtitleText.length * fraction);
+      // Reveal whole words; the transcript remains intact and scrollable.
+      if (end < subtitleText.length) { const boundary = subtitleText.lastIndexOf(' ', end); end = Math.max(0, boundary); }
+      shownCharacters = Math.max(shownCharacters, end);
+      subtitle(subtitleText.slice(0, shownCharacters));
+    }
+    if (scheduled.size || !turnDone) subtitleTimer = setTimeout(paintSubtitles, 40);
+  }
+  function startSubtitleClock() { if (!subtitleTimer) subtitleTimer = setTimeout(paintSubtitles, 0); }
+  function finishResponse() {
+    if (subtitleText) {
+      subtitle(subtitleText);
+      window.CaseyDialogue?.append('assistant', subtitleText);
+    }
+    if (awaitingTurn) { awaitingTurn = false; window.dispatchEvent(new CustomEvent('casey:live-turn-end')); }
+    if (firstAudioAt) metric('turn', {firstAudioMs:Math.round(firstAudioAt - requestAt), queuedAudioMs:Math.round(Math.max(0,outputAt-(audioContext?.currentTime||0))*1000)});
+    firstAudioAt = 0;
+  }
 
   function status(value) {
     const node = get('caseyLiveStatus');
@@ -40,7 +88,7 @@
   }
   function subtitle(value) {
     const node = get('subtitleBox');
-    if (node) node.textContent = value;
+    if (node) { node.textContent = value; node.scrollTop = node.scrollHeight; }
   }
   function avatar(state) {
     try {
@@ -103,6 +151,7 @@
     }
     scheduled.clear();
     outputAt = 0;
+    resetSubtitles();
   }
   function playPcm(base64Data, mimeType) {
     if (!started || paused || !audioContext) return;
@@ -117,13 +166,18 @@
     buffer.copyToChannel(pcm, 0);
     const source = audioContext.createBufferSource();
     source.buffer = buffer;
-    source.connect(audioContext.destination);
+    source.connect(outputGain || audioContext.destination);
     const when = Math.max(audioContext.currentTime + 0.035, outputAt);
     outputAt = when + buffer.duration;
+    if (!responseStart) responseStart = when;
+    responseAudioEnd = outputAt;
+    if (!firstAudioAt) { firstAudioAt = performance.now(); if (!requestAt) requestAt=lastInputAt||firstAudioAt; }
+    startSubtitleClock();
     source.onended = () => {
       scheduled.delete(source);
       try { source.disconnect(); } catch (_) {}
       if (started && !paused && scheduled.size === 0 && turnDone) {
+        finishResponse();
         avatar('LISTEN');
         status('In ascolto');
       }
@@ -157,7 +211,9 @@
       const name=typeof call.name==='string'?call.name:'';
       const id=typeof call.id==='string'?call.id:'';
       const args=call.args&&typeof call.args==='object'?call.args:{};
+      const toolStart=performance.now();
       const result=await window.CaseyTools?.execute?.(name,args)||{status:'tool_unavailable'};
+      metric('tool',{tool:name,ms:Math.round(performance.now()-toolStart)});
       return {name,id,response:{result}};
     }));
     if(mine!==revision||!socket||socket.readyState!==WebSocket.OPEN||!responses.length)return;
@@ -183,14 +239,16 @@
       void stop(reason);
       return;
     }
-    if(packet.toolCall?.functionCalls){void handleToolCalls(packet.toolCall.functionCalls,mine);return;}
+    if(packet.toolCall?.functionCalls){void handleToolCalls(packet.toolCall.functionCalls,mine);}
     if (packet.setupComplete) {
       ready = true;
       clearTimeout(setupTimer);
       setupTimer = null;
       status(paused ? 'Microfono in pausa' : 'In ascolto');
       avatar(paused ? 'A' : 'LISTEN');
-      console.info('Casey Live: sessione pronta', {ms: Math.round(performance.now() - elapsedStart)});
+      const history = window.CaseyDialogue?.snapshot() || [];
+      if (history.length) socket.send(JSON.stringify({clientContent:{turns:history.map(t=>({role:t.role==='assistant'?'model':'user',parts:[{text:t.text}]})),turnComplete:false}}));
+      console.info('Casey Live: sessione pronta' , {ms: Math.round(performance.now() - elapsedStart)});
       return;
     }
     if (packet.goAway) {
@@ -203,17 +261,29 @@
       turnDone = false;
       avatar('LISTEN');
       status('In ascolto');
+      finishResponse();
     }
     if (content.inputTranscription?.text) {
-      status('Tu: ' + String(content.inputTranscription.text).slice(0,100));
+      activity();
+      inputText += String(content.inputTranscription.text);
+      lastInputAt = performance.now(); requestAt = lastInputAt;
+      status('Tu: ' + inputText.slice(-100));
     }
-    if (content.outputTranscription?.text) subtitle(String(content.outputTranscription.text));
+    if (turnDone && (content.outputTranscription || content.modelTurn)) { resetSubtitles(); turnDone=false; }
+    if (content.outputTranscription?.text) {
+      subtitleText += String(content.outputTranscription.text);
+      startSubtitleClock();
+    }
+    if ((content.modelTurn || content.outputTranscription) && inputText) {
+      window.CaseyDialogue?.append('user',inputText); inputText='';
+    }
     for (const part of content.modelTurn?.parts || []) {
       if (part.inlineData?.data) playPcm(part.inlineData.data, part.inlineData.mimeType);
     }
     if (content.turnComplete) {
       turnDone = true;
       if (!scheduled.size && !paused) {
+        finishResponse();
         status('In ascolto');
         avatar('LISTEN');
       }
@@ -222,7 +292,7 @@
 
   function sendMicChunk(event) {
     if (!started || !ready || paused || !socket || socket.readyState !== WebSocket.OPEN) return;
-    if (socket.bufferedAmount > MAX_WS_BUFFERED_BYTES) return;
+    if (socket.bufferedAmount > MAX_WS_BUFFERED_BYTES) { droppedChunks++; if(droppedChunks===1||droppedChunks%50===0)metric('network',{droppedChunks}); status('Rete lenta: audio in ritardo'); return; }
     const samples = event.inputBuffer.getChannelData(0);
     const bytes = resamplePcm16(samples, audioContext.sampleRate);
     socket.send(JSON.stringify({realtimeInput: {audio: {data: toBase64(bytes), mimeType: 'audio/pcm;rate=16000'}}}));
@@ -238,11 +308,14 @@
       oldSocket.onclose = null; oldSocket.onerror = null; oldSocket.onmessage = null;
       try { oldSocket.close(); } catch (_) {}
     }
+    finishResponse();
     stopOutput();
+    if (processor?.port) { processor.port.onmessage=null; processor.port.close(); }
     if (processor) { processor.onaudioprocess = null; try { processor.disconnect(); } catch (_) {} }
     if (mediaSource) { try { mediaSource.disconnect(); } catch (_) {} }
     if (silentGain) { try { silentGain.disconnect(); } catch (_) {} }
-    processor = mediaSource = silentGain = null;
+    processor = mediaSource = silentGain = outputGain = null;
+    inputText='';
     for (const track of mediaStream?.getTracks() || []) track.stop();
     mediaStream = null;
     const oldContext = audioContext; audioContext = null;
@@ -254,9 +327,13 @@
   async function start() {
     if (started || starting) return;
     starting = true;
+    window.cancelStandardTurn?.();
+    window.stopStandardListening?.();
+    window.CaseyVoice?.stop?.();
+    window.cancelStandardSpeech?.();
     const mine = ++revision;
     elapsedStart = performance.now();
-    chunksSent = 0;
+    chunksSent = 0; droppedChunks=0;
     render();
     status('Connessione Gemini...');
     try {
@@ -284,13 +361,23 @@
       await audioContext.resume();
       if (mine !== revision) return;
       mediaSource = audioContext.createMediaStreamSource(mediaStream);
-      processor = audioContext.createScriptProcessor(2048, 1, 1);
+      outputGain = audioContext.createGain();
+      outputGain.gain.value = muted ? 0 : 1;
+      outputGain.connect(audioContext.destination);
+      if (audioContext.audioWorklet && window.AudioWorkletNode) {
+        try {
+          await audioContext.audioWorklet.addModule('casey-mic-worklet.js');
+          if (mine !== revision) return;
+          processor = new window.AudioWorkletNode(audioContext, 'casey-microphone');
+          processor.port.onmessage = event => sendMicChunk({inputBuffer:{getChannelData:()=>event.data}});
+        } catch (_) { processor = audioContext.createScriptProcessor(1024, 1, 1); }
+      } else processor = audioContext.createScriptProcessor(1024, 1, 1);
       silentGain = audioContext.createGain();
       silentGain.gain.value = 0;
       mediaSource.connect(processor);
       processor.connect(silentGain);
       silentGain.connect(audioContext.destination);
-      processor.onaudioprocess = sendMicChunk;
+      if (!processor.port) processor.onaudioprocess = sendMicChunk;
 
       socket = new WebSocket(LIVE_ENDPOINT + encodeURIComponent(credentials.token));
       socket.binaryType = 'arraybuffer'; // required: otherwise setupComplete is delivered as Blob
@@ -354,8 +441,18 @@
     avatar(paused ? 'A' : 'LISTEN');
     render();
   }
+  function sendText(text) {
+    if (!started || !ready || !socket || socket.readyState !== WebSocket.OPEN) return false;
+    text=String(text||'').trim(); if (!text) return false;
+    stopOutput(); turnDone=false; awaitingTurn=true; requestAt=performance.now(); firstAudioAt=0;
+    window.CaseyDialogue?.append('user',text); activity();
+    socket.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text}]}],turnComplete:true}}));
+    status('Casey sta rispondendo…'); return true;
+  }
+  function setMuted(value) { muted=!!value; if(outputGain)outputGain.gain.value=muted?0:1; }
+  async function changeLanguage() { if (started || starting) { await stop('Cambio lingua…'); await start(); } }
   function toggle() { return started ? stop() : start(); }
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('pagehide', () => { if (started || starting) void stop(); });
-  window.CaseyLive = Object.freeze({toggle, start, pause, stop, get active() {return started;}, get ready() {return ready;}});
+  window.CaseyLive = Object.freeze({toggle, start, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
 })();
