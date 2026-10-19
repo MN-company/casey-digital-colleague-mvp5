@@ -275,9 +275,9 @@ async function aiInterpret(message,conversation,person,docs,requestedLanguage='i
  const history=conversation.recent_history.slice(-6).filter(m=>['user','assistant'].includes(m.role)&&typeof m.text==='string').map(m=>({role:m.role==='assistant'?'model':'user',parts:[{text:redact(m.text).slice(0,1100)}]}));
  const contents=[...history,{role:'user',parts:[{text:redact(message).slice(0,2200)}]}];
  const payload={systemInstruction:{parts:[{text:instruction}]},contents,generationConfig:{temperature:0.1,thinkingConfig:{thinkingLevel:'low'},maxOutputTokens:1200,responseMimeType:'application/json',responseSchema:{type:'OBJECT',properties:{intent:{type:'STRING',enum:['booking','information','other','stop']},citations:{type:'ARRAY',items:{type:'STRING'}},response:{type:'STRING'}},required:['intent','citations','response'],propertyOrdering:['intent','citations','response']}}};
- let res;
- try{res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(GEMINI_TEXT_MODEL)+(onText?':streamGenerateContent?alt=sse':':generateContent'),{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(16000)});}catch{return null;}
- if(!res.ok){console.warn('Casey text Gemini rejected:',res.status);return null;}
+ let res;const generationStart=Date.now();let finishReason='';
+ try{res=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+encodeURIComponent(GEMINI_TEXT_MODEL)+(onText?':streamGenerateContent?alt=sse':':generateContent'),{method:'POST',headers:{'x-goog-api-key':GEMINI_API_KEY,'Content-Type':'application/json'},body:JSON.stringify(payload),signal:AbortSignal.timeout(16000)});}catch(error){console.warn('Gemini text transport failed',error?.name,Date.now()-generationStart);return {intent:'unavailable',failure:error?.name==='TimeoutError'?'model_timeout':'transport_error'};}
+ if(!res.ok){console.warn('Casey text Gemini rejected:',res.status);return {intent:'unavailable',failure:'model_http_'+res.status};}
  let content='';
  if(onText && res.body){
   const reader=res.body.getReader(),decoder=new TextDecoder();let pending='';
@@ -286,6 +286,7 @@ async function aiInterpret(message,conversation,person,docs,requestedLanguage='i
    const value=line.slice(5).trim();if(!value||value==='[DONE]')return;
    const event=JSON.parse(value);
    if(event.error)throw new Error('Gemini streaming failed');
+   if(event.candidates?.[0]?.finishReason)finishReason=event.candidates[0].finishReason;
    for(const part of event.candidates?.[0]?.content?.parts||[])if(typeof part.text==='string'&&!part.thought)content+=part.text;
    if(content.length>24000)throw new Error('Gemini response too large');
    // Never expose policy text until the model has supplied verified citation IDs.
@@ -304,7 +305,7 @@ async function aiInterpret(message,conversation,person,docs,requestedLanguage='i
    try{onText(JSON.parse('"'+escaped+'"').slice(0,900));}catch{}
   };
   try{while(true){const {done,value}=await reader.read();pending+=decoder.decode(value||new Uint8Array(),{stream:!done});let at;while((at=pending.indexOf('\n'))>=0){accept(pending.slice(0,at).replace(/\r$/,''));pending=pending.slice(at+1);}if(done){if(pending)accept(pending);break;}}}
-  catch{await reader.cancel().catch(()=>{});return null;}
+  catch(error){console.warn('Gemini text stream failed',error?.name,content.length,finishReason,Date.now()-generationStart);await reader.cancel().catch(()=>{});return {intent:'unavailable',failure:error?.name==='TimeoutError'?'model_timeout':'stream_error'};}
   finally{reader.releaseLock();}
  } else {
   const data=await res.json().catch(()=>({}));
@@ -314,7 +315,7 @@ async function aiInterpret(message,conversation,person,docs,requestedLanguage='i
   if(!allowed.includes(x.intent)||typeof x.response!=='string')return null;
   if(x.intent==='information'&&!citations.length)return {intent:'handoff',response:({'it-IT':'Non ho una fonte ufficiale verificata per questa risposta. Ti consiglio di rivolgerti allo Student Office.','en-US':'I do not have a verified official source for that answer. Please contact Student Office.','es-ES':'No tengo una fuente oficial verificada para esta respuesta. Contacta con Student Office.'})[requestedLanguage]||'I do not have a verified official source. Please contact Student Office.',citations:[]};
   return {intent:x.intent,response:x.response.slice(0,900),citations:docs.filter(d=>citations.includes(d.id)).map(d=>({id:d.id,title:d.title,url:d.source_url}))};
- }catch{return null;}
+ }catch{return {intent:'unavailable',failure:'invalid_output_'+finishReason};}
 }
 async function sessionFrom(req){const token=req.headers.get('x-session-token');if(!token||token.length!==72){const e=new Error('Session required');e.status=401;throw e;}
  const rows=await db('dc_sessions?'+qs({select:'id',token_hash:'eq.'+await digest(token),expires_at:'gt.'+new Date().toISOString()}));if(!rows[0]){const e=new Error('Session expired');e.status=401;throw e;}return rows[0].id;}
@@ -642,8 +643,8 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     } else {
     const docs=await knowledge(text,person?.student);
     const ai=await aiInterpret(text,{session_id:session,recent_history:history,state:informationQuestion?{phase:'ready'}:{...workflow}},person,docs,['it-IT','en-US','es-ES'].includes(b.language)?b.language:'it-IT',onText);
-    if(ai){decision={route:informationQuestion&&ai.intent==='booking'?'answer':ai.intent==='information'?'answer':ai.intent==='other'?'answer':ai.intent,mode:'llm',answer:ai.response,sources:ai.citations||[]};}
-    else decision={route:'handoff',mode:'safe_fallback',answer:({'en-US':'I cannot verify that request. Please contact Student Office, or ask me to find an appointment.','es-ES':'No puedo verificar esta solicitud. Contacta con Student Office o pide buscar una cita.','it-IT':'Non riesco a verificare questa richiesta. Puoi contattare lo Student Office oppure chiedermi di cercare un appuntamento.'})[b.language]||'Non riesco a verificare questa richiesta. Contatta lo Student Office.',sources:[]};
+    if(ai&&!ai.failure){decision={route:informationQuestion&&ai.intent==='booking'?'answer':ai.intent==='information'?'answer':ai.intent==='other'?'answer':ai.intent,mode:'llm',answer:ai.response,sources:ai.citations||[]};}
+    else decision={route:'handoff',mode:'safe_fallback',diagnostic:ai?.failure||'unavailable',answer:({'en-US':'I cannot verify that request. Please contact Student Office, or ask me to find an appointment.','es-ES':'No puedo verificar esta solicitud. Contacta con Student Office o pide buscar una cita.','it-IT':'Non riesco a verificare questa richiesta. Puoi contattare lo Student Office oppure chiedermi di cercare un appuntamento.'})[b.language]||'Non riesco a verificare questa richiesta. Contatta lo Student Office.',sources:[]};
     }
    }
    await saveConversation(session,person,prev,[...history,{role:'user',text,at:new Date().toISOString()},...(decision.answer?[{role:'assistant',text:redact(decision.answer),at:new Date().toISOString()}]:[])],{phase:decision.route==='booking'?'awaiting_slot':decision.route==='stop'?'cancelled':'ready',...(decision.route==='booking'?{day:appointment.day,time:appointment.time,period:appointment.period}:{})});
