@@ -11,6 +11,8 @@
  const state={session:null,student:window.CaseyAuth.get(),profile:null,month:new Date().getUTCFullYear()+'-'+String(new Date().getUTCMonth()+1).padStart(2,'0'),
   officeSlots:[],events:[],bookings:[],calendarStatus:'',googleConnected:false,studentGoogleConnected:false,
   requests:[],requestIndex:0,pending:null,pendingRequest:'',slotsForDay:[],selectedDate:null,processing:false};
+ let turnController=null, turnRevision=0;
+ window.cancelStandardTurn=()=>{if(turnController){turnController.abort();turnController=null;++turnRevision;state.processing=false;}};
  const old={render:window.renderAll,scenario:window.setScenario,perspective:window.setPerspective,tab:window.switchTab,reset:window.resetDemo};
 
  // Shared-public-terminal protection: sign out authenticated students and staff after inactivity.
@@ -67,7 +69,7 @@
   if(state.session)headers['x-session-token']=state.session;
   if(opts.student!==false&&authToken())headers['x-student-token']=authToken();
   if(opts.admin)headers['x-admin-token']=adminToken()||'';
-  const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...body}),signal:AbortSignal.timeout(26000)});
+  const res=await fetch(API,{method:'POST',headers,body:JSON.stringify({action,...body}),signal:opts.signal?AbortSignal.any([opts.signal,AbortSignal.timeout(26000)]):AbortSignal.timeout(26000)});
   let data;
   if(res.ok && res.headers.get('content-type')?.includes('application/x-ndjson')){
    const reader=res.body.getReader(),decoder=new TextDecoder();let pending='',complete=false;
@@ -285,18 +287,21 @@
    if(window.CaseyLive.sendText(text))return;
   }
   dismissOfficeRequest();state.processing=true;
+  const mine=++turnRevision;turnController=new AbortController();
   const history=(window.CaseyDialogue?.snapshot()||[]).slice(-6).map(t=>({role:t.role,text:t.text.slice(0,900)}));
   window.CaseyDialogue?.append('user',text);
   window.cancelStandardSpeech?.();
   window.setAvatarState?.('E');
   $('subtitleBox').textContent='Sto elaborando la richiesta…';
   try{
-   const outcome=await api('turn',{message:text,language:window.CaseyVoice?.getLanguage()||'it-IT',history,stream:true},{onText:value=>{$('subtitleBox').textContent=value;$('subtitleBox').scrollTop=$('subtitleBox').scrollHeight;}});
+   const outcome=await api('turn',{message:text,language:window.CaseyVoice?.getLanguage()||'it-IT',history,stream:true},{signal:turnController.signal,onText:value=>{if(mine!==turnRevision)return;$('subtitleBox').textContent=value;$('subtitleBox').scrollTop=$('subtitleBox').scrollHeight;}});
+   if(mine!==turnRevision)return;
    if(outcome.route==='stop'){clearConfirm();caption('Operazione interrotta. Non ho registrato alcuna prenotazione.',null,'A');return;}
    if(outcome.route==='booking'){
     const {day,time,period,error}=outcome.appointment||window.CaseyDates.parseAppointment(text);
     if(error){caption(error==='ambiguous_time'?'Intendi mattina o pomeriggio? Specifica per esempio 15:00.':'La data o l’ora non è valida o è già passata. Indica giorno e ora dell’appuntamento.',null,'A');return;}
     const availability=await api('slots',{...(day?{day}:{}),...(time?{time}:{}),...(period?{period}:{})});
+    if(mine!==turnRevision)return;
     const slots=availability.slots||[];
     if(slots.length===0){caption('Non trovo disponibilità Google verificate per questa richiesta. Prova un altro giorno oppure chiedi allo Student Office.',null,'F');return;}
     state.slotsForDay=slots;
@@ -309,8 +314,8 @@
    if(outcome.route==='thanks'){const copy={'it-IT':'Prego. Se non hai altre richieste, ci fermiamo qui.','en-US':'You are welcome. Let me know if you need anything else.','es-ES':'De nada. Dime si necesitas algo más.'};caption(copy[window.CaseyVoice.getLanguage()]||copy['it-IT'],null,'A');return;}
    if(outcome.answer){caption(outcome.answer,outcome.sources?.length?outcome.sources.map(x=>x.title).join(', '):null,outcome.route==='handoff'?'F':'D');}
    if(outcome.route==='handoff'){state.pendingRequest=text;$('caseyEscalate').hidden=false;}
-  }catch(e){caption(errorMessage(e),null,'F');}
-  finally{state.processing=false;}
+  }catch(e){if(mine===turnRevision)caption(errorMessage(e),null,'F');}
+  finally{if(mine===turnRevision){state.processing=false;turnController=null;}}
  }
  async function connectStudentGoogle(){
   if(!profileReady()){showLogin();return;}

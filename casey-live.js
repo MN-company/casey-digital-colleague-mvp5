@@ -327,6 +327,7 @@
   async function start() {
     if (started || starting) return;
     starting = true;
+    window.cancelStandardTurn?.();
     window.stopStandardListening?.();
     window.CaseyVoice?.stop?.();
     window.cancelStandardSpeech?.();
@@ -453,5 +454,5 @@
   function toggle() { return started ? stop() : start(); }
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('pagehide', () => { if (started || starting) void stop(); });
-  window.CaseyLive = Object.freeze({toggle, start, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started;}, get ready() {return ready;}});
+  window.CaseyLive = Object.freeze({toggle, start, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
 })();
