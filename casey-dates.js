@@ -40,5 +40,17 @@
     if(day&&day<iso(today))error='past_date';
     return {day,time,period,error,explicitDay};
   }
-  root.CaseyDates=Object.freeze({parseAppointment});
+  function fromHistory(turns,instant=new Date()){
+    let context={phase:'ready'};
+    for(const turn of turns||[]){
+      if(turn.role!=='user')continue;
+      const text=String(turn.text||'');const fresh=parseAppointment(text,{},instant);
+      const information=/\b(come|how|what|cosa|spiega|explain|studio|study|perche|why|regola|rule|esame|exam)\b/i.test(text);
+      const booking=/\b(prenot\w*|appuntament\w*|appointment|book\w*|cita|reserva\w*|slot)\b/i.test(text);
+      if(booking||(!information&&(fresh.explicitDay||fresh.time||fresh.period||fresh.error==='ambiguous_time')))context={...parseAppointment(text,context,instant),phase:'awaiting_slot'};
+      else if(!/^\s*(si|sì|yes|ok|va bene|vale)[.!\s]*$/i.test(text))context={phase:'ready'};
+    }
+    return context;
+  }
+  root.CaseyDates=Object.freeze({parseAppointment,fromHistory});
 })(typeof window!=='undefined'?window:globalThis);

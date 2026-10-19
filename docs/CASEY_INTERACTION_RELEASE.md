@@ -16,7 +16,7 @@ Production deployment explicitly requested by the user after review. No schema m
 
 ## Verification before production
 
-49 Node tests pass, including fragmented SSE, unsupported-source suppression, date and DST edge cases, cumulative Live transcripts, congestion, Live typed input and existing production/preview authorization checks. Browser loaded the actual local document with no JavaScript errors.
+51 Node tests pass, including fragmented SSE, unsupported-source suppression, date and DST edge cases, cumulative Live transcripts, congestion, Live typed input and existing production/preview authorization checks. Browser loaded the actual local document with no JavaScript errors.
 
 Real restricted-backend checks: date follow-up retained 20 October while changing 15:00 to 16:00; Calendar FreeBusy read returned 12 available slots; token constrained to 500 ms silence; SSE delivered six progressive text events and a final answer. Real Gemini Live remembered “verde” across two typed turns. A locally synthesized Italian PCM utterance was streamed at realtime speed and recognized, generating “Buongiorno!” audio. The utterance had nonzero measured signal; no personal audio was used. An additional fresh audio-only session kept sending silence without audioStreamEnd: automatic endpointing recognized the utterance and produced audio about 1.1 seconds after the synthetic speech ended. This is not a physical microphone/noise/echo certification.
 

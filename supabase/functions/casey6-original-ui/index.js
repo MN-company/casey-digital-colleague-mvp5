@@ -45,7 +45,19 @@
     if(day&&day<iso(today))error='past_date';
     return {day,time,period,error,explicitDay};
   }
-  root.CaseyDates=Object.freeze({parseAppointment});
+  function fromHistory(turns,instant=new Date()){
+    let context={phase:'ready'};
+    for(const turn of turns||[]){
+      if(turn.role!=='user')continue;
+      const text=String(turn.text||'');const fresh=parseAppointment(text,{},instant);
+      const information=/\b(come|how|what|cosa|spiega|explain|studio|study|perche|why|regola|rule|esame|exam)\b/i.test(text);
+      const booking=/\b(prenot\w*|appuntament\w*|appointment|book\w*|cita|reserva\w*|slot)\b/i.test(text);
+      if(booking||(!information&&(fresh.explicitDay||fresh.time||fresh.period||fresh.error==='ambiguous_time')))context={...parseAppointment(text,context,instant),phase:'awaiting_slot'};
+      else if(!/^\s*(si|sì|yes|ok|va bene|vale)[.!\s]*$/i.test(text))context={phase:'ready'};
+    }
+    return context;
+  }
+  root.CaseyDates=Object.freeze({parseAppointment,fromHistory});
 })(typeof window!=='undefined'?window:globalThis);
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
@@ -616,10 +628,11 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    const history=(supplied.length?supplied:(prev?.recent_history||[])).slice(-9);
    const text=redact(b.message.trim());
    let route=intent(text);
-   const appointment=globalThis.CaseyDates.parseAppointment(text,prev?.state?.phase==='awaiting_slot'?prev.state:{});
+   const workflow=supplied.length?globalThis.CaseyDates.fromHistory(history):(prev?.state||{});
+   const appointment=globalThis.CaseyDates.parseAppointment(text,workflow.phase==='awaiting_slot'?workflow:{});
    const mentioned=globalThis.CaseyDates.parseAppointment(text);
    const informationQuestion=/\b(come|how|what|cosa|spiega|explain|studio|study|perche|why|regola|rule|esame|exam)\b/i.test(text);
-   if(route==='complex'&&prev?.state?.phase==='awaiting_slot'&&!informationQuestion&&(mentioned.explicitDay||mentioned.time||mentioned.period||mentioned.error==='ambiguous_time'))route='booking';
+   if(route==='complex'&&workflow.phase==='awaiting_slot'&&!informationQuestion&&(mentioned.explicitDay||mentioned.time||mentioned.period||mentioned.error==='ambiguous_time'))route='booking';
    let decision={route,mode:'rules',answer:null,sources:[]};
    if(route==='complex'){
     // A reviewed FAQ answer can bypass a model entirely on a public terminal.
@@ -628,7 +641,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
       decision={route:'answer',mode:'verified_faq',answer:faq.answer,sources:[{title:faq.title,url:faq.source_url}]};
     } else {
     const docs=await knowledge(text,person?.student);
-    const ai=await aiInterpret(text,{session_id:session,recent_history:history,state:informationQuestion?{phase:'ready'}:{...(prev?.state||{})}},person,docs,['it-IT','en-US','es-ES'].includes(b.language)?b.language:'it-IT',onText);
+    const ai=await aiInterpret(text,{session_id:session,recent_history:history,state:informationQuestion?{phase:'ready'}:{...workflow}},person,docs,['it-IT','en-US','es-ES'].includes(b.language)?b.language:'it-IT',onText);
     if(ai){decision={route:informationQuestion&&ai.intent==='booking'?'answer':ai.intent==='information'?'answer':ai.intent==='other'?'answer':ai.intent,mode:'llm',answer:ai.response,sources:ai.citations||[]};}
     else decision={route:'handoff',mode:'safe_fallback',answer:({'en-US':'I cannot verify that request. Please contact Student Office, or ask me to find an appointment.','es-ES':'No puedo verificar esta solicitud. Contacta con Student Office o pide buscar una cita.','it-IT':'Non riesco a verificare questa richiesta. Puoi contattare lo Student Office oppure chiedermi di cercare un appuntamento.'})[b.language]||'Non riesco a verificare questa richiesta. Contatta lo Student Office.',sources:[]};
     }
