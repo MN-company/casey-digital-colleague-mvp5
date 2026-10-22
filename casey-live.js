@@ -101,7 +101,8 @@
     const toggle = get('caseyLiveBtn');
     const pause = get('caseyLivePause');
     if (toggle) {
-      toggle.textContent = started ? 'Termina voce' : starting ? 'Connessione...' : typeof location!=='undefined'&&location.pathname.endsWith('/college.html') ? 'Parla con Casey' : 'Avvia Live';
+      const phone=typeof location!=='undefined'&&location.pathname.endsWith('/college.html');
+      toggle.textContent = starting ? 'Connessione...' : started ? phone&&!mediaStream?'Parla con Casey':'Termina voce' : phone?'Parla con Casey':'Avvia Live';
       toggle.disabled = starting;
     }
     if (pause) {

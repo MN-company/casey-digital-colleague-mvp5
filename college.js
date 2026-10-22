@@ -2,7 +2,7 @@
  'use strict';const A=window.HandoffAPI,C=window.CASEY_CONFIG,$=id=>document.getElementById(id);
  const params=new URLSearchParams(location.hash.slice(1));let handoff=params.get('handoff')||sessionStorage.getItem('casey-handoff-v2-pending')||'';
  history.replaceState(null,'',location.pathname);if(/^[a-f0-9]{64}$/.test(handoff))sessionStorage.setItem('casey-handoff-v2-pending',handoff);else handoff='';
- let version=0,loading=true,busy=false,saveTimer=null,queue=Promise.resolve(),saved='',handoffCount=0,lastRequest='',liveDraft=null;
+ let version=0,loading=true,busy=false,saveTimer=null,queue=Promise.resolve(),saved='',handoffCount=0,lastRequest='',liveDraft=null,voiceMode=false;
  function notice(text){$('chatStatus').textContent=text;$('collegeStatus').textContent=text;}
  function expired(){notice('Accedi di nuovo per continuare. I messaggi restano salvati.');$('reloginButton').hidden=false;}
  function renderLogin(){const signed=!!A.auth();$('loginCard').hidden=signed;$('resumeCard').hidden=!signed;$('resumeButton').hidden=!sessionStorage.getItem('casey-handoff-v2-chat-id');}
@@ -23,15 +23,24 @@
   }catch(err){notice(err.message);renderLogin();}}
  $('collegeLogin').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;notice('Accesso in corso…');try{const r=await fetch(C.supabaseUrl+'/auth/v1/token?grant_type=password',{method:'POST',headers:{apikey:C.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({email:$('email').value.trim(),password:$('password').value}),signal:AbortSignal.timeout(16000)});const d=await r.json();if(!r.ok||!d.access_token)throw new Error('Email o password non valide');window.CaseyAuth?.clear();sessionStorage.setItem(A.authKey,JSON.stringify({access_token:d.access_token,email:d.user.email,expires_at:Date.now()+d.expires_in*1000}));$('password').value='';await continueChat();}catch(err){notice(err.message);}finally{button.disabled=false;}};
  $('resumeButton').onclick=continueChat;
+ function waitForReply(){let timer,watch,done;const promise=new Promise((resolve,reject)=>{const finish=(err)=>{clearTimeout(timer);clearInterval(watch);window.removeEventListener('casey:live-turn-end',done);err?reject(err):resolve();};done=()=>finish();window.addEventListener('casey:live-turn-end',done,{once:true});timer=setTimeout(()=>finish(new Error('Casey sta impiegando più tempo del previsto. Puoi riprovare.')),45000);watch=setInterval(()=>{if(!CaseyLive.active)finish(new Error($('caseyLiveStatus').textContent||'Connessione interrotta'));},200);});return promise;}
  async function send(text){if(busy||!text.trim())return;if(!A.auth()){expired();return;}lastRequest=text.trim();$('retryButton').hidden=true;busy=true;$('sendButton').disabled=true;
-  try{if(CaseyLive.active){if(!CaseyLive.ready)throw new Error('Attendi la connessione vocale oppure termina la voce e scrivi.');CaseyLive.sendText(lastRequest);$('chatInput').value='';return;}
+  try{
+   if(/in pausa/i.test($('caseyLiveStatus').textContent)){await CaseyLive.stop();voiceMode=false;}
+   CaseyLive.setMuted(!voiceMode);
+   let connected=CaseyLive.ready;
+   if(!CaseyLive.active){notice('Connetto Casey…');connected=await CaseyLive.startText();}
+   if(connected){const reply=waitForReply();CaseyLive.sendText(lastRequest);$('chatInput').value='';notice('Casey sta rispondendo…');await reply;await persist();notice('');return;}
+   // REST remains available if the Live transport cannot establish a session.
    CaseyDialogue.append('user',lastRequest);$('chatInput').value='';await persist();notice('Casey sta rispondendo…');
    const result=await A.call('chat_turn');CaseyDialogue.append('assistant',result.answer);await persist();notice('');
   }catch(err){notice(/timeout|timed out/i.test(err.message)?'Casey sta impiegando più tempo del previsto. La conversazione è salvata: puoi riprovare.':err.message);$('retryButton').hidden=false;}finally{busy=false;$('sendButton').disabled=false;}}
  $('chatForm').onsubmit=e=>{e.preventDefault();void send($('chatInput').value);};$('chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();void send($('chatInput').value);}};
  $('retryButton').onclick=()=>void send(lastRequest);
- $('caseyLiveBtn').onclick=async()=>{if(!A.auth()){expired();return;}if(busy)return;try{await persist();if(CaseyLive.active)await CaseyLive.stop('Voce terminata. Puoi continuare a scrivere.');else await CaseyLive.start();}catch(err){notice(err.message);}};
- $('caseyLivePause').onclick=()=>CaseyLive.pause();
+ $('caseyLiveBtn').onclick=async()=>{if(!A.auth()){expired();return;}if(busy)return;try{if(CaseyLive.active&&!voiceMode){voiceMode=true;CaseyLive.setMuted(false);await CaseyLive.pause();}
+  else if(CaseyLive.active){voiceMode=false;await CaseyLive.stop('Voce terminata. Puoi continuare a scrivere.');}
+  else{voiceMode=true;CaseyLive.setMuted(false);await CaseyLive.start();}}catch(err){voiceMode=false;notice(err.message);}};
+ $('caseyLivePause').onclick=()=>{voiceMode=true;CaseyLive.setMuted(false);void CaseyLive.pause();};
  new MutationObserver(()=>{const text=$('subtitleBox').textContent;if(!text)return;if(!liveDraft){liveDraft=bubble('assistant','');liveDraft.dataset.streaming='true';$('chatMessages').append(liveDraft);}liveDraft.querySelector('span').textContent=text;$('chatMessages').scrollTop=$('chatMessages').scrollHeight;}).observe($('subtitleBox'),{childList:true,characterData:true,subtree:true});
  new MutationObserver(()=>{const text=$('caseyLiveStatus').textContent;if(/non disponibile|quota|credit|microfono|Microfono|Errore|negat/i.test(text))notice(text);}).observe($('caseyLiveStatus'),{childList:true,subtree:true});
  $('reloginButton').onclick=()=>{document.body.classList.remove('in-session');$('conversation').hidden=true;window.CaseyAuth?.clear();sessionStorage.removeItem(A.authKey);renderLogin();};

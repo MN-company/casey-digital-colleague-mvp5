@@ -48,3 +48,7 @@ Sul progetto condiviso il token Gemini Live viene emesso e il WebSocket raggiung
 - Il dominio di produzione continua a servire config.js, index.html, casey-bridge.js e casey-live.js identici a origin/main.
 
 L'autenticazione della pagina demo simula la sessione della vera app blu: dopo il primo accesso viene riutilizzata per le scansioni successive. L'integrazione nella vera app H-FARM richiederà il suo deep link e l'accesso alla sua sessione autenticata.
+
+
+## Canale AI sul telefono
+Testo e voce condividono Gemini 3.8 Live: l'invio scritto apre una connessione con microfono spento e audio silenziato; Parla con Casey abilita esplicitamente microfono e audio sulla stessa sessione. Il testo REST Gemini 3.8 Flash rimane un fallback in caso di mancata connessione Live. Il contesto completo viene inizializzato prima del nuovo turno. La prova HTTPS ha verificato una risposta Live che ricorda Aurora dalla chat del totem. Il microfono fisico dell'utente resta da collaudare sul suo dispositivo; la prova browser usa un ingresso sintetico.
