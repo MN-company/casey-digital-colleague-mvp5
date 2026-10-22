@@ -26,7 +26,7 @@ La pagina Casey originale conserva Emma, Sofia, avatar e impostazioni e torna a 
 
 Le migrazioni di questo rilascio sono additive `20261022123719`–`20261022125001` e sono state applicate singolarmente sul progetto condiviso. **Non eseguire db push indiscriminato:** la migrazione del vecchio progetto isolato ha una destinazione diversa. Le Actions distribuiscono le funzioni, non applicano migrazioni.
 
-La versione precedente in produzione è `dpl_96MEqcZ1Uzx2BWmL2eYCsW6aDcmM`, commit `ffb67967d15049966d735dcbb434264823aa6ffd`. Per rollback ripromuovere quel deployment; le tabelle additive possono restare. Il backend originale differisce solo per l'allowlist esplicita delle origini fidate, senza variazioni al protocollo di prenotazione. Non ripristinare tabelle o dati da snapshot. La versione delle funzioni precedente al lavoro è registrata fuori dal repository.
+La versione precedente in produzione è `dpl_96MEqcZ1Uzx2BWmL2eYCsW6aDcmM`, commit `ffb67967d15049966d735dcbb434264823aa6ffd`. Per rollback ripromuovere quel deployment; le tabelle additive possono restare. Il backend originale aggiunge l'allowlist esplicita delle origini fidate e limita le nuove sessioni a 30 per IP/minuto e 500 globali/minuto, invece delle precedenti 20 per IP/giorno; il protocollo di prenotazione rimane invariato. Non ripristinare tabelle o dati da snapshot. La versione delle funzioni precedente al lavoro è registrata fuori dal repository.
 
 ## Limiti effettivi del collaudo
 
