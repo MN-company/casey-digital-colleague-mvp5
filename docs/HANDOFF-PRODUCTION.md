@@ -31,3 +31,9 @@ La versione precedente in produzione è `dpl_96MEqcZ1Uzx2BWmL2eYCsW6aDcmM`, comm
 ## Limiti effettivi del collaudo
 
 I test automatici non dimostrano riconoscimento vocale su un telefono fisico né l'SSO dell'app H-FARM. Le letture reali di Google Calendar e i token Gemini sono verificati; una prenotazione reale, con account presente nel registro e conferma volontaria, resta una verifica di accettazione. Gemini può rispondere 503 per carico temporaneo; i messaggi restano salvati. L'advisor segnala l'impostazione Auth preesistente “Leaked Password Protection Disabled”; nessuna nuova segnalazione RLS dalle tabelle introdotte.
+
+## Ripetere i test
+
+- `node --test tests/*.test.mjs` e `deno test tests/handoff-operations.test.ts` non creano prenotazioni.
+- `tests/handoff-continuity-cloud.py` richiede `CASEY_HANDOFF_KEYS` e `CASEY_HANDOFF_ACCOUNTS` come percorsi di file privati, più facoltativo `CASEY_HANDOFF_ORIGIN`. Legge Calendar reale e crea soltanto dati QA/sessioni di test.
+- `tests/handoff-browser-recovery.py` richiede Playwright Python, `CASEY_HANDOFF_ACCOUNTS` e `CASEY_TEST_URL`. Verifica perdita della conferma del claim, invalidazione della sessione totem, salvataggio concorrente, nuovo browser e bozze offline. Usare account dedicati di test senza privilegi operativi.
