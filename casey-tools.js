@@ -5,6 +5,7 @@
 (() => {
   'use strict';
   const handlers = Object.freeze({
+    request_mobile_handoff: 'liveMobileHandoff',
     find_available_slots: 'liveFindSlots',
     prepare_booking: 'livePrepareBooking',
     get_booking_status: 'liveBookingStatus',

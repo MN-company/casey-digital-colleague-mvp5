@@ -12,3 +12,8 @@ test('textual date with year is supported in three languages',()=>{for(const s o
 test('Spanish morning is a period, not a relative date',()=>{const r=parse('martes por la mañana');assert.equal(r.day,'2026-10-20');assert.equal(r.period,'morning');});
 test('appointment context can transfer from Live user turns into Standard',()=>{const h=ctx.CaseyDates.fromHistory([{role:'user',text:'Vorrei prenotare martedì alle 15'},{role:'assistant',text:'Controllo gli slot.'}],new Date('2026-10-19T10:00:00Z'));const r=parse('alle 16',h);assert.equal(h.phase,'awaiting_slot');assert.equal(r.day,'2026-10-20');assert.equal(r.time,'16:00');});
 test('a new information topic clears appointment context from history',()=>{const h=ctx.CaseyDates.fromHistory([{role:'user',text:'prenota martedì alle 15'},{role:'user',text:'Come organizzo il pomeriggio di studio?'}],new Date('2026-10-19T10:00:00Z'));assert.equal(h.phase,'ready');assert.equal(h.day,undefined);});
+test('Correction replaces rejected date and cancellation prevents reviving a stale appointment',()=>{
+ const history=[{role:'user',text:'Prenota martedì alle 15'},{role:'user',text:'No, venerdì alle 16'},{role:'user',text:'Annulla la prenotazione'},{role:'user',text:'Domani alle 10'}];
+ const corrected=ctx.CaseyDates.fromHistory(history.slice(0,2),new Date('2026-10-19T10:00:00Z'));assert.equal(corrected.day,'2026-10-23');assert.equal(corrected.time,'16:00');
+ const cancelled=ctx.CaseyDates.fromHistory(history,new Date('2026-10-19T10:00:00Z'));assert.notEqual(cancelled.phase,'awaiting_slot');assert.equal(cancelled.day,undefined);
+});

@@ -181,3 +181,6 @@ test('language change keeps microphone off in a text-only session',async()=>{
  const e=setup();const ready=e.window.CaseyLive.startText();await tick();e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});await ready;
  await e.window.CaseyLive.changeLanguage();assert.equal(e.microphoneCalls,0);assert.equal(e.instances.length,2);await e.window.CaseyLive.stop();
 });
+test('Interrupt closes the response and microphone, and reports idle state',async()=>{
+ const env=setup();await env.window.CaseyLive.start();const ws=env.instances[0];ws.onopen();ws.onmessage({data:JSON.stringify({setupComplete:{}})});await tick();env.window.CaseyLive.sendText('Rispondi');await env.window.CaseyLive.interrupt();assert.equal(env.window.CaseyLive.active,false);assert.equal(env.tracks[0].stopped,true);const state=env.events.filter(e=>e.type==='casey:live-state').at(-1).detail;assert.equal(state.state,'idle');assert.equal(state.microphone,false);
+});

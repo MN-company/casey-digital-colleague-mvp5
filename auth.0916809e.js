@@ -1,7 +1,7 @@
 /* Supabase Auth, verified email OTP. No credentials or student numbers are accepted as passwords. */
 (function(root, factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;if(root)root.CaseyAuth=api;})(typeof window!=='undefined'?window:globalThis,function(){
  'use strict';
- const STORAGE='casey-v4-auth';
+ const STORAGE=typeof window!=='undefined'&&window.CASEY_CONFIG?.authStorageKey||'casey-v4-auth';
  let current=null;
  function restore(){try{const o=JSON.parse(sessionStorage.getItem(STORAGE)||'null');if(o&&o.expires_at>Date.now()+30000)current=o;}catch{}return current;}
  function get(){if(!current)restore();if(current&&current.expires_at<=Date.now()+30000)clear();return current;}

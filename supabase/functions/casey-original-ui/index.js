@@ -77,6 +77,7 @@ const GEMINI_TEXT_MODEL = Deno.env.get('GEMINI_TEXT_MODEL') || 'gemini-3.8-flash
 const KNOWLEDGE_V6_ENABLED = Deno.env.get('CASEY_KNOWLEDGE_V6_ENABLED') === 'true';
 const VERIFIED_FAQ_ENABLED = Deno.env.get('CASEY_VERIFIED_FAQ_ENABLED') === 'true';
 const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app','https://casey-digital-colleague-live-mnbrain.vercel.app','https://casey-digital-colleague-live-git-main-mnbrain.vercel.app','https://casey-digital-colleague-live-hyjvjv7mf-mnbrain.vercel.app','https://casey-digital-colleague-live-r04f5708j-mnbrain.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-393aa8-mnbrain.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','http://127.0.0.1:4173']);
+for(const origin of (Deno.env.get('HANDOFF6_ORIGINS')||'').split(','))if(origin)ORIGINS.add(origin);
 const allowOrigin = (origin) => ORIGINS.has(origin);
 const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -470,7 +471,8 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
   const b=JSON.parse(bodyText);
   if(b.action==='public_config')return json({oauth_configured:ready(),oauth_url:`${FUNCTION_URL}/oauth/start`},200,origin);
   if(b.action==='session'){
-   const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0];await takeRate('caseyv3:session:'+await digest(ip),20);await takeRate('caseyv3:sessions:global',500);
+   const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0];
+   for(const [bucket,limit] of [['casey-session:ip:'+await digest(ip),30],['casey-session:global',500]])if(await db('rpc/hf7_take_rate',{p_bucket:bucket,p_limit:limit,p_window_seconds:60},'POST')!==true)throw Object.assign(new Error('Troppe nuove sessioni: riprova tra un minuto.'),{status:429});
    const token=crypto.randomUUID()+crypto.randomUUID();await db('dc_sessions',{token_hash:await digest(token)},'POST');return json({token,expires_in:86400},200,origin);
   }
   if(b.action?.startsWith('admin_')){
