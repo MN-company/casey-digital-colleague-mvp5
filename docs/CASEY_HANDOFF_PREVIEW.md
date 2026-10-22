@@ -69,3 +69,7 @@ Open the Preview kiosk on a computer; enter the test student's matricola and gen
 - Calendar/Gmail configuration remains intentionally absent following the user's prioritization of proving Handoff; no Google production connections were copied.
 
 This branch's config points to the isolated project. Do not merge it into main or promote it as-is; a production integration needs environment-specific configuration and separate acceptance.
+
+### Correction after physical acceptance started
+
+The user hit a rate limit before their first successful handoff. Investigation found that the legacy `dc_take_rate` function used a one-day window; automated tests had exhausted the shared IP and test-user buckets. Handoff now uses a dedicated service-only `hf_handoff_take_rate` RPC with an explicit 60-second window and `Retry-After: 60`. Preview kiosk session issuance also uses an explicit minute window with its own buckets. Legacy production SQL was not changed. Preview counters were reset once after diagnosis. QA accounts are separate from the user's Emma/Sofia demo accounts so tests do not consume their claim limits or replace their saved conversations. A real SQL check verified limit enforcement and reset after window expiry.

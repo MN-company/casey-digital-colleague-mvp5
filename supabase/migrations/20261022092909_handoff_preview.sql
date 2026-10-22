@@ -90,3 +90,20 @@ revoke all on function public.hf_handoff_restore(uuid,text) from public,anon,aut
 grant execute on function public.hf_handoff_restore(uuid,text) to service_role;
 create extension if not exists pg_cron with schema pg_catalog;
 select cron.schedule('hf-handoff-preview-cleanup','*/5 * * * *','select public.hf_handoff_cleanup()');
+-- Preview-only explicit rate windows. Never change production dc_take_rate.
+create function public.hf_handoff_take_rate(p_bucket text,p_limit integer,p_window_seconds integer default 60)
+returns boolean language plpgsql security invoker set search_path='' as $$
+declare n integer;
+begin
+ if p_limit<1 or p_window_seconds<1 or p_window_seconds>3600 then raise exception 'invalid_rate_window'; end if;
+ insert into public.dc_rate_limits(bucket,used,expires_at) values(p_bucket,1,now()+pg_catalog.make_interval(secs=>p_window_seconds))
+ on conflict(bucket) do update set used=case when public.dc_rate_limits.expires_at<=now() then 1 else public.dc_rate_limits.used+1 end,
+ expires_at=case when public.dc_rate_limits.expires_at<=now() then now()+pg_catalog.make_interval(secs=>p_window_seconds) else public.dc_rate_limits.expires_at end
+ where public.dc_rate_limits.expires_at<=now() or public.dc_rate_limits.used<p_limit
+ returning used into n;
+ return n is not null;
+end $$;
+revoke all on function public.hf_handoff_take_rate(text,integer,integer) from public,anon,authenticated;
+grant execute on function public.hf_handoff_take_rate(text,integer,integer) to service_role;
+-- Clear only the Preview's counters consumed during automated acceptance.
+delete from public.dc_rate_limits where bucket like 'handoff:%' or bucket like 'caseyv3:session:%' or bucket='caseyv3:sessions:global';

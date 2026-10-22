@@ -23,7 +23,7 @@ def api(action,body={},session='',auth='',origin=ORIGIN):return req('/functions/
 def login(a):
  status,d=req('/auth/v1/token?grant_type=password',{'email':a['email'],'password':a['password']})
  assert status==200;return d['access_token']
-def issue(session,number='HF-DEMO-1001'):
+def issue(session,number=accounts[0]['student_number']):
  status,d=api('issue',{'student_number':number,'context':[{'role':'user','text':'Test continuità: vorrei informazioni sul mio appuntamento'}]},session=session)
  assert status==200,(status,d);return d
 status,d=req('/functions/v1/casey-handoff-ui',{'action':'session'});check('Real Casey session',status==200);session=d['token']

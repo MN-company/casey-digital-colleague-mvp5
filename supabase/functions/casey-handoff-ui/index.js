@@ -99,7 +99,12 @@ async function db(path,body,method='GET',extra={}){
  const r=await fetch(`${SUPABASE_URL}/rest/v1/${path}`,{method,headers:{apikey:SECRET,...(SECRET.startsWith('sb_secret_')?{}:{Authorization:`Bearer ${SECRET}`}), 'Content-Type':'application/json',Prefer:extra.prefer || 'return=representation'},...(body===undefined?{}:{body:JSON.stringify(body)}),signal:AbortSignal.timeout(12000)});
  const data=await r.json().catch(()=>null);if(!r.ok){const error=new Error(data?.message||'Database request failed');error.status=r.status;throw error;}return data;
 }
-async function takeRate(key,max){if(await db('rpc/dc_take_rate',{p_bucket:key,p_limit:max},'POST')!==true){const e=new Error('Troppe richieste. Riprova più tardi.');e.status=429;throw e;}}
+async function takeRate(key,max){
+ const sessionBucket=key.startsWith('caseyv3:session');
+ const rpc=sessionBucket?'rpc/hf_handoff_take_rate':'rpc/dc_take_rate';
+ const args=sessionBucket?{p_bucket:'handoff-ui:'+key,p_limit:max,p_window_seconds:60}:{p_bucket:key,p_limit:max};
+ if(await db(rpc,args,'POST')!==true){const e=new Error(sessionBucket?'Limite temporaneo: riprova tra un minuto.':'Limite del servizio raggiunto. Riprova più tardi.');e.status=429;throw e;}
+}
 function qs(obj){return new URLSearchParams(obj).toString();}
 async function connection(){return (await db('dc_v3_google_connections?'+qs({select:'id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',id:'eq.staff'})))[0] || null;}
 function scoped(c){return !!c && NEEDED.every(s=>c.granted_scopes?.includes(s));}

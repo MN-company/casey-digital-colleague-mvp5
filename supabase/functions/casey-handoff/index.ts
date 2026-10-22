@@ -22,7 +22,7 @@ async function user(req:Request){
 }
 async function session(req:Request){const t=req.headers.get('x-session-token')||'';if(!/^[a-f0-9-]{72}$/i.test(t))throw Object.assign(new Error('Sessione richiesta'),{status:401});
  const rows=await db('dc_sessions?'+qs({select:'id',token_hash:'eq.'+await hash(t),expires_at:'gt.'+new Date().toISOString()}));if(!rows[0])throw Object.assign(new Error('Sessione scaduta'),{status:401});return rows[0].id;}
-async function rate(bucket:string,limit:number){if(await db('rpc/dc_take_rate',{p_bucket:'handoff:'+bucket,p_limit:limit})!==true)throw Object.assign(new Error('Troppe richieste: attendi'),{status:429});}
+async function rate(bucket:string,limit:number){if(await db('rpc/hf_handoff_take_rate',{p_bucket:'handoff:'+bucket,p_limit:limit,p_window_seconds:60})!==true)throw Object.assign(new Error('Limite di sicurezza temporaneo: riprova tra un minuto'),{status:429});}
 function classify(message:string){
  // Only an explicit allowlist is public. Unknown or personal requests always move to authenticated mobile.
  const t=message.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
@@ -31,7 +31,7 @@ function classify(message:string){
 }
 Deno.serve(async req=>{
  const origin=req.headers.get('origin')||'';const h={'Content-Type':'application/json','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Access-Control-Allow-Origin':origins.has(origin)?origin:'null','Access-Control-Allow-Headers':'content-type,x-session-token,x-student-token','Access-Control-Allow-Methods':'POST,OPTIONS',Vary:'Origin'};
- const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:h});
+ const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...h,...(status===429?{'Retry-After':'60'}:{})}});
  if(origin&&!origins.has(origin))return reply({error:'Origine non autorizzata'},403);
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:h});
  if(req.method!=='POST')return reply({error:'Metodo non consentito'},405);
