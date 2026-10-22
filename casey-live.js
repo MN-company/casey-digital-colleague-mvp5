@@ -111,7 +111,7 @@
   }
   function sessionToken() {
     try {
-      const obj = JSON.parse(sessionStorage.getItem('casey-original-ui-session') || 'null');
+      const obj = JSON.parse(sessionStorage.getItem(window.CASEY_CONFIG?.sessionStorageKey||'casey-original-ui-session') || 'null');
       return obj?.exp > Date.now() + 1000 && typeof obj.token === 'string' ? obj.token : null;
     } catch (_) { return null; }
   }
@@ -365,7 +365,7 @@
       const language = window.CaseyVoice?.getLanguage?.() || 'it-IT';
       const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json', 'x-session-token': session},
+        headers: {'Content-Type': 'application/json', 'x-session-token': session,'x-student-token':window.CaseyAuth?.get()?.access_token||''},
         body: JSON.stringify({language}),
         signal: AbortSignal.timeout(12000)
       });

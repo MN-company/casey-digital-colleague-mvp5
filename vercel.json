@@ -17,11 +17,19 @@
         },
         {
           "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
+          "value": "no-referrer"
         },
         {
           "key": "Permissions-Policy",
           "value": "camera=(), geolocation=(), microphone=(self)"
+        },
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "no-store"
         }
       ]
     }

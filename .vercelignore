@@ -5,3 +5,8 @@ docs/
 *.md
 .env*
 .git/
+
+tests/
+work/
+outputs/
+*.sql

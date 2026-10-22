@@ -22,3 +22,11 @@ entrypoint = "./functions/casey6-original-ui/index.js"
 [functions.casey6-live-token]
 verify_jwt = false
 entrypoint = "./functions/casey6-live-token/index.ts"
+
+[functions.casey-handoff]
+verify_jwt = false
+[functions.casey-handoff-ui]
+verify_jwt = false
+entrypoint = "./functions/casey-handoff-ui/index.js"
+[functions.casey-handoff-live]
+verify_jwt = false

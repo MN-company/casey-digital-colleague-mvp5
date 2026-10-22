@@ -22,7 +22,7 @@
    const hadPrivate=!!window.CaseyAuth.get()||!!sessionStorage.getItem('casey-v3-admin');
    if(!hadPrivate)return;
    window.CaseyAuth.clear();
-   try{sessionStorage.removeItem('casey-v3-admin');sessionStorage.removeItem('casey-original-ui-session');}catch{}
+   try{sessionStorage.removeItem('casey-v3-admin');sessionStorage.removeItem(window.CASEY_CONFIG.sessionStorageKey||'casey-original-ui-session');}catch{}
    window.CaseyDialogue?.clear();
    state.session=null;state.student=null;state.profile={authenticated:false,registered:false};
    state.events=[];state.bookings=[];state.requests=[];state.pendingRequest='';state.pending=null;
@@ -87,7 +87,7 @@
   return data;
  }
  async function ensureSession(){
-  const key='casey-original-ui-session';
+  const key=window.CASEY_CONFIG.sessionStorageKey||'casey-original-ui-session';
   try{const v=JSON.parse(sessionStorage.getItem(key)||'null');if(v?.token&&v.exp>Date.now()+60000){state.session=v.token;return v.token;}}catch{}
   const data=await api('session',{},{});state.session=data.token;
   try{sessionStorage.setItem(key,JSON.stringify({token:state.session,exp:Date.now()+(data.expires_in||86400)*1000}));}catch{}
@@ -203,6 +203,7 @@
   }catch(e){notice(errorMessage(e));}
  }
  function showLogin(){
+  if(window.CaseyHandoff&&!window.HandoffAPI.mobile){void window.CaseyHandoff.open();return;}
   $('caseyAuthOverlay').hidden=false;$('caseyAuthFeedback').textContent=state.profile?.authenticated?'Email verificata: '+state.profile.email:'Inserisci la tua email universitaria.';
   $('caseyLogout').hidden=!state.profile?.authenticated;
  }
@@ -282,6 +283,7 @@
   const input=$('userInput');const text=String(customText||input.value||'').trim();if(!text||state.processing)return;
   input.value='';
   if(state.pending){caption('Ho già preparato un appuntamento. Usa Confermo o Non confermo prima di proseguire.',null,'A');return;}
+  try{if(await window.CaseyHandoff?.beforeTurn(text))return;}catch(e){caption(errorMessage(e),null,'F');return;}
   if(window.CaseyLive?.active){
    if(!window.CaseyLive.ready){caption('Attendi che Live sia pronto.',null,'A');return;}
    if(window.CaseyLive.sendText(text))return;
@@ -330,6 +332,7 @@
  function shiftMonth(offset){const [y,m]=state.month.split('-').map(Number);const date=new Date(Date.UTC(y,m-1+offset,1));state.month=date.toISOString().slice(0,7);refreshCalendar();}
  async function logout(){window.CaseyDialogue?.clear();try{await window.CaseyLive?.stop?.('Account disconnesso');}catch{}window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
  async function init(){
+  await window.CaseyHandoff?.ready;
   startKioskIdle();
   // Do not consume personal data when switching between Emma/Sofia demonstration steps.
   window.renderAll=renderAll;
@@ -344,6 +347,6 @@
   const fragment=new URLSearchParams(location.hash.slice(1));if(fragment.has('student_google_error'))notice(fragment.get('student_google_error'));if(fragment.has('student_google'))notice('Account Google collegato. Ricarico il calendario.');if(location.hash)history.replaceState(null,'',location.pathname+location.search);
   window.renderAll();await Promise.all([refreshCalendar(),refreshRequests()]);
  }
- window.CaseyBridge={showLogin,hideLogin,logout,shiftMonth,goToday,connectStudentGoogle,confirmBooking,submitOfficeRequest,dismissOfficeRequest,selectDay,refreshCalendar,refreshRequests,liveFindSlots,livePrepareBooking,liveBookingStatus,liveSearchKnowledge};
+ window.CaseyBridge={liveMobileHandoff:()=>window.CaseyHandoff.open(),showLogin,hideLogin,logout,shiftMonth,goToday,connectStudentGoogle,confirmBooking,submitOfficeRequest,dismissOfficeRequest,selectDay,refreshCalendar,refreshRequests,liveFindSlots,livePrepareBooking,liveBookingStatus,liveSearchKnowledge};
  document.addEventListener('DOMContentLoaded',init);
 })();
