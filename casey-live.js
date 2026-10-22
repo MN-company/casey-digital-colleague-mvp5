@@ -101,7 +101,7 @@
     const toggle = get('caseyLiveBtn');
     const pause = get('caseyLivePause');
     if (toggle) {
-      toggle.textContent = started ? 'Termina Live' : starting ? 'Connessione...' : 'Avvia Live';
+      toggle.textContent = started ? 'Termina voce' : starting ? 'Connessione...' : typeof location!=='undefined'&&location.pathname.endsWith('/college.html') ? 'Parla con Casey' : 'Avvia Live';
       toggle.disabled = starting;
     }
     if (pause) {
@@ -447,6 +447,7 @@
     avatar(paused || !mediaStream ? 'A' : 'LISTEN');
     render();
   }
+  function checkpoint(){if(inputText){window.CaseyDialogue?.append('user',inputText);inputText='';}if(subtitleText)window.CaseyDialogue?.append('assistant',subtitleText);}
   function sendText(text) {
     if (!started || !ready || !socket || socket.readyState !== WebSocket.OPEN) return false;
     text=String(text||'').trim().slice(0,1000); if (!text) return false;
@@ -461,5 +462,5 @@
   function toggle() { return started ? stop() : start(); }
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('pagehide', () => { if (started || starting) void stop(); });
-  window.CaseyLive = Object.freeze({toggle, start, startText, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
+  window.CaseyLive = Object.freeze({checkpoint,toggle, start, startText, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
 })();

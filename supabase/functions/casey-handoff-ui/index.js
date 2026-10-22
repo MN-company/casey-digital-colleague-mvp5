@@ -1,3 +1,4 @@
+import {classifyHandoff} from '../_shared/handoff-policy.js';
 /* Casey ORIGINAL UI v5: preserved original frontend — verified identity, explicit UI confirmation, contextual routing; preserves Google integration.
  * Server-only secrets: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CASEY_ADMIN_EMAILS,
  * CASEY_TOKEN_ENCRYPTION_KEY (64 hexadecimal characters), SUPABASE_URL and service role.
@@ -61,7 +62,7 @@
 })(typeof window!=='undefined'?window:globalThis);
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL');
-if(!SUPABASE_URL.includes('sneaxpqnmlhnrhoautjx'))throw new Error('Isolated preview required');
+if(!SUPABASE_URL.includes('oxzraaadxqsruibinlxn'))throw new Error('Isolated preview required');
 const SECRET = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default;
 const CLIENT_ID = Deno.env.get('GOOGLE_CLIENT_ID') || '';
 const CLIENT_SECRET = Deno.env.get('GOOGLE_CLIENT_SECRET') || '';
@@ -77,7 +78,7 @@ const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const GEMINI_TEXT_MODEL = Deno.env.get('GEMINI_TEXT_MODEL') || 'gemini-3.8-flash';
 const KNOWLEDGE_V6_ENABLED = Deno.env.get('CASEY_KNOWLEDGE_V6_ENABLED') === 'true';
 const VERIFIED_FAQ_ENABLED = Deno.env.get('CASEY_VERIFIED_FAQ_ENABLED') === 'true';
-const ORIGINS = new Set((Deno.env.get('HANDOFF_ORIGINS')||'http://localhost:4173').split(','));
+const ORIGINS = new Set((Deno.env.get('HANDOFF6_ORIGINS')||'http://localhost:4173').split(','));
 const allowOrigin = (origin) => ORIGINS.has(origin);
 const UUID = /^[0-9a-f]{8}(-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
 const RE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -101,12 +102,12 @@ async function db(path,body,method='GET',extra={}){
 }
 async function takeRate(key,max){
  const sessionBucket=key.startsWith('caseyv3:session');
- const rpc=sessionBucket?'rpc/hf_handoff_take_rate':'rpc/dc_take_rate';
+ const rpc=sessionBucket?'rpc/hf7_take_rate':'rpc/hf6_take_rate';
  const args=sessionBucket?{p_bucket:'handoff-ui:'+key,p_limit:max,p_window_seconds:60}:{p_bucket:key,p_limit:max};
  if(await db(rpc,args,'POST')!==true){const e=new Error(sessionBucket?'Limite temporaneo: riprova tra un minuto.':'Limite del servizio raggiunto. Riprova più tardi.');e.status=429;throw e;}
 }
 function qs(obj){return new URLSearchParams(obj).toString();}
-async function connection(){return (await db('dc_v3_google_connections?'+qs({select:'id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',id:'eq.staff'})))[0] || null;}
+async function connection(){return (await db('hf6_v3_google_connections?'+qs({select:'id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',id:'eq.staff'})))[0] || null;}
 function scoped(c){return !!c && NEEDED.every(s=>c.granted_scopes?.includes(s));}
 async function accessToken(c){if(!c||!scoped(c)||!ready()){const e=new Error('Google Calendar e Gmail non sono autorizzati. Apri Impostazioni.');e.status=503;throw e;}
  const cached=tokenCache.get(c.google_email);if(cached && cached.expires>Date.now()+60000 && cached.updated_at===c.updated_at)return cached.value;
@@ -137,17 +138,17 @@ async function checkEvent(c,token,book){
    if(ev.extendedProperties?.private?.caseyBookingId!==book.id)throw new Error('Evento Calendar ID occupato da un’altra prenotazione');return ev;
  }catch(e){if(e.status===404)return null;throw e;}
 }
-async function markCalendar(bookId,status,event=null){await db('dc_bookings?'+qs({id:'eq.'+bookId}),{calendar_status:status,google_event_id:event?.id||null},'PATCH');}
+async function markCalendar(bookId,status,event=null){await db('hf6_bookings?'+qs({id:'eq.'+bookId}),{calendar_status:status,google_event_id:event?.id||null},'PATCH');}
 async function saveEmail(book,recipient){
- await db('dc_v3_mail_outbox?on_conflict=booking_id',{booking_id:book.id,recipient,status:'pending'},'POST',{prefer:'resolution=ignore-duplicates,return=representation'});
+ await db('hf6_v3_mail_outbox?on_conflict=booking_id',{booking_id:book.id,recipient,status:'pending'},'POST',{prefer:'resolution=ignore-duplicates,return=representation'});
 }
 function base64Mime(text){const data=encoder.encode(text);let result='';for(const x of data)result+=String.fromCharCode(x);return btoa(result);}
 function mimeWord(text){return '=?UTF-8?B?'+base64Mime(text)+'?=';}
 async function sendEmail(book,c,token,event){
- const rows=await db('dc_v3_mail_outbox?'+qs({select:'booking_id,recipient,status,attempts,gmail_message_id',booking_id:'eq.'+book.id}));
+ const rows=await db('hf6_v3_mail_outbox?'+qs({select:'booking_id,recipient,status,attempts,gmail_message_id',booking_id:'eq.'+book.id}));
  const row=rows[0];if(!row)return 'not_queued';if(row.status==='sent')return 'sent';if(row.status==='sending'||row.status==='uncertain')return row.status;
  if(row.attempts>=3)return 'failed';
- const claimed=await db('dc_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id,status:'eq.'+row.status,attempts:'eq.'+row.attempts}),{status:'sending',attempts:row.attempts+1,last_error:null},'PATCH');
+ const claimed=await db('hf6_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id,status:'eq.'+row.status,attempts:'eq.'+row.attempts}),{status:'sending',attempts:row.attempts+1,last_error:null},'PATCH');
  if(!claimed.length)return 'sending';
  const inRome=new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',dateStyle:'full',timeStyle:'short'}).format(new Date(book.slot.starts_at));
  const meeting=event?.hangoutLink?'\nLink riunione: '+event.hangoutLink:'';
@@ -157,16 +158,16 @@ async function sendEmail(book,c,token,event){
  try{
   const response=await google('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',token,'POST',{raw:b64(encoder.encode(raw))});
   if(!response.id)throw new Error('Gmail non ha restituito un identificativo di invio');
-  await db('dc_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id}),{status:'sent',gmail_message_id:response.id,last_error:null,sent_at:new Date().toISOString()},'PATCH');
+  await db('hf6_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id}),{status:'sent',gmail_message_id:response.id,last_error:null,sent_at:new Date().toISOString()},'PATCH');
   return 'sent';
  }catch(e){const uncertain=!!e.uncertain || e.status>=500 || !e.status;
-  await db('dc_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id}),{status:uncertain?'uncertain':'failed',last_error:String(e.message).slice(0,200)},'PATCH').catch(()=>{});
+  await db('hf6_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id}),{status:uncertain?'uncertain':'failed',last_error:String(e.message).slice(0,200)},'PATCH').catch(()=>{});
   return uncertain?'uncertain':'failed';
  }
 }
 async function completeBooking(bookId,recipient){
- const bookings=await db('dc_bookings?'+qs({select:'id,slot_id,calendar_status,google_event_id',id:'eq.'+bookId}));const row=bookings[0];if(!row)throw new Error('Prenotazione non trovata');
- const slots=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+row.slot_id}));row.slot=slots[0];if(!row.slot)throw new Error('Slot non trovato');
+ const bookings=await db('hf6_bookings?'+qs({select:'id,slot_id,calendar_status,google_event_id',id:'eq.'+bookId}));const row=bookings[0];if(!row)throw new Error('Prenotazione non trovata');
+ const slots=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+row.slot_id}));row.slot=slots[0];if(!row.slot)throw new Error('Slot non trovato');
  const c=await connection();const token=await accessToken(c);let ev=await checkEvent(c,token,row);
  if(!ev){
   const conflicts=await freeBusy(c,token,row.slot.starts_at,row.slot.ends_at);
@@ -192,10 +193,8 @@ async function verifiedStudent(req, required=false){
  const user=await r.json().catch(()=>({}));
  if(!r.ok||!UUID.test(user.id||'')||!user.email||!user.email_confirmed_at){if(required)throw Object.assign(new Error('Accesso studente scaduto o non verificato.'),{status:401});return null;}
  const email=String(user.email).trim().toLowerCase();
- const roster=await db('dc_v4_student_roster?'+qs({select:'id,institution,student_number,institutional_email,preferred_language,program,active',institutional_email:'eq.'+email,active:'eq.true',limit:'1'}));
- const mappings=await db('hf_handoff_profiles?'+qs({select:'student_number',user_id:'eq.'+user.id,active:'eq.true'}));
- const matched=roster[0]&&mappings[0]?.student_number===roster[0].student_number;
- return {id:user.id,email,student:matched?roster[0]:null};
+ const roster=await db('hf6_v4_student_roster?'+qs({select:'id,institution,student_number,institutional_email,preferred_language,program,active',institutional_email:'eq.'+email,active:'eq.true',limit:'1'}));
+ return {id:user.id,email,student:roster[0]||null};
 }
 function presentation(person){
  if(!person)return {authenticated:false,registered:false};
@@ -213,7 +212,7 @@ function intent(text){
  return 'complex';
 }
 async function loadConversation(session,person){
- const rows=await db('dc_v4_conversations?'+qs({select:'session_id,student_auth_id,institution,language,state,recent_history,updated_at',session_id:'eq.'+session,limit:'1'}));
+ const rows=await db('hf6_v4_conversations?'+qs({select:'session_id,student_auth_id,institution,language,state,recent_history,updated_at',session_id:'eq.'+session,limit:'1'}));
  const row=rows[0];
  // If a kiosk session changes student, never reuse a prior student's context.
  const correct=!row||String(row.student_auth_id||'')===String(person?.id||'');
@@ -234,7 +233,7 @@ async function saveConversation(session,person,previous,history,context){
   if(typeof context.time==='string'&&/^([01]\d|2[0-3]):[0-5]\d$/.test(context.time))state.time=context.time;
  }
  const payload={session_id:session,student_auth_id:person?.id||null,institution:identity?.institution||null,language:identity?.preferred_language||'it',state,recent_history:history.slice(-10),updated_at:new Date().toISOString()};
- await db('dc_v4_conversations?on_conflict=session_id',payload,'POST',{prefer:'resolution=merge-duplicates,return=representation'});
+ await db('hf6_v4_conversations?on_conflict=session_id',payload,'POST',{prefer:'resolution=merge-duplicates,return=representation'});
  return state;
 }
 function words(s){
@@ -249,12 +248,12 @@ async function knowledge(query,student){
   // Only server-verified roster fields restrict program/institution. An anonymous kiosk sees SHARED only.
   const m=String(query).match(/\b(20\d{2})\s*[-/]\s*(20\d{2})\b/);
   const requestedYear=m?m[1]+'-'+m[2]:null;
-  const rows=await db('rpc/dc_v6_search_verified',{p_query:String(query).slice(0,320),p_institution:student?.institution||'SHARED',p_program:student?.program||null,p_academic_year:requestedYear,p_limit:5},'POST').catch(()=>[]);
+  const rows=await db('rpc/hf6_v6_search_verified',{p_query:String(query).slice(0,320),p_institution:student?.institution||'SHARED',p_program:student?.program||null,p_academic_year:requestedYear,p_limit:5},'POST').catch(()=>[]);
   if(Array.isArray(rows)&&rows.length)return rows.map(x=>({id:x.id,title:x.page_number?x.title+' · pagina '+x.page_number:x.title,content:x.content,source_url:x.source_url,version:x.source_version,page_number:x.page_number,academic_year:x.academic_year,program:x.program}));
  }
  // Legacy index is verified but lexical. Never claim semantic search or fabricate missing data.
  const permitted=student?.institution?['SHARED',student.institution]:['SHARED'];
- const rows=await db('dc_v4_documents?'+qs({select:'id,institution,title,content,source_url,version,updated_at',verified:'eq.true',institution:'in.('+permitted.join(',')+')',order:'updated_at.desc',limit:'100'}));
+ const rows=await db('hf6_v4_documents?'+qs({select:'id,institution,title,content,source_url,version,updated_at',verified:'eq.true',institution:'in.('+permitted.join(',')+')',order:'updated_at.desc',limit:'100'}));
  const target=words(query);
  return rows.map(doc=>({doc,score:[...words(doc.title+' '+doc.content)].filter(w=>target.has(w)).length})).filter(x=>x.score>0).sort((a,b)=>b.score-a.score).slice(0,3).map(({doc})=>{
   const normalized=doc.content.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
@@ -267,7 +266,7 @@ function normalizePublicQuestion(s){return String(s).normalize('NFKC').toLowerCa
 async function approvedPublicFaq(question,language,person){
  if(!VERIFIED_FAQ_ENABLED||person?.student)return null;
  try{
-  const rows=await db('rpc/dc_v6_get_verified_faq',{p_normalized_question:normalizePublicQuestion(question),p_locale:language},'POST');
+  const rows=await db('rpc/hf6_v6_get_verified_faq',{p_normalized_question:normalizePublicQuestion(question),p_locale:language},'POST');
   return Array.isArray(rows)?rows[0]||null:null;
  }catch{return null;}
 }
@@ -326,14 +325,14 @@ async function aiInterpret(message,conversation,person,docs,requestedLanguage='i
  }catch{return {intent:'unavailable',failure:'invalid_output_'+finishReason};}
 }
 async function sessionFrom(req){const token=req.headers.get('x-session-token');if(!token||token.length!==72){const e=new Error('Session required');e.status=401;throw e;}
- const rows=await db('dc_sessions?'+qs({select:'id',token_hash:'eq.'+await digest(token),expires_at:'gt.'+new Date().toISOString()}));if(!rows[0]){const e=new Error('Session expired');e.status=401;throw e;}return rows[0].id;}
+ const rows=await db('hf6_sessions?'+qs({select:'id',token_hash:'eq.'+await digest(token),expires_at:'gt.'+new Date().toISOString()}));if(!rows[0]){const e=new Error('Session expired');e.status=401;throw e;}return rows[0].id;}
 async function adminFrom(req){const token=req.headers.get('x-admin-token');if(!token||token.length<40){const e=new Error('Accesso amministratore richiesto');e.status=401;throw e;}
- const rows=await db('dc_v3_admin_sessions?'+qs({select:'token_hash,google_email',token_hash:'eq.'+await digest(token),expires_at:'gt.'+new Date().toISOString()}));if(!rows[0]||!ADMIN_EMAILS.has(rows[0].google_email)){const e=new Error('Sessione amministratore non valida');e.status=401;throw e;}return rows[0];}
+ const rows=await db('hf6_v3_admin_sessions?'+qs({select:'token_hash,google_email',token_hash:'eq.'+await digest(token),expires_at:'gt.'+new Date().toISOString()}));if(!rows[0]||!ADMIN_EMAILS.has(rows[0].google_email)){const e=new Error('Sessione amministratore non valida');e.status=401;throw e;}return rows[0];}
 function safeReturnTo(s){try{const u=new URL(s);return ORIGINS.has(u.origin)&&u.pathname.endsWith('/settings.html')&&u.search==='' ? u.origin+u.pathname:null;}catch{return null;}}
 async function oauthStart(req){
  if(!ready())return json({error:'Google OAuth non configurato nel backend: GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CASEY_ADMIN_EMAILS, CASEY_TOKEN_ENCRYPTION_KEY.'},503);
  const url=new URL(req.url),returnTo=safeReturnTo(url.searchParams.get('return_to')||'');if(!returnTo)return json({error:'Pagina impostazioni non autorizzata'},400);
- const state=randomToken();await db('dc_v3_oauth_states',{state_hash:await digest(state),return_to:returnTo,expires_at:new Date(Date.now()+600000).toISOString()},'POST');
+ const state=randomToken();await db('hf6_v3_oauth_states',{state_hash:await digest(state),return_to:returnTo,expires_at:new Date(Date.now()+600000).toISOString()},'POST');
  const auth=new URL('https://accounts.google.com/o/oauth2/v2/auth');const params={client_id:CLIENT_ID,redirect_uri:CALLBACK_URL,response_type:'code',scope:SCOPES.join(' '),state,access_type:'offline',prompt:'consent select_account',include_granted_scopes:'true'};
  for(const [k,v] of Object.entries(params))auth.searchParams.set(k,v);
  return redirect(auth.toString(),`casey_ui_oauth_state=${encodeURIComponent(state)}; Path=/functions/v1/casey-handoff-ui/; Max-Age=600; HttpOnly; Secure; SameSite=Lax`);
@@ -342,9 +341,9 @@ async function oauthCallback(req){
  const url=new URL(req.url),state=url.searchParams.get('state'),code=url.searchParams.get('code');
  const cookie=req.headers.get('cookie')||'';const provided=/(?:^|;\s*)casey_ui_oauth_state=([^;]+)/.exec(cookie)?.[1]||'';
  if(!state||!provided||state!==decodeURIComponent(provided))return json({error:'OAuth state/CSRF validation failed'},403);
- const key=await digest(state);const rows=await db('dc_v3_oauth_states?'+qs({select:'return_to,expires_at',state_hash:'eq.'+key}));
+ const key=await digest(state);const rows=await db('hf6_v3_oauth_states?'+qs({select:'return_to,expires_at',state_hash:'eq.'+key}));
  const row=rows[0];if(!row||Date.parse(row.expires_at)<Date.now())return json({error:'OAuth request expired'},403);
- await db('dc_v3_oauth_states?'+qs({state_hash:'eq.'+key}),undefined,'DELETE');
+ await db('hf6_v3_oauth_states?'+qs({state_hash:'eq.'+key}),undefined,'DELETE');
  const returnTo=safeReturnTo(row.return_to);if(!returnTo)return json({error:'Invalid destination'},400);
  function errorRedirect(error){return redirect(`${returnTo}#oauth_error=${encodeURIComponent(error)}`,'casey_ui_oauth_state=; Path=/functions/v1/casey-handoff-ui/; Max-Age=0; HttpOnly; Secure; SameSite=Lax');}
  if(url.searchParams.get('error'))return errorRedirect('Accesso Google annullato');
@@ -359,14 +358,14 @@ async function oauthCallback(req){
   const old=await connection();const refresh=tokens.refresh_token||(old?.google_email===email?await decrypt(old):null);
   if(!refresh)throw new Error('Google non ha rilasciato un refresh token: rimuovi la connessione e ripeti il consenso');
   const enc=await encrypt(refresh);
-  await db('dc_v3_google_connections?on_conflict=id',{id:'staff',google_email:email,...enc,granted_scopes:scopes,calendar_id:old?.calendar_id||'primary',updated_at:new Date().toISOString()},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
-  const token=randomToken();await db('dc_v3_admin_sessions',{token_hash:await digest(token),google_email:email,expires_at:new Date(Date.now()+4*3600000).toISOString()},'POST');
+  await db('hf6_v3_google_connections?on_conflict=id',{id:'staff',google_email:email,...enc,granted_scopes:scopes,calendar_id:old?.calendar_id||'primary',updated_at:new Date().toISOString()},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
+  const token=randomToken();await db('hf6_v3_admin_sessions',{token_hash:await digest(token),google_email:email,expires_at:new Date(Date.now()+4*3600000).toISOString()},'POST');
   return redirect(`${returnTo}#admin_token=${encodeURIComponent(token)}&connected=1`,'casey_ui_oauth_state=; Path=/functions/v1/casey-handoff-ui/; Max-Age=0; HttpOnly; Secure; SameSite=Lax');
  }catch(e){return errorRedirect(e.message||'Errore Google OAuth');}
 }
-async function adminStatus(){const c=await connection();const registered=await db('dc_v3_booking_registry?select=booking_id&limit=100');const own=new Set(registered.map(r=>r.booking_id));const recent=await db('dc_bookings?'+qs({select:'id,calendar_status,created_at',is_seed:'eq.false',order:'created_at.desc',limit:'50'}));
+async function adminStatus(){const c=await connection();const registered=await db('hf6_v3_booking_registry?select=booking_id&limit=100');const own=new Set(registered.map(r=>r.booking_id));const recent=await db('hf6_bookings?'+qs({select:'id,calendar_status,created_at',is_seed:'eq.false',order:'created_at.desc',limit:'50'}));
  const failures=recent.filter(b=>own.has(b.id)&&['failed','uncertain','conflict','pending','not_connected'].includes(b.calendar_status));
- const mails=await db('dc_v3_mail_outbox?'+qs({select:'booking_id,status,attempts,created_at',order:'created_at.desc',limit:'25'}));
+ const mails=await db('hf6_v3_mail_outbox?'+qs({select:'booking_id,status,attempts,created_at',order:'created_at.desc',limit:'25'}));
  return {oauth_configured:ready(),google_connected:!!c,google_email:c?.google_email||null,calendar_id:c?.calendar_id||'primary',granted_scopes:c?.granted_scopes||[],calendar_authorized:scoped(c),gmail_authorized:!!c?.granted_scopes?.includes(NEEDED[2]),pending:failures,emails:mails};
 }
 
@@ -388,7 +387,7 @@ async function googleCalendarEvents(calendarId,token,begin,end){
  // Do not include attendees, emails or private notes in calendar UI responses.
  return (data.items||[]).filter(ev=>ev.status!=='cancelled').map(ev=>({id:ev.id,title:ev.summary||'Impegno',start:ev.start?.dateTime||ev.start?.date,end:ev.end?.dateTime||ev.end?.date,link:ev.htmlLink||null,source:'google'}));
 }
-async function studentGoogleConnection(person){return (await db('dc_v5_student_google?'+qs({select:'student_auth_id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',student_auth_id:'eq.'+person.id,limit:'1'})))[0]||null;}
+async function studentGoogleConnection(person){return (await db('hf6_v5_student_google?'+qs({select:'student_auth_id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',student_auth_id:'eq.'+person.id,limit:'1'})))[0]||null;}
 async function studentGoogleToken(person){
  const row=await studentGoogleConnection(person);
  if(!row||!studentGoogleReady()||!row.granted_scopes?.includes(STUDENT_SCOPES[2]))return {row:null,token:null};
@@ -405,9 +404,9 @@ async function studentOauthCallback(req){
  const fromCookie=/(?:^|;\s*)casey_student_state=([^;]+)/.exec(req.headers.get('cookie')||'')?.[1]||'';
  if(!state||decodeURIComponent(fromCookie)!==state)return json({error:'OAuth CSRF check failed'},403);
  const hs=await digest(state);
- const records=await db('dc_v5_student_oauth_states?'+qs({select:'student_auth_id,return_to,expires_at',state_hash:'eq.'+hs,limit:'1'}));
+ const records=await db('hf6_v5_student_oauth_states?'+qs({select:'student_auth_id,return_to,expires_at',state_hash:'eq.'+hs,limit:'1'}));
  const row=records[0];if(!row||Date.parse(row.expires_at)<Date.now())return json({error:'Autorizzazione scaduta'},403);
- await db('dc_v5_student_oauth_states?'+qs({state_hash:'eq.'+hs}),undefined,'DELETE');
+ await db('hf6_v5_student_oauth_states?'+qs({state_hash:'eq.'+hs}),undefined,'DELETE');
  const to=validReturn(row.return_to);
  if(!to)return json({error:'Destinazione OAuth non autorizzata'},400);
  const cookie='casey_student_state=; Path=/functions/v1/casey-handoff-ui/; Max-Age=0; HttpOnly; Secure; SameSite=Lax';
@@ -420,20 +419,20 @@ async function studentOauthCallback(req){
   if(!googleUser.email_verified||!googleUser.email)throw Error('Email Google non verificata');
   const scopes=String(d.scope||'').split(' ').filter(Boolean);
   if(!scopes.includes(STUDENT_SCOPES[2]))throw Error('Permesso calendario non concesso');
-  const old=(await db('dc_v5_student_google?'+qs({select:'student_auth_id,google_email,refresh_token_ciphertext,refresh_token_iv',student_auth_id:'eq.'+row.student_auth_id,limit:'1'})))[0];
+  const old=(await db('hf6_v5_student_google?'+qs({select:'student_auth_id,google_email,refresh_token_ciphertext,refresh_token_iv',student_auth_id:'eq.'+row.student_auth_id,limit:'1'})))[0];
   const refresh=d.refresh_token||(old?.google_email===googleUser.email?await decrypt(old):null);
   if(!refresh)throw Error('Google non ha rilasciato un refresh token. Ripeti il consenso.');
-  await db('dc_v5_student_google?on_conflict=student_auth_id',{student_auth_id:row.student_auth_id,google_email:String(googleUser.email).toLowerCase(),...await encrypt(refresh),granted_scopes:scopes,calendar_id:'primary',updated_at:new Date().toISOString()},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
+  await db('hf6_v5_student_google?on_conflict=student_auth_id',{student_auth_id:row.student_auth_id,google_email:String(googleUser.email).toLowerCase(),...await encrypt(refresh),granted_scopes:scopes,calendar_id:'primary',updated_at:new Date().toISOString()},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
   return redirect(to+'#student_google=connected',cookie);
  }catch(e){return failure(e.message||'Collegamento Google non riuscito');}
 }
 async function studentBookingEvents(person,month){
  // The list of appointments is verified by the student's registered email, not the client scenario selector.
- const users=await db('dc_users?'+qs({select:'id',email:'eq.'+person.email,limit:'10'}));
+ const users=await db('hf6_users?'+qs({select:'id',email:'eq.'+person.email,limit:'10'}));
  if(!users.length)return [];
  const idset=users.map(x=>x.id);
- const books=await db('dc_bookings?'+qs({select:'id,slot_id,calendar_status',user_id:'in.('+idset.join(',')+')',limit:'100'}));
- const slots=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',starts_at:'gte.'+month.begin,starts_at:'lte.'+month.end,limit:'500'}));
+ const books=await db('hf6_bookings?'+qs({select:'id,slot_id,calendar_status',user_id:'in.('+idset.join(',')+')',limit:'100'}));
+ const slots=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',starts_at:'gte.'+month.begin,starts_at:'lte.'+month.end,limit:'500'}));
  const map=new Map(slots.map(s=>[s.id,s]));
  return books.filter(b=>map.has(b.slot_id)).map(b=>({id:b.id,title:'Appuntamento Casey · '+(b.calendar_status==='created'?'confermato':'in verifica'),start:map.get(b.slot_id).starts_at,end:map.get(b.slot_id).ends_at,source:'casey',status:b.calendar_status}));
 }
@@ -442,18 +441,18 @@ async function monthlyAvailability(b,session){
  await takeRate('caseyv5:availability:'+session,80);
  const c=await connection();if(!ready()||!scoped(c))return {events:[],slots:[],connected:false,reason:'Lo Student Office deve ancora collegare Google Calendar dalle Impostazioni.'};
  const token=await accessToken(c);
- const rows=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',booked:'eq.false',starts_at:'gt.'+new Date().toISOString(),order:'starts_at.asc',limit:'750'}));
+ const rows=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',booked:'eq.false',starts_at:'gt.'+new Date().toISOString(),order:'starts_at.asc',limit:'750'}));
  const candidates=rows.filter(s=>s.starts_at>=month.begin&&s.starts_at<month.end).slice(0,450);
  if(!candidates.length)return {events:[],slots:[],connected:true};
  const busy=await freeBusy(c,token,month.begin,month.end);
  return {events:[],slots:candidates.filter(x=>!clash(busy,x.starts_at,x.ends_at)).map(x=>({id:x.id,start:x.starts_at,end:x.ends_at})),connected:true};
 }
 async function studentRequests(person){
- const rows=await db('dc_v5_requests?'+qs({select:'id,subject,body,status,staff_reply,created_at,updated_at',student_auth_id:'eq.'+person.id,order:'created_at.desc',limit:'80'}));
+ const rows=await db('hf6_v5_requests?'+qs({select:'id,subject,body,status,staff_reply,created_at,updated_at',student_auth_id:'eq.'+person.id,order:'created_at.desc',limit:'80'}));
  return {requests:rows};
 }
 async function officeRequests(){
- const rows=await db('dc_v5_requests?'+qs({select:'id,student_email,institution,scenario,subject,body,status,staff_reply,created_at,updated_at',order:'created_at.desc',limit:'100'}));
+ const rows=await db('hf6_v5_requests?'+qs({select:'id,student_email,institution,scenario,subject,body,status,staff_reply,created_at,updated_at',order:'created_at.desc',limit:'100'}));
  return {requests:rows};
 }
 
@@ -461,7 +460,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(origin)});
  if(req.method==='GET'&&url.pathname.endsWith('/oauth/student-start')){
    const state=url.searchParams.get('state')||'';if(!/^[A-Za-z0-9_-]{40,80}$/.test(state))return json({error:'Invalid OAuth state'},400);
-   const found=await db('dc_v5_student_oauth_states?'+qs({select:'state_hash,expires_at',state_hash:'eq.'+await digest(state)}));
+   const found=await db('hf6_v5_student_oauth_states?'+qs({select:'state_hash,expires_at',state_hash:'eq.'+await digest(state)}));
    if(!found.length||Date.parse(found[0].expires_at)<Date.now())return json({error:'OAuth state expired'},403);
    // The actual Google authorization URL is reconstructed server-side; the browser need not handle secrets.
    const auth=new URL('https://accounts.google.com/o/oauth2/v2/auth');
@@ -476,11 +475,12 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
  try{
   const bodyText=await req.text();if(bodyText.length>16000)return json({error:'Payload troppo grande'},413,origin);
   const b=JSON.parse(bodyText);
+  if(['commit','prepare','student_google_start','student_google_disconnect','student_submit_request'].includes(b.action)||String(b.action||'').startsWith('admin_'))return json({error:'Questa Preview non modifica calendari o dati di produzione.'},403,origin);
   if(['admin_student_upsert','admin_document_create'].includes(b.action))return json({error:'Use preview provisioning only'},403,origin);
   if(b.action==='public_config')return json({oauth_configured:ready(),oauth_url:`${FUNCTION_URL}/oauth/start`},200,origin);
   if(b.action==='session'){
    const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0];await takeRate('caseyv3:session:'+await digest(ip),20);await takeRate('caseyv3:sessions:global',500);
-   const token=crypto.randomUUID()+crypto.randomUUID();await db('dc_sessions',{token_hash:await digest(token)},'POST');return json({token,expires_in:86400},200,origin);
+   const token=crypto.randomUUID()+crypto.randomUUID();await db('hf6_sessions',{token_hash:await digest(token)},'POST');return json({token,expires_in:86400},200,origin);
   }
   if(b.action?.startsWith('admin_')){
    const admin=await adminFrom(req);
@@ -493,11 +493,11 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(b.action==='admin_requests')return json(await officeRequests(),200,origin);
    if(b.action==='admin_request_update'){
      if(!UUID.test(b.id||'')||!['open','in_review','resolved','closed'].includes(b.status)||typeof b.staff_reply!=='string'||b.staff_reply.length>2000)return json({error:'Aggiornamento non valido'},400,origin);
-     const rows=await db('dc_v5_requests?'+qs({id:'eq.'+b.id}),{status:b.status,staff_reply:b.staff_reply,reviewed_by:admin.google_email,updated_at:new Date().toISOString()},'PATCH');
+     const rows=await db('hf6_v5_requests?'+qs({id:'eq.'+b.id}),{status:b.status,staff_reply:b.staff_reply,reviewed_by:admin.google_email,updated_at:new Date().toISOString()},'PATCH');
      return json({saved:rows.length>0},200,origin);
    }
    if(b.action==='admin_status')return json(await adminStatus(),200,origin);
-   if(b.action==='admin_logout'){await db('dc_v3_admin_sessions?'+qs({token_hash:'eq.'+admin.token_hash}),undefined,'DELETE');return json({ok:true},200,origin);}
+   if(b.action==='admin_logout'){await db('hf6_v3_admin_sessions?'+qs({token_hash:'eq.'+admin.token_hash}),undefined,'DELETE');return json({ok:true},200,origin);}
    if(b.action==='admin_verify'){
     const c=await connection(),token=await accessToken(c);
     await freeBusy(c,token,new Date().toISOString(),new Date(Date.now()+60000).toISOString());
@@ -506,26 +506,26 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(b.action==='admin_calendar'){
     const id=String(b.calendar_id||'').trim();if(!id||id.length>200||/[\s/?#]/.test(id))return json({error:'ID calendario non valido'},400,origin);
     const c=await connection(),token=await accessToken(c);await freeBusy({...c,calendar_id:id},token,new Date().toISOString(),new Date(Date.now()+60000).toISOString());
-    await db('dc_v3_google_connections?'+qs({id:'eq.staff'}),{calendar_id:id,updated_at:new Date().toISOString()},'PATCH');return json({saved:true,calendar_id:id},200,origin);
+    await db('hf6_v3_google_connections?'+qs({id:'eq.staff'}),{calendar_id:id,updated_at:new Date().toISOString()},'PATCH');return json({saved:true,calendar_id:id},200,origin);
    }
    if(b.action==='admin_retry'){
     if(!UUID.test(b.booking_id))return json({error:'Prenotazione non valida'},400,origin);
     await takeRate('caseyv3:adminretry:'+admin.google_email,30);
-    const rows=await db('dc_bookings?'+qs({select:'id,user_id,calendar_status,created_at',id:'eq.'+b.booking_id,is_seed:'eq.false'}));
+    const rows=await db('hf6_bookings?'+qs({select:'id,user_id,calendar_status,created_at',id:'eq.'+b.booking_id,is_seed:'eq.false'}));
     const row=rows[0];if(!row)return json({error:'Prenotazione non trovata'},404,origin);
-    const registry=await db('dc_v3_booking_registry?'+qs({select:'booking_id',booking_id:'eq.'+row.id}));
+    const registry=await db('hf6_v3_booking_registry?'+qs({select:'booking_id',booking_id:'eq.'+row.id}));
     if(!registry.length)return json({error:'Questa prenotazione appartiene al sistema precedente e non può essere modificata qui'},403,origin);
     if(row.calendar_status==='created')return json({error:'Evento già confermato: non può essere sincronizzato di nuovo'},409,origin);
-    const users=await db('dc_users?'+qs({select:'email',id:'eq.'+row.user_id}));if(!users[0])return json({error:'Email della prenotazione mancante'},400,origin);
+    const users=await db('hf6_users?'+qs({select:'email',id:'eq.'+row.user_id}));if(!users[0])return json({error:'Email della prenotazione mancante'},400,origin);
     const result=await completeBooking(row.id,users[0].email);return json(result,200,origin);
    }
    if(b.action==='admin_retry_email'){
     if(!UUID.test(b.booking_id))return json({error:'Prenotazione non valida'},400,origin);
-    const rows=await db('dc_bookings?'+qs({select:'id,slot_id,calendar_status',id:'eq.'+b.booking_id}));if(!rows[0]||rows[0].calendar_status!=='created')return json({error:'Calendario non confermato'},409,origin);
-    const emailRows=await db('dc_v3_mail_outbox?'+qs({select:'recipient,status',booking_id:'eq.'+b.booking_id}));
+    const rows=await db('hf6_bookings?'+qs({select:'id,slot_id,calendar_status',id:'eq.'+b.booking_id}));if(!rows[0]||rows[0].calendar_status!=='created')return json({error:'Calendario non confermato'},409,origin);
+    const emailRows=await db('hf6_v3_mail_outbox?'+qs({select:'recipient,status',booking_id:'eq.'+b.booking_id}));
     if(!emailRows[0]||!['failed','pending'].includes(emailRows[0].status))return json({error:'Invio non ripetibile: verifica lo stato della posta'},409,origin);
     const c=await connection(),token=await accessToken(c);
-    const slots=await db('dc_slots?'+qs({select:'starts_at,ends_at',id:'eq.'+rows[0].slot_id}));
+    const slots=await db('hf6_slots?'+qs({select:'starts_at,ends_at',id:'eq.'+rows[0].slot_id}));
     const book={...rows[0],slot:slots[0]};const ev=await checkEvent(c,token,book);
     if(!ev)return json({error:'Evento Calendar non trovato'},409,origin);
     return json({email_status:await sendEmail(book,c,token,ev)},200,origin);
@@ -537,28 +537,28 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     const language=b.preferred_language==='en'?'en':'it';
     if(!RE_EMAIL.test(email)||email.length>254||!['CAFOSCARI','CICC'].includes(institution)||studentNumber.length<2||studentNumber.length>80||!/^[-a-zA-Z0-9_./]+$/.test(studentNumber))return json({error:'Dati studente non validi'},400,origin);
     await takeRate('caseyv4:roster:'+admin.google_email,50);
-    const rows=await db('dc_v4_student_roster?on_conflict=institutional_email',{institutional_email:email,student_number:studentNumber,institution,preferred_language:language,program:String(b.program||'').slice(0,160),active:true},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
-    await db('dc_v4_admin_audit',{staff_email:admin.google_email,action:'roster_upsert',target_id:rows[0]?.id||null},'POST');
+    const rows=await db('hf6_v4_student_roster?on_conflict=institutional_email',{institutional_email:email,student_number:studentNumber,institution,preferred_language:language,program:String(b.program||'').slice(0,160),active:true},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
+    await db('hf6_v4_admin_audit',{staff_email:admin.google_email,action:'roster_upsert',target_id:rows[0]?.id||null},'POST');
     return json({saved:true,student_id:rows[0]?.id},200,origin);
    }
    if(b.action==='admin_student_list'){
-    const rows=await db('dc_v4_student_roster?'+qs({select:'id,institution,student_number,institutional_email,preferred_language,program,active',order:'created_at.desc',limit:'40'}));
+    const rows=await db('hf6_v4_student_roster?'+qs({select:'id,institution,student_number,institutional_email,preferred_language,program,active',order:'created_at.desc',limit:'40'}));
     return json({students:rows},200,origin);
    }
    if(b.action==='admin_document_create'){
     const institution=String(b.institution||'').toUpperCase(),title=String(b.title||'').trim(),content=String(b.content||'').trim(),url=String(b.source_url||'').trim();
     if(!['CAFOSCARI','CICC','SHARED'].includes(institution)||!title||title.length>180||content.length<20||content.length>10000||url.length>1200||!/^https:\/\/[^\s]+$/i.test(url))return json({error:'Documento, fonte o istituzione non validi'},400,origin);
     await takeRate('caseyv4:docs:'+admin.google_email,25);
-    const rows=await db('dc_v4_documents',{institution,title,content,source_url:url,version:String(b.version||'').slice(0,80),verified:b.verified===true},'POST');
-    await db('dc_v4_admin_audit',{staff_email:admin.google_email,action:b.verified===true?'verified_document_create':'draft_document_create',target_id:rows[0]?.id||null},'POST');
+    const rows=await db('hf6_v4_documents',{institution,title,content,source_url:url,version:String(b.version||'').slice(0,80),verified:b.verified===true},'POST');
+    await db('hf6_v4_admin_audit',{staff_email:admin.google_email,action:b.verified===true?'verified_document_create':'draft_document_create',target_id:rows[0]?.id||null},'POST');
     return json({saved:true,document_id:rows[0]?.id,verified:b.verified===true},200,origin);
    }
    if(b.action==='admin_document_list'){
-    const rows=await db('dc_v4_documents?'+qs({select:'id,institution,title,source_url,verified,updated_at',order:'updated_at.desc',limit:'40'}));
+    const rows=await db('hf6_v4_documents?'+qs({select:'id,institution,title,source_url,verified,updated_at',order:'updated_at.desc',limit:'40'}));
     return json({documents:rows},200,origin);
    }
    if(b.action==='admin_disconnect'){
-    await db('dc_v3_google_connections?'+qs({id:'eq.staff'}),undefined,'DELETE');return json({disconnected:true},200,origin);
+    await db('hf6_v3_google_connections?'+qs({id:'eq.staff'}),undefined,'DELETE');return json({disconnected:true},200,origin);
    }
    return json({error:'Operazione admin sconosciuta'},400,origin);
   }
@@ -571,7 +571,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     if(!studentGoogleReady())return json({error:'OAuth Google non ancora configurato sul server.'},503,origin);
     const destination=validReturn(b.return_to||'');if(!destination)return json({error:'Destinazione non consentita'},400,origin);
     await takeRate('caseyv5:student-oauth:'+person.id,10);
-    const state=randomToken();await db('dc_v5_student_oauth_states',{state_hash:await digest(state),student_auth_id:person.id,return_to:destination,expires_at:new Date(Date.now()+600000).toISOString()},'POST');
+    const state=randomToken();await db('hf6_v5_student_oauth_states',{state_hash:await digest(state),student_auth_id:person.id,return_to:destination,expires_at:new Date(Date.now()+600000).toISOString()},'POST');
     const auth=new URL('https://accounts.google.com/o/oauth2/v2/auth');
     for(const [k,v] of Object.entries({client_id:CLIENT_ID,redirect_uri:STUDENT_CALLBACK,response_type:'code',scope:STUDENT_SCOPES.join(' '),state,access_type:'offline',prompt:'consent select_account'}))auth.searchParams.set(k,v);
     return json({authorization_url:auth.toString(),state_cookie_url:`${FUNCTION_URL}/oauth/student-start?state=${encodeURIComponent(state)}`},200,origin);
@@ -582,7 +582,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
   }
   if(b.action==='student_google_disconnect'){
     const person=await verifiedStudent(req,true);
-    await db('dc_v5_student_google?'+qs({student_auth_id:'eq.'+person.id}),undefined,'DELETE');
+    await db('hf6_v5_student_google?'+qs({student_auth_id:'eq.'+person.id}),undefined,'DELETE');
     return json({disconnected:true},200,origin);
   }
   if(b.action==='student_live_calendar'){
@@ -602,7 +602,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     const subject=String(b.subject||'').trim(),body=String(b.body||'').trim();
     if(subject.length<3||subject.length>180||body.length<3||body.length>3000)return json({error:'Richiesta non valida'},400,origin);
     await takeRate('caseyv5:request:'+person.id,12);
-    const rows=await db('dc_v5_requests',{student_auth_id:person.id,student_email:person.email,institution:person.student.institution,scenario:['EMMA','SOFIA'].includes(b.scenario)?b.scenario:null,subject,body,status:'open'},'POST');
+    const rows=await db('hf6_v5_requests',{student_auth_id:person.id,student_email:person.email,institution:person.student.institution,scenario:['EMMA','SOFIA'].includes(b.scenario)?b.scenario:null,subject,body,status:'open'},'POST');
     return json({created:true,request:{id:rows[0].id,status:rows[0].status,subject:rows[0].subject,created_at:rows[0].created_at}},200,origin);
   }
   if(b.action==='knowledge_lookup'){
@@ -619,13 +619,13 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
   if(b.action==='auth_profile')return json({profile:presentation(await verifiedStudent(req,false))},200,origin);
   if(b.action==='abort'){
    const person=await verifiedStudent(req,false);
-   await db('dc_v4_booking_confirmations?'+qs({session_id:'eq.'+session,used_at:'is.null',cancelled_at:'is.null'}),{cancelled_at:new Date().toISOString()},'PATCH');
+   await db('hf6_v4_booking_confirmations?'+qs({session_id:'eq.'+session,used_at:'is.null',cancelled_at:'is.null'}),{cancelled_at:new Date().toISOString()},'PATCH');
    await saveConversation(session,person,null,[],{phase:'cancelled'});
    return json({cancelled:true},200,origin);
   }
   if(b.action==='turn'){
    const identity=await verifiedStudent(req);
-   if(!identity?.student && !/^(ciao|salve|hello|hi|grazie|thanks|hola|gracias)[!.\s]*$/i.test(String(b.message||'').trim()))return json({route:'handoff',answer:'Continua sul telefono dopo l’accesso per richieste personali o non riconosciute.',sources:[]},200,origin);
+   if(!identity?.student && classifyHandoff(b.message).route!=='public')return json({route:'handoff',answer:'Per informazioni sulla tua situazione personale puoi continuare sul telefono. Per una domanda generale, precisa cosa vuoi sapere.',sources:[]},200,origin);
 
    if(typeof b.message!=='string'||!b.message.trim()||b.message.length>1000)return json({error:'Messaggio non valido'},400,origin);
    const execute=async(onText=null)=>{
@@ -673,12 +673,12 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(!person.student)return json({error:'Profilo universitario non ancora verificato nello Student Roster. Contatta lo Student Office.'},403,origin);
    await takeRate('caseyv4:prepare:'+session,20);
    const c=await connection(),token=await accessToken(c);
-   const sl=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+b.slot_id,booked:'eq.false',starts_at:'gt.'+new Date().toISOString()}));
+   const sl=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+b.slot_id,booked:'eq.false',starts_at:'gt.'+new Date().toISOString()}));
    if(!sl[0])return json({error:'Slot non disponibile'},409,origin);
    if(clash(await freeBusy(c,token,sl[0].starts_at,sl[0].ends_at),sl[0].starts_at,sl[0].ends_at))return json({error:'Slot occupato su Google Calendar'},409,origin);
-   await db('dc_v4_booking_confirmations?'+qs({session_id:'eq.'+session,used_at:'is.null',cancelled_at:'is.null'}),{cancelled_at:new Date().toISOString()},'PATCH');
+   await db('hf6_v4_booking_confirmations?'+qs({session_id:'eq.'+session,used_at:'is.null',cancelled_at:'is.null'}),{cancelled_at:new Date().toISOString()},'PATCH');
    const confirmationToken=randomToken();const requestId=crypto.randomUUID();
-   await db('dc_v4_booking_confirmations',{session_id:session,student_auth_id:person.id,slot_id:b.slot_id,request_id:requestId,token_hash:await digest(confirmationToken),expires_at:new Date(Date.now()+300000).toISOString()},'POST');
+   await db('hf6_v4_booking_confirmations',{session_id:session,student_auth_id:person.id,slot_id:b.slot_id,request_id:requestId,token_hash:await digest(confirmationToken),expires_at:new Date(Date.now()+300000).toISOString()},'POST');
    const current=await loadConversation(session,person);
    await saveConversation(session,person,current,current?.recent_history||[],{phase:'awaiting_confirm',day:dateRome(sl[0].starts_at),time:new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',hour12:false}).format(new Date(sl[0].starts_at))});
    return json({request_id:requestId,confirmation_token:confirmationToken,slot:sl[0],email:person.email,expires_in:300},200,origin);
@@ -689,7 +689,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(b.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.time))return json({error:'Orario non valido'},400,origin);
    const c=await connection();if(!ready()||!scoped(c))return json({slots:[],calendar_connected:false,error:'Collega Google Calendar dalle Impostazioni prima di prenotare.'},200,origin);
    const token=await accessToken(c);
-   const all=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',booked:'eq.false',starts_at:'gt.'+new Date().toISOString(),order:'starts_at.asc',limit:'750'}));
+   const all=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',booked:'eq.false',starts_at:'gt.'+new Date().toISOString(),order:'starts_at.asc',limit:'750'}));
    let rows=all.filter(s=>(!b.day||dateRome(s.starts_at)===b.day)&&(b.period!=='morning'&&b.period!=='afternoon'||(b.period==='morning'?minutesRome(s.starts_at)<720:minutesRome(s.starts_at)>=720)));
    if(!b.day&&rows.length){const date=dateRome(rows[0].starts_at);rows=rows.filter(s=>dateRome(s.starts_at)===date);}
    if(b.time){const m=Number(b.time.slice(0,2))*60+Number(b.time.slice(3));rows.sort((a,z)=>Math.abs(minutesRome(a.starts_at)-m)-Math.abs(minutesRome(z.starts_at)-m));}
@@ -702,17 +702,17 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
   if(b.action==='slot_lookup'){
    if(!UUID.test(b.slot_id||''))return json({error:'Slot non valido'},400,origin);
    const c=await connection(),token=await accessToken(c);
-   const rows=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+b.slot_id,booked:'eq.false',starts_at:'gt.'+new Date().toISOString()}));
+   const rows=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+b.slot_id,booked:'eq.false',starts_at:'gt.'+new Date().toISOString()}));
    if(!rows[0])return json({slot:null},200,origin);
    const busy=await freeBusy(c,token,rows[0].starts_at,rows[0].ends_at);
    return json({slot:clash(busy,rows[0].starts_at,rows[0].ends_at)?null:rows[0]},200,origin);
   }
   if(b.action==='operation_status'){
    if(!UUID.test(b.request_id||''))return json({error:'Riferimento non valido'},400,origin);
-   const books=await db('dc_bookings?'+qs({select:'id,slot_id,calendar_status,google_event_id',session_id:'eq.'+session,request_id:'eq.'+b.request_id,limit:'1'}));
+   const books=await db('hf6_bookings?'+qs({select:'id,slot_id,calendar_status,google_event_id',session_id:'eq.'+session,request_id:'eq.'+b.request_id,limit:'1'}));
    if(!books[0])return json({saved:false},200,origin);
-   const slot=await db('dc_slots?'+qs({select:'starts_at,ends_at',id:'eq.'+books[0].slot_id}));
-   const mail=await db('dc_v3_mail_outbox?'+qs({select:'status',booking_id:'eq.'+books[0].id}));
+   const slot=await db('hf6_slots?'+qs({select:'starts_at,ends_at',id:'eq.'+books[0].slot_id}));
+   const mail=await db('hf6_v3_mail_outbox?'+qs({select:'status',booking_id:'eq.'+books[0].id}));
    return json({saved:true,booking_id:books[0].id,start:slot[0]?.starts_at,end:slot[0]?.ends_at,google_sync:books[0].calendar_status,email_status:mail[0]?.status||'not_queued'},200,origin);
   }
   if(b.action==='commit'){
@@ -721,13 +721,13 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(!person.student)return json({error:'La tua identità universitaria non è ancora presente nel registro verificato'},403,origin);
    await takeRate('caseyv4:commit:'+session,12);
    const c=await connection(),token=await accessToken(c);
-   const old=await db('dc_bookings?'+qs({select:'id,slot_id',session_id:'eq.'+session,request_id:'eq.'+b.request_id,limit:'1'}));
+   const old=await db('hf6_bookings?'+qs({select:'id,slot_id',session_id:'eq.'+session,request_id:'eq.'+b.request_id,limit:'1'}));
    if(!old[0]){
-    const sl=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+b.slot_id,booked:'eq.false',starts_at:'gt.'+new Date().toISOString()}));
+    const sl=await db('hf6_slots?'+qs({select:'id,starts_at,ends_at',id:'eq.'+b.slot_id,booked:'eq.false',starts_at:'gt.'+new Date().toISOString()}));
     if(!sl[0])return json({error:'Orario non disponibile'},409,origin);
     if(clash(await freeBusy(c,token,sl[0].starts_at,sl[0].ends_at),sl[0].starts_at,sl[0].ends_at))return json({error:'Slot occupato nel calendario Google'},409,origin);
    }
-   const booked=await db('rpc/dc_v4_confirm_booking',{p_session:session,p_auth_user:person.id,p_request:b.request_id,p_slot:b.slot_id,p_email:person.email,p_token_hash:await digest(b.confirmation_token)},'POST');
+   const booked=await db('rpc/hf6_v4_confirm_booking',{p_session:session,p_auth_user:person.id,p_request:b.request_id,p_slot:b.slot_id,p_email:person.email,p_token_hash:await digest(b.confirmation_token)},'POST');
    const current=await loadConversation(session,person);await saveConversation(session,person,current,current?.recent_history||[],{phase:'done'});
    try{return json(await completeBooking(booked.booking_id,person.email),200,origin);}
    catch(e){await markCalendar(booked.booking_id,e.uncertain?'uncertain':'failed').catch(()=>{});

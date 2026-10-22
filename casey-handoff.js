@@ -1,42 +1,18 @@
-/* Totem QR + phone context adapter. QR carries no identity, transcript, or auth credential. */
+/* Possession-based full-chat handoff. No kiosk identity or student number. */
 (() => {
- 'use strict';
- const API=window.HandoffAPI;let poll=null,expiry=null,saveTimer=null,linkId=null;
- let ready=Promise.resolve();
- function clearPublic(){window.CaseyDialogue.clear();window.CaseyLive?.stop?.();window.resetDemo?.();document.getElementById('userInput').value='';document.getElementById('subtitleBox').textContent='Conversazione trasferita. Pronto per un nuovo studente.';}
- function close(){clearTimeout(expiry);clearInterval(poll);poll=null;const d=document.getElementById('handoffDialog');if(d?.open)d.close();document.getElementById('handoffQR')?.replaceChildren();linkId=null;}
- async function open(){
-  if(API.mobile)return {status:'already_on_mobile'};
-  await window.CaseyLive?.stop?.();
-  const d=document.getElementById('handoffDialog');if(!d.open)d.showModal();document.getElementById('handoffNumber').focus();
-  return {status:'mobile_handoff_required',message:'Inserisci la matricola sul totem e scansiona il QR. Accedi soltanto sul telefono.'};
- }
- async function issue(e){e.preventDefault();const feedback=document.getElementById('handoffFeedback'),button=e.target.querySelector('button');button.disabled=true;closeTimers();document.getElementById('handoffQR').replaceChildren();
-  try{
-   const context=window.CaseyDialogue.snapshot();const r=await API.call('issue',{student_number:document.getElementById('handoffNumber').value.trim(),context});linkId=r.id;
-   const url=new URL('college.html',location.href);url.hash='handoff='+r.token;
-   const qr=qrcode(0,'M');qr.addData(url.href);qr.make();
-   const canvas=document.createElement('canvas'),n=qr.getModuleCount(),scale=Math.max(3,Math.floor(300/(n+8)));canvas.width=canvas.height=(n+8)*scale;canvas.setAttribute('aria-label','QR per continuare sul telefono');
-   const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#11152c';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(qr.isDark(y,x))ctx.fillRect((x+4)*scale,(y+4)*scale,scale,scale);
-   document.getElementById('handoffQR').append(canvas);feedback.textContent='Scansiona entro 2 minuti e accedi sul telefono. Il QR funziona una sola volta.';
-   expiry=setTimeout(()=>{closeTimers();document.getElementById('handoffQR').replaceChildren();feedback.textContent='QR scaduto. Generane uno nuovo.';},r.expires_in*1000);
-   poll=setInterval(async()=>{try{const s=await API.call('status',{id:r.id});if(linkId!==r.id)return;if(s.consumed){close();clearPublic();document.getElementById('handoffNumber').value='';}else if(s.expired){closeTimers();document.getElementById('handoffQR').replaceChildren();feedback.textContent='QR scaduto. Generane uno nuovo.';}}catch{feedback.textContent='Verifica connessione: il QR scade comunque dopo 2 minuti.';}},3000);
-  }catch(err){feedback.textContent=err.message;}finally{button.disabled=false;}
- }
- function closeTimers(){clearTimeout(expiry);clearInterval(poll);poll=null;}
- if(API.mobile){
-  document.documentElement.classList.add('handoff-mobile');
-  ready=API.call('load').then(data=>{window.CaseyDialogue.clear();for(const t of data.context)window.CaseyDialogue.append(t.role,t.text);document.getElementById('subtitleBox').textContent='Contesto importato dal totem. Puoi continuare la conversazione.';}).catch(()=>{location.replace('college.html');throw new Error('Accedi dalla pagina College');});
-  window.addEventListener('casey:dialogue',()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>API.call('save',{context:window.CaseyDialogue.snapshot()}).catch(()=>{const box=document.getElementById('handoffSaveStatus');if(box)box.textContent='Salvataggio non riuscito: verifica la connessione.';}),500);});
- }else{
-  document.addEventListener('DOMContentLoaded',()=>{
-   const d=document.createElement('dialog');d.id='handoffDialog';d.setAttribute('aria-labelledby','handoffTitle');
-   d.innerHTML='<h2 id="handoffTitle">Continua sul tuo telefono</h2><p>La matricola indica a chi trasferire il contesto. L’identità verrà verificata dopo il login sul telefono.</p><form id="handoffForm"><label for="handoffNumber">Matricola di prova</label><input id="handoffNumber" autocomplete="off" pattern="[A-Za-z0-9-]{3,24}" required maxlength="24"><button type="submit">Genera QR sicuro</button></form><div id="handoffQR"></div><p id="handoffFeedback" role="status"></p><button id="handoffClose" type="button">Chiudi</button>';
-   document.body.append(d);document.getElementById('handoffForm').addEventListener('submit',issue);document.getElementById('handoffClose').onclick=close;d.addEventListener('cancel',close);
-   const button=document.createElement('button');button.id='handoffStart';button.className='handoff-start';button.textContent='Continua sul telefono · QR';button.onclick=open;document.querySelector('header').append(button);
-   const badge=document.createElement('p');badge.className='handoff-banner';badge.textContent='Casey 6.0 Handoff · Preview isolata · account e dati di prova';document.querySelector('header').after(badge);
-  });
- }
- async function beforeTurn(text){if(API.mobile)return false;const decision=await API.call('classify',{message:text});if(decision.personal){window.CaseyDialogue.append('user',text);await open();return true;}return false;}
- window.CaseyHandoff={open,beforeTurn,ready};
+ 'use strict';const API=window.HandoffAPI;let poll=null,expiry=null,linkId=null,generating=false;
+ function clearPublic(){window.CaseyDialogue.clear();window.resetDemo?.();document.getElementById('userInput').value='';document.getElementById('subtitleBox').textContent='Conversazione trasferita. Puoi continuare sul telefono.';document.getElementById('handoffOffer')?.setAttribute('hidden','');}
+ function stopTimers(){clearTimeout(expiry);clearInterval(poll);}
+ function finish(){stopTimers();linkId=null;document.getElementById('handoffDialog').close();document.getElementById('handoffQR').replaceChildren();clearPublic();}
+ async function close(){if(generating)return;stopTimers();if(linkId){try{const state=await API.call('cancel',{id:linkId});if(state.consumed){finish();return;}}catch{document.getElementById('handoffFeedback').textContent='Non riesco a verificare il trasferimento. Riprova prima di tornare alla chat.';return;}}linkId=null;document.getElementById('handoffDialog').close();document.getElementById('handoffQR').replaceChildren();}
+ async function issue(){if(generating)return;generating=true;stopTimers();const feedback=document.getElementById('handoffFeedback'),renew=document.getElementById('handoffRenew');renew.disabled=true;document.getElementById('handoffClose').disabled=true;document.getElementById('handoffQR').replaceChildren();feedback.textContent='Preparo la tua conversazione…';
+  try{const r=await API.call('issue',{context:window.CaseyDialogue.snapshot()});linkId=r.id;const url=new URL('college.html',location.href);url.hash='handoff='+r.token;const qr=qrcode(0,'M');qr.addData(url.href);qr.make();const n=qr.getModuleCount(),scale=Math.max(3,Math.floor(300/(n+8))),canvas=document.createElement('canvas');canvas.width=canvas.height=(n+8)*scale;canvas.setAttribute('aria-label','Scansiona per continuare questa conversazione');const ctx=canvas.getContext('2d');ctx.fillStyle='#fff';ctx.fillRect(0,0,canvas.width,canvas.height);ctx.fillStyle='#11152c';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(qr.isDark(y,x))ctx.fillRect((x+4)*scale,(y+4)*scale,scale,scale);document.getElementById('handoffQR').append(canvas);feedback.textContent='Scansiona con il tuo telefono. Ritroverai tutti i messaggi. Valido per 2 minuti, una sola volta.';
+   expiry=setTimeout(()=>{stopTimers();document.getElementById('handoffQR').replaceChildren();feedback.textContent='Il QR è scaduto. La conversazione è ancora qui: genera un nuovo QR.';},r.expires_in*1000);
+   let checking=false;poll=setInterval(async()=>{if(checking)return;checking=true;try{const status=await API.call('status',{id:r.id});if(linkId!==r.id)return;if(status.consumed)finish();else if(status.expired){stopTimers();document.getElementById('handoffQR').replaceChildren();feedback.textContent='QR scaduto. Puoi generarne un altro.';}}catch{feedback.textContent='Controlla la connessione. La conversazione resta salvata sul totem.';}finally{checking=false;}},2500);
+  }catch(err){feedback.textContent=err.message;}finally{generating=false;renew.disabled=false;document.getElementById('handoffClose').disabled=false;}}
+ async function open(){window.cancelStandardTurn?.();window.CaseyLive?.checkpoint?.();await window.CaseyLive?.stop?.();const d=document.getElementById('handoffDialog');if(d.open)return;d.showModal();await issue();return {status:'handoff_offered'};}
+ function offer(reason='personal_request'){const text=reason==='needs_clarification'?'Ti serve un’informazione generale o riguarda la tua situazione personale? Puoi precisarlo qui, oppure continuare nella tua app.':'Possiamo continuare nella tua app, così posso aiutarti con il tuo account. Ritroverai tutta la conversazione.';document.getElementById('subtitleBox').textContent=text;window.CaseyDialogue.append('assistant',text);let box=document.getElementById('handoffOffer');if(!box){box=document.createElement('div');box.id='handoffOffer';box.className='handoff-offer';const b=document.createElement('button');b.textContent='Continua sul telefono';b.onclick=()=>{box.hidden=true;void open();};const dismiss=document.createElement('button');dismiss.textContent='Resto qui';dismiss.onclick=()=>{box.hidden=true;document.getElementById('userInput').focus();};box.append(b,dismiss);document.getElementById('caseyComposer').after(box);}box.hidden=false;return {status:'handoff_offered',message:text};}
+ async function beforeTurn(text){const d=await API.call('classify',{message:text});if(d.route==='public')return false;window.CaseyDialogue.append('user',text);offer(d.reason);return true;}
+ document.addEventListener('DOMContentLoaded',()=>{const d=document.createElement('dialog');d.id='handoffDialog';d.setAttribute('aria-labelledby','handoffTitle');d.innerHTML='<h2 id="handoffTitle">Continua questa conversazione sul telefono</h2><p>Scansiona il QR con il tuo telefono. La conversazione resterà in pausa fino al trasferimento.</p><div id="handoffQR"></div><p id="handoffFeedback" role="status"></p><button id="handoffRenew" type="button">Genera un nuovo QR</button><button id="handoffClose" type="button">Torna alla conversazione</button>';document.body.append(d);document.getElementById('handoffRenew').onclick=issue;document.getElementById('handoffClose').onclick=close;d.addEventListener('cancel',e=>{e.preventDefault();void close();});const b=document.createElement('button');b.id='handoffStart';b.className='handoff-start';b.textContent='Continua sul telefono';b.onclick=open;document.querySelector('header').append(b);});
+ window.CaseyHandoff={open,offer,beforeTurn,ready:Promise.resolve()};
 })();
