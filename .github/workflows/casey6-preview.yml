@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main, feature/casey-live-5-2]
   push:
-    branches: [feature/casey-6-gemini-tools]
+    branches: [feature/casey-6-gemini-tools, feature/casey-6-handoff]
 permissions:
   contents: read
 jobs:
@@ -15,4 +15,9 @@ jobs:
         with:
           node-version: '24'
       - run: node --test tests/*.test.mjs
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+      - run: deno check supabase/functions/casey-handoff/index.ts supabase/functions/casey-handoff-live/index.ts
+      - run: deno test tests/handoff-operations.test.ts
       - run: git diff --check

@@ -78,10 +78,12 @@
     }
     if (awaitingTurn) { awaitingTurn = false; window.dispatchEvent(new CustomEvent('casey:live-turn-end')); }
     if (firstAudioAt) metric('turn', {firstAudioMs:Math.round(firstAudioAt - requestAt), queuedAudioMs:Math.round(Math.max(0,outputAt-(audioContext?.currentTime||0))*1000)});
-    firstAudioAt = 0;
+    firstAudioAt = 0;state();
   }
 
+  function state(){window.dispatchEvent(new CustomEvent('casey:live-state',{detail:{state:starting?'connecting':!started?'idle':awaitingTurn||scheduled.size?'responding':paused?'paused':mediaStream?'listening':'text_ready',microphone:!!mediaStream&&!paused}}));}
   function status(value) {
+    state();
     const node = get('caseyLiveStatus');
     if (node) {
       node.textContent = value;
@@ -98,6 +100,7 @@
     } catch (_) { /* visual state must not break audio */ }
   }
   function render() {
+    state();
     const toggle = get('caseyLiveBtn');
     const pause = get('caseyLivePause');
     if (toggle) {
@@ -261,7 +264,7 @@
     const content = packet.serverContent;
     if (!content) return;
     if (content.interrupted) {
-      stopOutput();
+      checkpoint();stopOutput();
       turnDone = false;
       avatar(mediaStream?'LISTEN':'A');
       status(listeningStatus());
@@ -275,7 +278,7 @@
     }
     if (turnDone && (content.outputTranscription || content.modelTurn)) { resetSubtitles(); turnDone=false; }
     if (content.outputTranscription?.text) {
-      subtitleText += String(content.outputTranscription.text);
+      subtitleText += String(content.outputTranscription.text);state();
       startSubtitleClock();
     }
     if ((content.modelTurn || content.outputTranscription) && inputText) {
@@ -448,10 +451,11 @@
     avatar(paused || !mediaStream ? 'A' : 'LISTEN');
     render();
   }
+  async function interrupt(){checkpoint();await stop('Risposta interrotta · microfono spento');}
   function checkpoint(){if(inputText){window.CaseyDialogue?.append('user',inputText);inputText='';}if(subtitleText)window.CaseyDialogue?.append('assistant',subtitleText);}
   function sendText(text) {
     if (!started || !ready || !socket || socket.readyState !== WebSocket.OPEN) return false;
-    text=String(text||'').trim().slice(0,1000); if (!text) return false;
+    text=String(text||'').trim().slice(0,12000); if (!text) return false;
     stopOutput(); turnDone=false; awaitingTurn=true; requestAt=performance.now(); firstAudioAt=0;
     window.CaseyDialogue?.append('user',text); activity();
     socket.send(JSON.stringify({clientContent:{turns:[{role:'user',parts:[{text}]}],turnComplete:true}}));
@@ -463,5 +467,5 @@
   function toggle() { return started ? stop() : start(); }
   document.addEventListener('DOMContentLoaded', render);
   window.addEventListener('pagehide', () => { if (started || starting) void stop(); });
-  window.CaseyLive = Object.freeze({checkpoint,toggle, start, startText, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
+  window.CaseyLive = Object.freeze({interrupt,checkpoint,toggle, start, startText, pause, stop, sendText, setMuted, changeLanguage, get diagnostics(){return diagnostics.map(x=>({...x}));}, get active() {return started || starting;}, get ready() {return ready;}});
 })();

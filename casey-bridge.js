@@ -347,6 +347,6 @@
   const fragment=new URLSearchParams(location.hash.slice(1));if(fragment.has('student_google_error'))notice(fragment.get('student_google_error'));if(fragment.has('student_google'))notice('Account Google collegato. Ricarico il calendario.');if(location.hash)history.replaceState(null,'',location.pathname+location.search);
   window.renderAll();await Promise.all([refreshCalendar(),refreshRequests()]);
  }
- window.CaseyBridge={liveMobileHandoff:()=>window.CaseyHandoff.offer(),showLogin,hideLogin,logout,shiftMonth,goToday,connectStudentGoogle,confirmBooking,submitOfficeRequest,dismissOfficeRequest,selectDay,refreshCalendar,refreshRequests,liveFindSlots,livePrepareBooking,liveBookingStatus,liveSearchKnowledge};
+ window.CaseyBridge={resetAfterHandoff(){state.session=null;sessionStorage.removeItem(window.CASEY_CONFIG.sessionStorageKey||'casey-original-ui-session');window.CaseyAuth.clear();},liveMobileHandoff:()=>window.CaseyHandoff.offer(),showLogin,hideLogin,logout,shiftMonth,goToday,connectStudentGoogle,confirmBooking,submitOfficeRequest,dismissOfficeRequest,selectDay,refreshCalendar,refreshRequests,liveFindSlots,livePrepareBooking,liveBookingStatus,liveSearchKnowledge};
  document.addEventListener('DOMContentLoaded',init);
 })();
