@@ -26,7 +26,7 @@
  function closeTimers(){clearTimeout(expiry);clearInterval(poll);poll=null;}
  if(API.mobile){
   document.documentElement.classList.add('handoff-mobile');
-  ready=API.call('load').then(data=>{window.CaseyDialogue.clear();for(const t of data.context)window.CaseyDialogue.append(t.role,t.text);}).catch(()=>{location.replace('college.html');throw new Error('Accedi dalla pagina College');});
+  ready=API.call('load').then(data=>{window.CaseyDialogue.clear();for(const t of data.context)window.CaseyDialogue.append(t.role,t.text);document.getElementById('subtitleBox').textContent='Contesto importato dal totem. Puoi continuare la conversazione.';}).catch(()=>{location.replace('college.html');throw new Error('Accedi dalla pagina College');});
   window.addEventListener('casey:dialogue',()=>{clearTimeout(saveTimer);saveTimer=setTimeout(()=>API.call('save',{context:window.CaseyDialogue.snapshot()}).catch(()=>{const box=document.getElementById('handoffSaveStatus');if(box)box.textContent='Salvataggio non riuscito: verifica la connessione.';}),500);});
  }else{
   document.addEventListener('DOMContentLoaded',()=>{

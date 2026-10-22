@@ -57,3 +57,15 @@ Open the Preview kiosk on a computer; enter the test student's matricola and gen
 - [OWASP token guidance](https://cheatsheetseries.owasp.org/cheatsheets/Forgot_Password_Cheat_Sheet.html)
 - [Vercel deployments](https://vercel.com/docs/deployments)
 - Supabase changelog reviewed; October TLS deprecation does not require weakening client TLS or changing these API flows.
+
+## Validation snapshot (22 October 2026)
+
+- Existing automated tests: 53/53 passed.
+- Real cloud integration suite: 29/29 passed, repeated with the HTTPS Preview origin. Ephemeral token issuance is verified separately from Live generation.
+- Separate browser contexts: QR image decoded; phone login and matching import passed; kiosk cleared; imported context survived page reload.
+- Live generation is BLOCKED: Google closed the real `gemini-3.8-live` WebSocket with 1011 and “Your prepayment credits are depleted”. An independent minimal `gemini-3.8-flash` call returned upstream HTTP 402 with the same message. This confirms the symptom for the configured API key; it does not establish the user's balance in other Google projects or accounts. No successful AI continuation is claimed.
+- Security advisor: no database/RLS findings; one Auth warning, leaked-password protection disabled. Test accounts use generated random passwords and a synthetic registry; production hardening of Auth is outside this isolated demonstration.
+- Physical computer-to-phone scan and microphone acceptance remain pending user confirmation.
+- Calendar/Gmail configuration remains intentionally absent following the user's prioritization of proving Handoff; no Google production connections were copied.
+
+This branch's config points to the isolated project. Do not merge it into main or promote it as-is; a production integration needs environment-specific configuration and separate acceptance.

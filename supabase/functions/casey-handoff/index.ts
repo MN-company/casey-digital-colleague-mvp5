@@ -58,6 +58,12 @@ Deno.serve(async req=>{
    const id=await db('rpc/hf_handoff_issue',{p_session:s,p_hash:await hash(t),p_number:b.student_number,p_context:context});
    return reply({id,token:t,expires_in:120});
   }
+  if(b.action==='ai_status'){
+   const u=await user(req);await rate('ai-status:'+u.id,5);
+   const model='gemini-3.8-flash';
+   const r=await fetch('https://generativelanguage.googleapis.com/v1beta/models/'+model+':generateContent',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':Deno.env.get('GEMINI_API_KEY')||''},body:JSON.stringify({contents:[{parts:[{text:'Reply only OK.'}]}],generationConfig:{maxOutputTokens:16}}),signal:AbortSignal.timeout(12000)});
+   const d=await r.json();return reply({model,upstream_status:r.status,available:r.ok,...(!r.ok?{reason:String(d.error?.message||'Gemini unavailable').slice(0,500)}:{})});
+  }
   if(b.action==='restore'){
    const u=await user(req);await rate('restore:'+u.id,15);const t=crypto.randomUUID()+crypto.randomUUID();
    try{const result=await db('rpc/hf_handoff_restore',{p_user:u.id,p_session_hash:await hash(t)});return reply({...result,session_token:t});}
