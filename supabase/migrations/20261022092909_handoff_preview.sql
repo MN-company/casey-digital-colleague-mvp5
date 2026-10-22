@@ -63,7 +63,7 @@ grant execute on function public.hf_handoff_issue(uuid,text,text,jsonb) to servi
 -- TTL cleanup includes claimed context. Token expiry is also enforced at read/claim time.
 create function public.hf_handoff_cleanup() returns void language sql security invoker set search_path='' as $$
  delete from public.hf_handoff_links where expires_at<now()-interval '10 minutes';
- delete from public.dc_v4_conversations where session_id in(select session_id from public.hf_handoff_conversations where expires_at<=now());
+ delete from public.dc_v4_conversations where session_id in(select session_id from public.hf_handoff_conversations where expires_at<=now()) or session_id in(select id from public.dc_sessions where expires_at<=now());
  delete from public.hf_handoff_conversations where expires_at<=now();
 $$;
 revoke all on function public.hf_handoff_cleanup() from public,anon,authenticated;

@@ -413,7 +413,8 @@
       socket.onclose = (event) => {
         if (mine !== revision) return;
         const details = String(event.reason || '').slice(0,200);
-        const reason = event.code === 1000
+        if(details.includes('prepayment credits are depleted'))metric('upstream_rejection',{code:event.code,reason:details,model:'gemini-3.8-live'});
+        const reason = details.includes('prepayment credits are depleted') ? 'Gemini non disponibile per questo progetto. Il contesto resta salvato.' : event.code === 1000
           ? 'Connessione Gemini terminata' // no error implied
           : 'Gemini WebSocket ' + event.code + (details ? ': ' + details : '');
         console.warn('Casey Live closed:', event.code, details.slice(0,150));
