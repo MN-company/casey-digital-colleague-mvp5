@@ -37,3 +37,14 @@ La suite usa soltanto account sintetici QA e namespace hf6_/hf7_; verifica inter
 
 ## Stato della verifica del provider
 Sul progetto condiviso il token Gemini Live viene emesso e il WebSocket raggiunge setupComplete con il microfono collegato. Una verifica indipendente di Gemini 3.8 Flash ha restituito HTTP 503 “This model is currently experiencing high demand”, diverso dal precedente errore sui crediti della chiave del progetto separato. La risposta completa in testo/voce va distinta dalla sola connessione. Nessuna risposta simulata viene inserita nella chat per nascondere un errore del provider.
+
+
+## Risultati misurati
+- 55 test automatici passati.
+- 23 verifiche cloud passate: intera cronologia di 40 messaggi, account corrente senza matricola, proprietà/RLS, replay, doppia scansione, scadenza, revoca, chat multiple, salvataggio con versione e ripristino.
+- Browser mobile 393x852: nessun iframe, un solo elenco messaggi, testo e voce visibili, acquisizione automatica dopo login, pulizia del totem e ripristino dopo reload.
+- Il modello Live sul telefono non dispone più dello strumento request_mobile_handoff, per evitare di proporre nuovamente il QR dopo il trasferimento.
+- Advisor Supabase: zero rilievi sul namespace nuovo; nessuna autorizzazione anon/authenticated alle RPC di claim/salvataggio.
+- Il dominio di produzione continua a servire config.js, index.html, casey-bridge.js e casey-live.js identici a origin/main.
+
+L'autenticazione della pagina demo simula la sessione della vera app blu: dopo il primo accesso viene riutilizzata per le scansioni successive. L'integrazione nella vera app H-FARM richiederà il suo deep link e l'accesso alla sua sessione autenticata.
