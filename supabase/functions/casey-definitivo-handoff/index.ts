@@ -4,7 +4,7 @@ import {classifyHandoff} from '../_shared/handoff-policy.js';
 const URL_BASE=Deno.env.get('SUPABASE_URL')||'';
 if(!URL_BASE.includes('sneaxpqnmlhnrhoautjx'))throw new Error('Unexpected project');
 const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default;
-const origins=new Set(['http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','https://casey-digital-colleague-live-git-feature-casey-6-definitivo-mnbrain.vercel.app']);
+const origins=new Set(['http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','https://casey-digital-colleague-live-1wog89efb-mnbrain.vercel.app']);
 const hash=async(s:string)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 const token=()=>[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,'0')).join('');
 const headers={apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'};
