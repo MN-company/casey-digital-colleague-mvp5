@@ -17,8 +17,6 @@
  async function clearLink(){stopPoll();const old=link;link=null;phoneUrl='';if(old){await A.call('cancel',{id:old}).catch(()=>{});}document.getElementById('qrCard').classList.remove('on');}
  const visualSay=window.say;
  window.say=(value,source,kind,label,end)=>{visualSay(value,source,kind,label,end);clearInterval(capTimer);document.getElementById('capText').textContent=value;};
- // The back-office dashboard remains an explicitly labelled visual demonstration.
- const banner=document.createElement('div');banner.className='definitivo-notice';banner.textContent='Preview · chat e trasferimento collegati · dashboard ufficio dimostrativa · nessun invio o prenotazione reale';document.querySelector('header').after(banner);
  async function handover(){
   await window.CaseyVoiceSession?.stop();
   const rev=revision;await clearLink();if(rev!==revision)return;

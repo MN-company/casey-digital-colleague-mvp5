@@ -310,7 +310,7 @@ body.show .exit{display:block}
         <div class="cal" id="cal"></div>
       </div>
       <div class="view" id="v-MAIL"><div class="mail"><div class="mlist" id="mlist"></div><div class="mbody" id="mbody"></div></div></div>
-      <div class="view" id="v-QUEUE"><div class="vh"><div><h2 id="qTitle"></h2><p id="qSub"></p></div></div><div id="queue"></div></div>
+      <div class="view" id="v-QUEUE"><div class="vh"><div><h2 id="qTitle"></h2></div></div><div id="queue"></div></div>
       <div class="view" id="v-ROUTE">
         <div class="vh"><div><h2 id="rTitle"></h2><p id="rSub"></p></div></div>
         <div class="offs" id="offs"></div>
@@ -968,7 +968,7 @@ function renderMail(){
 }
 function renderQueue(){
   document.getElementById('qTitle').textContent=D.qTitle;
-  document.getElementById('qSub').textContent=D.qSub;
+
   const b=document.getElementById('queue');
   if(!queue.length){b.innerHTML='<div class="empty"><div class="big">Nessuna pratica in attesa</div>'+
     'Quando Casey incontra qualcosa che non deve decidere da solo — tasse, deroghe, casi limite, dati sensibili, benessere — la prepara e la lascia qui con la bozza già scritta.</div>';return;}
