@@ -6,3 +6,20 @@
 #kpis{display:none!important}.demo-action{padding:9px 12px;background:#1d2a5b;color:#fff;border-radius:10px;font-size:12px;font-weight:600}.top .in>a{font-size:12px;padding:7px 3px}.presentation-tools{display:none;position:fixed;top:16px;left:18px;gap:8px;z-index:45;flex-wrap:wrap;max-width:calc(100vw - 320px)}.presentation-tools a,.presentation-tools button{color:#fff;background:#17253ed9;border:1px solid #ffffff45;border-radius:9px;padding:8px 12px;font:600 12px system-ui;text-decoration:none}body.show{background:#101a2b}body.show .presentation-tools{display:flex}body.show .definitivo-notice{display:none}body.show .grid,body.show .kiosk{height:100dvh}body.show .bezel{height:100dvh}body.show .screen{max-width:100vw}body.calendar-only .kiosk{display:none}body.calendar-only .grid{grid-template-columns:minmax(0,1fr)}body.calendar-only .wrap{max-width:none;padding-top:18px}body.calendar-only .panel{min-height:calc(100dvh - 170px)}body.calendar-only #startDemo,body.calendar-only #calendarLink,body.calendar-only .top .seg{display:none}@media(max-width:650px){.presentation-tools{top:auto;bottom:8px;left:8px;max-width:calc(100vw - 16px)}body.show .exit{font-size:11px;right:8px;top:8px}}
 
 .calendar-google-link{display:inline-block;margin-top:10px;color:#1d2a5b;font:600 12px system-ui}
+
+/* Calendar scales with its container, including narrow presenter windows. */
+body.calendar-only{height:100dvh;display:flex;flex-direction:column;overflow:hidden}
+body.calendar-only .top{flex:none}
+body.calendar-only .wrap{flex:1;min-height:0;width:100%;padding:clamp(8px,1.5vw,20px);display:flex;flex-direction:column;box-sizing:border-box}
+body.calendar-only .grid{flex:1;min-height:0;width:100%;display:flex}
+body.calendar-only .panel{flex:1;min-width:0;min-height:0;height:auto}
+body.calendar-only #v-CAL.on{display:flex;flex-direction:column;min-height:0;padding:clamp(8px,1.4vw,20px)}
+body.calendar-only .vh{flex:none;margin-bottom:12px}
+body.calendar-only .cal{flex:1;min-height:0;grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:auto repeat(var(--calendar-weeks,5),minmax(0,1fr));gap:clamp(3px,.6vw,9px);overflow:auto}
+body.calendar-only .day{min-width:0;min-height:0;overflow:auto;padding:clamp(4px,.65vw,10px)}
+body.calendar-only .day .n{font-size:clamp(11px,1vw,15px)}
+body.calendar-only .ev{font-size:clamp(10px,.85vw,13px);padding:4px 6px}
+@media(max-width:650px){body.calendar-only .tabs{padding:4px 6px 0}body.calendar-only .tabs button{padding:7px;font-size:11px}body.calendar-only .lg{gap:6px;font-size:9px}body.calendar-only .vh{gap:6px}body.calendar-only .cal{min-height:300px}body.calendar-only .top .in{padding:8px}}
+body.calendar-only .grid{align-items:stretch}
+body.calendar-only .wrap{justify-content:flex-start}
+body.calendar-only .tabs,body.calendar-only .top .language-control,body.calendar-only #bePill,body.calendar-only #appLink,body.calendar-only .top .ic{display:none}
