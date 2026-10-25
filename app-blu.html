@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>H-FARM College — App</title>
+<style>
+:root{--navy:#1D2A5B;--navy-l:#2B3A74;--ink:#101828;--mut:#667085;--bor:#E7ECF4;
+ --bg:#fff;--ok:#16764C;--ok-bg:#EAF4EF;--wait:#A8700C;--wait-bg:#FDF6E7;--amber:#B5861F}
+body.az{--navy:#3E2B56;--navy-l:#543C72}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+button{border:0;background:none;cursor:pointer;font:inherit;color:inherit;padding:0;text-align:inherit}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+ background:#0C1020;color:var(--ink);font-size:15px;-webkit-font-smoothing:antialiased;
+ min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:20px 12px 26px;gap:13px}
+.phone{width:402px;max-width:100%;height:842px;max-height:90vh;background:#fff;border-radius:36px;
+ overflow:hidden;display:flex;flex-direction:column;position:relative;
+ box-shadow:0 26px 70px rgba(0,0,0,.55);border:10px solid #080B14}
+/* splash */
+.splash{position:absolute;inset:0;background:#fff;z-index:50;display:flex;flex-direction:column;align-items:center;
+ justify-content:center;gap:30px;transition:opacity .45s}
+.splash.go{opacity:0;pointer-events:none}
+.splash img{width:148px;height:auto;display:block}
+.spin{width:30px;height:30px;border-radius:50%;border:3px solid #E7ECF4;border-top-color:var(--navy);animation:sp .9s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.sb{background:#fff;padding:9px 18px 0;display:flex;justify-content:space-between;font-size:11.5px;font-weight:600;color:var(--ink)}
+/* intestazione */
+.hdr{background:#fff;padding:6px 18px 10px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--bor)}
+.hdr .logo img{height:42px;width:auto;display:block}
+.hdr .nm{flex:1;text-align:center;font-size:13.8px;font-weight:700;color:var(--navy);
+ letter-spacing:-.1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.av{width:32px;height:32px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;
+ justify-content:center;font-size:12px;font-weight:700;flex:none}
+/* griglia sezioni */
+.body{flex:1;overflow:auto;padding:16px 16px 96px}
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:4px 0;margin-bottom:14px}
+.tile{display:flex;flex-direction:column;align-items:center;gap:7px;padding:6px 2px}
+.tile .ib{width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:var(--navy)}
+.tile[aria-selected="true"] .ib{background:var(--navy);color:#fff}
+.tile span{font-size:10.2px;font-weight:700;color:var(--navy);text-align:center;line-height:1.2;letter-spacing:.2px}
+.rule{height:1px;background:var(--bor);margin:4px 0 16px}
+/* contenuti */
+h2.ttl{font-size:16px;font-weight:800;color:var(--navy);text-align:center;margin:4px 0 12px;letter-spacing:.2px}
+.sub{font-size:11.4px;font-weight:700;color:var(--navy);text-align:center;letter-spacing:.6px;margin:0 0 10px}
+.strip{display:flex;gap:10px;overflow-x:auto;padding-bottom:6px;margin-bottom:14px}
+.strip .it{flex:none;width:132px}
+.strip .ph{height:84px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+ font-size:10.6px;font-weight:800;color:#fff;text-align:center;padding:8px;line-height:1.25}
+.strip .dy{font-size:10.4px;font-weight:700;color:var(--navy);text-align:center;margin-top:6px;letter-spacing:.3px}
+.subtabs{display:flex;gap:18px;border-bottom:1px solid var(--bor);margin-bottom:13px}
+.subtabs button{padding:7px 0 9px;font-size:13px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent}
+.subtabs button[aria-selected="true"]{color:var(--ink);font-weight:700;border-bottom-color:var(--navy)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card .ph{height:96px;border-radius:9px;display:flex;align-items:center;justify-content:center;color:#fff;
+ font-size:10.4px;font-weight:700;text-align:center;padding:8px;line-height:1.3}
+.card .cp{font-size:11.4px;font-weight:800;color:var(--navy);margin-top:7px;line-height:1.25;letter-spacing:.2px}
+.lst{border-top:1px solid var(--bor)}
+.row{display:flex;align-items:center;gap:13px;padding:15px 2px;border-bottom:1px solid var(--bor)}
+.row .ri{width:26px;flex:none;color:var(--navy);display:flex}
+.row .rt{flex:1;font-size:14px;font-weight:600;line-height:1.3}
+.row .ra{width:30px;height:30px;border-radius:50%;background:#F2F4F8;display:flex;align-items:center;justify-content:center;flex:none;color:var(--navy)}
+.note{background:var(--wait-bg);border-radius:9px;padding:14px 16px;font-size:14px;color:var(--amber);font-weight:600}
+.big-ic{width:120px;height:120px;border-radius:50%;background:#F4625C;display:flex;align-items:center;justify-content:center;margin:26px auto 14px}
+.ctr{text-align:center}
+.ctr .nm{font-size:22px;font-weight:800;letter-spacing:.4px}
+.ctr .ds{font-size:13.4px;color:var(--mut);margin-top:6px;line-height:1.45;padding:0 14px}
+/* mappa */
+.search{display:flex;align-items:center;gap:9px;background:#F2F4F8;border-radius:11px;padding:10px 13px;font-size:13.5px;color:var(--mut)}
+.chips{display:flex;gap:8px;overflow-x:auto;margin:13px 0}
+.chips button{flex:none;border:1px solid var(--bor);border-radius:999px;padding:7px 15px;font-size:13px;font-weight:600;background:#fff}
+.chips button[aria-selected="true"]{background:var(--navy);color:#fff;border-color:var(--navy)}
+.mapbox{border-radius:12px;overflow:hidden;border:1px solid var(--bor)}
+/* profilo */
+.pcover{height:188px;border-radius:12px;background:linear-gradient(135deg,#2B3A74,#4D5E9E);display:flex;align-items:flex-end;justify-content:center;padding-bottom:16px}
+.pcover .pav{width:88px;height:88px;border-radius:50%;background:#fff;color:var(--navy);display:flex;align-items:center;
+ justify-content:center;font-size:27px;font-weight:800;border:4px solid #fff;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+.dl{display:inline-flex;align-items:center;gap:7px;background:#F2F4F8;border-radius:999px;padding:7px 15px;font-size:13px;font-weight:600;color:var(--navy);margin:12px 0}
+.pname{font-size:21px;font-weight:800;text-align:center;margin:6px 0 14px}
+.pbox{border:1px solid var(--bor);border-radius:12px;padding:16px}
+.fld{margin-bottom:15px}
+.fld .lb{font-size:13px;color:var(--mut)}
+.fld .vl{font-size:14.5px;font-weight:600;margin-top:2px}
+/* barra inferiore */
+.nav{position:absolute;left:0;right:0;bottom:0;background:rgba(255,255,255,.96);backdrop-filter:blur(8px);
+ border-top:1px solid var(--bor);display:flex;justify-content:space-around;align-items:center;padding:8px 0 20px}
+.nav button{width:52px;height:52px;border-radius:50%;display:flex;align-items:center;justify-content:center;color:#9AA4B8}
+.nav button[aria-selected="true"]{background:var(--navy);color:#fff}
+/* pulsante Casey */
+.caseyb{position:absolute;right:16px;bottom:92px;width:60px;height:60px;z-index:12}
+.caseyb .ph{display:block;width:100%;height:100%;border-radius:50%;overflow:hidden;background:var(--navy);
+ border:3px solid #fff;box-shadow:0 10px 26px rgba(29,42,91,.45)}
+.caseyb img{width:100%;height:100%;object-fit:cover;object-position:center;display:block}
+.caseyb .bd{position:absolute;top:-3px;right:-3px;width:17px;height:17px;border-radius:50%;background:#F4625C;
+ border:2.5px solid #fff;color:#fff;font-size:9.5px;font-weight:800;display:flex;align-items:center;justify-content:center}
+/* foglio Casey */
+.sheet{position:absolute;inset:0;background:rgba(16,24,40,.45);display:flex;align-items:flex-end;z-index:30}
+.sheet.off{display:none}
+.inner{background:#fff;width:100%;max-height:92%;border-radius:22px 22px 0 0;display:flex;flex-direction:column;animation:up .34s cubic-bezier(.2,.8,.3,1)}
+@keyframes up{from{transform:translateY(100%)}to{transform:none}}
+.sh{padding:15px 18px 12px;border-bottom:1px solid var(--bor)}
+.sh .r{display:flex;align-items:center;gap:11px}
+.sh .cav{width:36px;height:36px;border-radius:50%;overflow:hidden;flex:none;background:var(--navy)}
+.sh .cav img{width:100%;height:100%;object-fit:cover;object-position:center}
+.sh h2{margin:0;font-size:15.5px;color:var(--navy)}
+.sh .st{font-size:11.4px;color:var(--mut)}
+.sh .x{margin-left:auto;font-size:21px;color:#98A2B3;line-height:1}
+.sh .ok{margin-top:10px;font-size:11.4px;color:var(--ok);background:var(--ok-bg);border:1px solid #CFE6DB;
+ border-radius:8px;padding:7px 10px;display:flex;gap:7px;align-items:flex-start}
+.msgs{padding:15px 18px;overflow:auto;flex:1;display:flex;flex-direction:column;gap:10px}
+.m{max-width:88%;border-radius:14px;padding:10px 13px;font-size:13px;line-height:1.46}
+.m.sys{align-self:center;max-width:100%;background:#F2F4F8;color:var(--mut);font-size:11.4px;border-radius:9px;text-align:center}
+.m.me{align-self:flex-end;background:#E8ECF6;border-bottom-right-radius:5px}
+.m.ca{align-self:flex-start;background:var(--navy);color:#fff;border-bottom-left-radius:5px}
+.m.ca .cite{margin-top:8px;padding-top:7px;border-top:1px solid rgba(255,255,255,.22);font-size:10.5px;color:#BCC6E2}
+.acts{padding:0 18px 18px;display:flex;flex-direction:column;gap:8px}
+.ab{border-radius:11px;padding:13px;font-size:13.4px;font-weight:700;text-align:center}
+.ab.p{background:var(--ok);color:#fff}.ab.s{background:var(--navy);color:#fff}
+.ab.g{background:#fff;color:var(--mut);border:1px solid var(--bor)}
+.done{padding:0 18px 20px}
+.done .bx{border-radius:12px;padding:15px;text-align:center;background:var(--ok-bg);border:1px solid #CFE6DB}
+.done .bx b{display:block;color:var(--ok);font-size:14px;margin-bottom:4px}
+.done .bx span{font-size:12.3px;color:var(--mut);line-height:1.45}
+.chatbar{display:flex;gap:8px;padding:11px 14px 16px;border-top:1px solid var(--bor);background:#fff}
+.chatbar input{flex:1;min-width:0;border:1px solid var(--bor);border-radius:999px;padding:11px 15px;font-size:13.4px;background:#F6F8FC}
+.chatbar input:focus{outline:2px solid var(--navy);outline-offset:-1px;background:#fff}
+.chatbar button{flex:none;width:42px;height:42px;border-radius:50%;background:var(--navy);color:#fff;display:flex;align-items:center;justify-content:center}
+/* microfono: si puo' parlare a Casey anche dall'app, non solo al totem */
+.chatbar{position:relative}
+.chatbar .mic{flex:none;width:42px;height:42px;border-radius:50%;background:#fff;
+ border:1px solid var(--bor);color:var(--navy);display:flex;align-items:center;justify-content:center}
+.chatbar .mic.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+.chatbar .mic.on::after{content:'';position:absolute;width:42px;height:42px;border-radius:50%;
+ border:2px solid var(--navy);animation:pulsa 1.3s ease-out infinite;pointer-events:none}
+.chatbar .mic:disabled{opacity:.4}
+@keyframes pulsa{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+
+.typing{align-self:flex-start;background:#F2F4F8;border-radius:14px;padding:11px 14px;display:flex;gap:4px}
+.typing i{width:6px;height:6px;border-radius:50%;background:#9AA4B8;display:block;animation:bl 1.1s infinite}
+.typing i:nth-child(2){animation-delay:.18s}.typing i:nth-child(3){animation-delay:.36s}
+@keyframes bl{0%,60%,100%{opacity:.3}30%{opacity:1}}
+</style>
+<link rel="stylesheet" href="app-auth-shell.css"></head>
+<body>
+<div class="phone">
+  <div class="splash" id="splash">
+    <img src="hfarm-college-logo.png" alt="H-FARM College">
+    <div class="spin"></div>
+  </div>
+
+  <div class="sb"><span id="clock">9:41</span><span>5G ▮▮▮</span></div>
+  <div class="hdr">
+    <div class="logo"><img src="hfarm-college-logo.png" alt="H-FARM College"></div>
+    <div class="nm" id="hdrName"></div>
+    <span id="hdrIni" hidden></span>
+  </div>
+
+  <div class="body" id="body"></div>
+
+  <button class="caseyb" id="caseyBtn" onclick="openSheet()" aria-label="Chiedi a Casey">
+    <span class="ph"><img src="Casey - H-FARM College/casey-face.png" alt=""></span>
+    <span class="bd" id="caseyBadge">1</span>
+  </button>
+
+  <nav class="nav" id="nav"></nav>
+
+  <div class="sheet off" id="sheet" role="dialog" aria-modal="true" aria-labelledby="shT">
+    <div class="inner">
+      <div class="sh">
+        <div class="r">
+          <div class="cav"><img src="Casey - H-FARM College/casey-face.png" alt=""></div>
+          <div><h2 id="shT">Casey</h2><div class="st" id="shSt"></div></div>
+          <button class="x" onclick="closeSheet()" aria-label="Chiudi">×</button>
+        </div>
+        <div class="ok"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" style="flex:none;margin-top:1px"><path d="M20 6 9 17l-5-5"/></svg><span id="shOk"></span></div>
+      </div>
+      <div class="msgs" id="msgs"></div>
+      <div class="acts" id="acts"></div>
+      <div class="done" id="doneBox" style="display:none"></div>
+      <div class="chatbar">
+        <button class="mic" id="micApp" onclick="toggleMicApp()" aria-label="Parla con Casey"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button>
+        <input id="chatIn" type="text" placeholder="Scrivi o parla a Casey…" autocomplete="off"
+               onkeydown="if(event.key==='Enter')sendChat()">
+        <button onclick="sendChat()" aria-label="Invia">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13 6l6 6-6 6"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- caricati prima del codice della pagina: al suo avvio CaseyBackend deve gia' esistere -->
+
+
+
+
+<script>
+const P=new URLSearchParams(location.search);
+const S=(P.get('s')==='AZIENDA')?'AZIENDA':'CAMPUS';
+if(S==='AZIENDA')document.body.classList.add('az');
+
+/* Sull'app Casey SA chi sei: il profilo arriva verificato dall'ateneo.
+   Al totem no, ed e' il motivo per cui li' resta generico. */
+const U = S==='AZIENDA'
+ ? {name:'Marco Ferri',ini:'MF',deg:'Data Analyst',mail:'m.ferri@acmeanalytics.example',code:'HR-2026-0771',exp:'People & Culture'}
+ : {name:'Giulia Bernardi',ini:'GB',deg:'BSc in AI and Data Science',mail:'g.bernardi@student.h-farm.com',code:'MAT-2025-8841',exp:'Lumina | AI & Digital Technologies',
+     /* L'ateneo arriva dal profilo verificato, mai da come e' scritta la
+        domanda. Scrivere "secondo il regolamento di Chichester" non deve
+        poter aprire i documenti di Chichester a chi non ci studia. */
+     istituzione:'CAFOSCARI', corso:null, anno:null};
+
+const CTX_UTENTE=Object.freeze({istituzione:U.istituzione||'SHARED',corso:U.corso||null,anno:U.anno||null});
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+const I={
+ news:'<rect x="3" y="5" width="14" height="14" rx="1.6"/><path d="M17 8h3a1 1 0 0 1 1 1v8a2 2 0 0 1-2 2M6.5 9h7M6.5 12.5h7M6.5 16h4"/>',
+ cal:'<rect x="3" y="4.5" width="18" height="16" rx="2"/><path d="M16 2.5v4M8 2.5v4M3 10h18"/>',
+ ppl:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20v-.8A5 5 0 0 1 7.5 14h3A5 5 0 0 1 15.5 19v1"/><circle cx="17.5" cy="8.6" r="2.3"/><path d="M17 14h.8a4 4 0 0 1 4 4v2"/>',
+ box:'<path d="M3.5 8.5h17v10a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"/><path d="M5.5 8.5c0-2 1.5-3.5 3.5-3.5h6c2 0 3.5 1.5 3.5 3.5"/>',
+ bank:'<path d="M3 9.5 12 4l9 5.5M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 21h18"/>',
+ bag:'<rect x="2.5" y="7.5" width="19" height="12.5" rx="2"/><path d="M8.5 7.5V6a2 2 0 0 1 2-2h3a2 2 0 0 1 2 2v1.5"/>',
+ book:'<path d="M3 5.5A2.5 2.5 0 0 1 5.5 3H12v16H5.5A2.5 2.5 0 0 0 3 21.5z"/><path d="M21 5.5A2.5 2.5 0 0 0 18.5 3H12v16h6.5a2.5 2.5 0 0 1 2.5 2.5z"/>',
+ mark:'<path d="M6 3.5h12v17l-6-4-6 4z"/>',
+ globe:'<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a15 15 0 0 1 0 18A15 15 0 0 1 12 3"/>',
+ puzzle:'<path d="M10 4a2 2 0 1 1 4 0v1.5h3a1 1 0 0 1 1 1V10h1.5a2 2 0 1 1 0 4H18v3.5a1 1 0 0 1-1 1h-3.5V17a2 2 0 1 0-4 0v1.5H6a1 1 0 0 1-1-1V14H6.5a2 2 0 1 0 0-4H5V6.5a1 1 0 0 1 1-1h4z"/>',
+ down:'<path d="M12 3.5v15M6 13l6 6 6-6"/>',
+ clip:'<rect x="6" y="4" width="12" height="17" rx="2"/><path d="M9.5 4V2.8h5V4M9 11.5l2 2 4-4"/>',
+ map:'<path d="M9 3.5 3.5 6v14.5L9 18l6 2.5 5.5-2.5V3.5L15 6z"/><path d="M9 3.5V18M15 6v14.5"/>',
+ cap:'<path d="M2.5 9 12 4.5 21.5 9 12 13.5z"/><path d="M6 11v5c0 1.4 2.7 2.8 6 2.8s6-1.4 6-2.8v-5"/>',
+ home:'<path d="M3 10.5 12 3l9 7.5V20a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 20z"/>',
+ arr:'<path d="M5 12h14M13 6l6 6-6 6"/>',
+ sr:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-4.3-4.3"/>',
+ dlc:'<path d="M12 3v11M7.5 10 12 14.5 16.5 10M4 17v2.5A1.5 1.5 0 0 0 5.5 21h13a1.5 1.5 0 0 0 1.5-1.5V17"/>'
+};
+function ic(k,sz){return '<svg width="'+(sz||22)+'" height="'+(sz||22)+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round">'+I[k]+'</svg>';}
+const G=['linear-gradient(135deg,#1D2A5B,#3B4D8F)','linear-gradient(135deg,#8E2DE2,#F43B8A)','linear-gradient(135deg,#111,#3A3A3A)',
+ 'linear-gradient(135deg,#2E7D5B,#6FB98F)','linear-gradient(135deg,#B45309,#F59E0B)','linear-gradient(135deg,#334155,#64748B)'];
+
+/* ---------------- contenuti, ricalcati sull'app reale ---------------- */
+const HOME=[
+ ['EVENTS &amp; NEWS','news'],['CALENDAR','cal'],['COMMUNITY','ppl'],
+ ['SERVICES','box'],['EXPERIENCES','bank'],['JOB ON CAMPUS','bag']];
+const ACAD=[
+ ['ENHANCING','book'],['RESOURCES','mark'],['MOBILITY','globe'],
+ ['PROJECTS','puzzle'],['DOWNLOADABLE','down'],['FORMS','clip']];
+
+function cards(list){return '<div class="g2">'+list.map((c,i)=>
+  '<div class="card"><div class="ph" style="background:'+G[i%G.length]+'">'+esc(c[1]||'')+'</div>'+
+  '<div class="cp">'+esc(c[0])+'</div></div>').join('')+'</div>';}
+function rows(list,icon){return '<div class="lst">'+list.map(r=>
+  '<div class="row"><div class="ri">'+ic(icon||'arr',21)+'</div><div class="rt">'+esc(r)+'</div>'+
+  '<div class="ra">'+ic(icon==='dlc'?'dlc':'arr',15)+'</div></div>').join('')+'</div>';}
+
+let sub={HOME:0,ACAD:0}, subtab=0, tab='HOME';
+
+function homeSection(){
+  switch(sub.HOME){
+   case 0: return '<h2 class="ttl">GAME CHANGER ITALY | OCT 30TH</h2><p class="sub">WEEKLY SCHEDULE</p>'+
+     '<div class="strip">'+[['THE GAME SOCIETY','TUESDAY',0],['H-EXPERIENCE','WEDNESDAY',1],['GROK BOT MEETUP','THURSDAY',2],['OPEN MIC NIGHT','FRIDAY',3]]
+      .map(x=>'<div class="it"><div class="ph" style="background:'+G[x[2]]+'">'+x[0]+'</div><div class="dy">'+x[1]+'</div></div>').join('')+'</div>'+
+     subtabs(['Students','College','H-FARM'])+
+     cards([['THE GAME SOCIETY','Ogni martedì · Aula 2'],['H-EXPERIENCE','Mercoledì · Main Hall']]);
+   case 1: return '<div class="big-ic"><svg width="56" height="56" viewBox="0 0 24 24" fill="#F7C948"><path d="M12 12c-1.6-3.5-5-6-7-4.5S4 14 9 14c-3 1.5-3.5 5 0 5.5S12 15 12 12z"/><path d="M12 12c1.6-3.5 5-6 7-4.5S20 14 15 14c3 1.5 3.5 5 0 5.5S12 15 12 12z"/></svg></div>'+
+     '<div class="ctr"><div class="nm">PRONOTE</div><div class="ds">View your calendar online or download a copy directly to your device</div></div>';
+   case 2: return subtabs(['Students','Staff','Alumni'])+rows(['Student Council','Buddy Programme','H-Mates','Segnala un problema']);
+   case 3: return cards([['CAMPUS COUNSELOR','Sportello di ascolto'],['H-FARM LIBRARY','Lun–Ven fino alle 22'],
+     ['HALLIDAY LABS – LIBRARY BUILDING','Prenotabili dall\'agenda'],['LAUNDRY ROOM AND VENDING MACHINES','Edificio College']]);
+   case 4: return subtabs(['Clubs','H-Radio','Lumina'])+
+     cards([['APACHE','Club'],['BOOK CLUB','Club'],['CHESS CLUB','Club'],['H-ALTURA','Club']]);
+   default: return cards([['ASSISTANT LIBRARIAN – POSITION RESERVED FOR PROTECTED CATEGORIES (LAW 68/99)','Library'],
+     ['H-FARM COLLEGE AMBASSADOR','Marketing'],['BARISTA – CAMPUS CAFÉ','Food Service']]);
+  }
+}
+function acadSection(){
+  switch(sub.ACAD){
+   case 0: return '<div class="note">No enhancing available at the moment.</div>';
+   case 1: return rows(['Academic Progress and Procedures','Exams and Assessments','Wellbeing &amp; Support Services',
+     'Extracurricular Courses &amp; Activities','Career Service','Grad &amp; Post-Grad']);
+   case 2: return rows(['Exchange Program','H-Expedition','Global Experiences','Free Movers','Erasmus - Overseas']);
+   case 3: return rows(['Challenge','Academy']);
+   case 4: return rows(['Assignment Template','BSc | Thesis Cover Page Template','MSc | Thesis Cover Page Template',
+     'BSc and MSc | Pitch Presentation Template','Work Permit'],'dlc');
+   default: return '<h2 class="ttl" style="text-align:left;font-size:17px">Exams and Assessments</h2>'+
+     rows(['EXTENSION &amp; MITIGATING CIRCUMSTANCES REQUEST']);
+  }
+}
+function subtabs(list){
+  return '<div class="subtabs">'+list.map((t,i)=>
+    '<button aria-selected="'+(i===subtab)+'" onclick="subtab='+i+';paint()">'+esc(t)+'</button>').join('')+'</div>';
+}
+function tiles(list,key){
+  return '<div class="tiles">'+list.map((t,i)=>
+    '<button class="tile" aria-selected="'+(sub[key]===i)+'" onclick="sub.'+key+'='+i+';subtab=0;paint()">'+
+    '<span class="ib">'+ic(t[1],23)+'</span><span>'+t[0]+'</span></button>').join('')+'</div><div class="rule"></div>';
+}
+
+function mapView(){
+  let pins='';
+  const pts=[[118,92],[152,78],[96,140],[210,120],[262,96],[188,172],[240,180],[300,150],[146,196],[268,210],[330,186],[82,176]];
+  pts.forEach(p=>{pins+='<g transform="translate('+p[0]+','+p[1]+')"><path d="M0 0c0-7 5-12 11-12s11 5 11 12c0 8-11 19-11 19S0 8 0 0z" fill="#F4625C"/><circle cx="11" cy="-1" r="4" fill="#fff"/></g>';});
+  return '<div class="search">'+ic('sr',17)+'<span>Cerca un luogo del campus</span></div>'+
+   '<div class="chips">'+['Education','Sport','Food','Student Services'].map((c,i)=>
+     '<button aria-selected="'+(i===subtab)+'" onclick="subtab='+i+';paint()">'+c+'</button>').join('')+'</div>'+
+   '<div class="mapbox"><svg viewBox="0 0 370 250" width="100%" role="img" aria-label="Mappa del campus">'+
+   '<rect width="370" height="250" fill="#8FA86B"/><path d="M0 0h370v96H0z" fill="#A89A5E"/>'+
+   '<path d="M0 118 C90 104 250 128 370 110 L370 250 L0 250z" fill="#7E9B5F"/>'+
+   '<path d="M0 214 C110 196 250 222 370 200 L370 250 L0 250z" fill="#4E7FA8" opacity=".85"/>'+
+   '<path d="M10 70 L360 24" stroke="#EDE6CF" stroke-width="7" opacity=".85"/>'+
+   '<path d="M40 182 L340 150" stroke="#EDE6CF" stroke-width="5" opacity=".8"/>'+
+   '<g fill="#6B7F54" opacity=".65"><rect x="150" y="96" width="62" height="34" rx="3"/><rect x="236" y="104" width="54" height="30" rx="3"/><rect x="92" y="118" width="46" height="26" rx="3"/></g>'+
+   pins+'<text x="186" y="140" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" opacity=".95">H-FARM Campus</text>'+
+   '</svg></div>'+
+   '<div style="display:flex;gap:12px;margin-top:14px;align-items:flex-start">'+
+   '<div style="width:92px;height:68px;border-radius:9px;flex:none;background:linear-gradient(135deg,#6B8E4E,#A3B86C)"></div>'+
+   '<div><div style="font-size:17px;font-weight:800">H-FARM Campus</div>'+
+   '<div style="font-size:13.2px;color:var(--mut);line-height:1.4;margin-top:3px">Explore our interactive map to discover buildings, services, and everything the Campus has to offer.</div></div></div>';
+}
+function profileView(){
+  return '<div class="pcover"><div class="pav">'+U.ini+'</div></div>'+
+   '<button class="dl">'+ic('dlc',15)+' Download</button>'+
+   '<div class="pname">'+esc(U.name)+'</div>'+
+   '<div class="pbox">'+subtabs(['Info','Platforms','My Events'])+
+   (subtab===0
+    ?'<div class="fld"><div class="lb">Degree Program</div><div class="vl">'+esc(U.deg)+'</div></div>'+
+     '<div class="fld"><div class="lb">Email</div><div class="vl">'+esc(U.mail)+'</div></div>'+
+     '<div class="fld"><div class="lb">Student ID Number MAT</div><div class="vl">'+esc(U.code)+'</div></div>'+
+     '<div style="font-size:15px;font-weight:800;margin:18px 0 8px">My H-FARM Experience</div>'+
+     '<div class="fld" style="margin:0"><div class="vl">'+esc(U.exp)+'</div></div>'
+    : subtab===1
+    ? rows(['Canvas','ChiView','Career Passport','Microsoft 365'])
+    : rows(['Game Changer Italy — 30 ottobre','Career Day — 5 novembre']))+
+   '</div>';
+}
+function paint(){
+  const b=document.getElementById('body');
+  if(tab==='HOME') b.innerHTML=tiles(HOME,'HOME')+homeSection();
+  else if(tab==='ACAD') b.innerHTML=tiles(ACAD,'ACAD')+acadSection();
+  else if(tab==='MAP') b.innerHTML=mapView();
+  else b.innerHTML=profileView();
+  const NAV=[['HOME','home'],['ACAD','book'],['MAP','map'],['PROF','cap']];
+  document.getElementById('nav').innerHTML=NAV.map(n=>
+    '<button aria-selected="'+(tab===n[0])+'" onclick="go(\''+n[0]+'\')" aria-label="'+n[0]+'">'+ic(n[1],21)+'</button>').join('');
+  b.scrollTop=0;
+}
+function go(t){tab=t;subtab=0;paint();}
+document.getElementById('hdrName').textContent=U.name;
+document.getElementById('hdrIni').textContent=U.ini;
+(function(){const d=new Date();document.getElementById('clock').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');})();
+setTimeout(()=>document.getElementById('splash').classList.add('go'),900);
+
+
+paint();
+</script>
+<script src="app-auth-shell.js"></script></body>
+</html>

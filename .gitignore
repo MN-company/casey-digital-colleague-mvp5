@@ -105,3 +105,11 @@ logs/
 *.tmp
 *.temp
 *.orig
+
+# Do not import the ZIP demo corpus into the application.
+supabase/functions/_shared/definitivo-corpus.js
+conoscenza.js
+conoscenza/documenti/
+
+# Local architecture graph, not a published application asset.
+graphify-out/

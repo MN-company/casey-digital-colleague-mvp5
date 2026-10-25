@@ -115,6 +115,7 @@
   }
   function sessionToken() {
     try {
+      const phoneToken=window.HandoffAPI?.session?.();if(phoneToken)return phoneToken;
       const obj = JSON.parse(sessionStorage.getItem(window.CASEY_CONFIG?.sessionStorageKey||'casey-original-ui-session') || 'null');
       return obj?.exp > Date.now() + 1000 && typeof obj.token === 'string' ? obj.token : null;
     } catch (_) { return null; }
@@ -366,7 +367,7 @@
       if(!microphone){audioContext=new (window.AudioContext || window.webkitAudioContext)();await audioContext.resume();}
       const session = sessionToken();
       if (!session) throw new Error('Sessione Casey non disponibile: aggiorna la pagina.');
-      const language = window.CaseyVoice?.getLanguage?.() || 'it-IT';
+      const language = window.CaseyLanguage?.get() || window.CaseyVoice?.getLanguage?.() || 'it-IT';
       const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'x-session-token': session,'x-student-token':window.CaseyAuth?.get()?.access_token||''},

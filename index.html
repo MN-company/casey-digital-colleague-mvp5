@@ -1,1465 +1,1130 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="it">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Casey — H-FARM College Digital Colleague</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <script src="casey-voice.js"></script>
-  <script src="casey-dialogue.js"></script>
-  <script src="casey-dates.js"></script>
-  <style>
-    :root {
-      --hfarm-navy: #1D2347;
-      --hfarm-navy-dark: #11152C;
-    }
-    body {
-      background-color: var(--hfarm-navy);
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    }
-    .kiosk-screen {
-      aspect-ratio: 9 / 16;
-      height: 78vh;
-      max-height: 740px;
-      background: #ffffff;
-    }
-    .logo-box-header {
-      width: 92px;
-      height: 50px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .logo-box-header img {
-      height: 50px;
-      width: auto;
-      object-fit: contain;
-      transform: scale(1.42);
-      filter: brightness(0) invert(1);
-    }
-    .logo-box-kiosk {
-      width: 72px;
-      height: 44px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .logo-box-kiosk img {
-      height: 44px;
-      width: auto;
-      object-fit: contain;
-      transform: scale(1.45);
-      mix-blend-mode: multiply;
-    }
-  
-    /* Casey 5.0 bridge components — the original layout and Tailwind classes stay intact. */
-    .casey-bridge-action {border-radius:999px;padding:7px 13px;background:#1D2347;color:white;font-weight:700;font-size:11px}
-    .casey-bridge-action:disabled {opacity:.45;cursor:not-allowed}
-    .casey-status-pill {border-radius:999px;border:1px solid #cbd5e1;padding:4px 9px;font-size:10px;font-weight:650;color:#475569}
-    .casey-day {min-height:62px;max-height:128px;overflow:hidden;cursor:pointer}
-    .casey-day:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
-    .casey-day.today{border-color:#1D2347;background:#eff6ff}
-    .casey-event {font-size:9px;line-height:1.2;border-radius:5px;padding:2px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;margin-top:3px}
-    .casey-event.google {background:#eef2ff;color:#1d2347;border:1px solid #c7d2fe}
-    .casey-event.casey {background:#1D2347;color:white}
-    .casey-event.free {background:#d1fae5;color:#065f46}
-    .casey-confirm {display:flex;gap:8px;justify-content:center;align-items:center;padding:9px;background:#fff;border-radius:15px;border:1px solid #93c5fd}
-    .casey-auth-overlay[hidden], .casey-confirm[hidden], .casey-notice[hidden] {display:none!important}
-    .casey-auth-overlay {position:fixed;inset:0;z-index:99;background:rgba(4,8,30,.72);display:grid;place-items:center;padding:20px}
-    .casey-auth-dialog {background:white;max-width:410px;width:100%;padding:24px;border-radius:25px;color:#1D2347;box-shadow:0 30px 70px #02061780}
-    .casey-auth-dialog input {width:100%;border:1px solid #cbd5e1;padding:10px 12px;border-radius:12px;margin:7px 0;color:#1D2347}
-    .casey-request-item {text-align:left;display:block;width:100%;padding:14px;border:1px solid #e2e8f0;border-radius:13px;background:white;color:#1D2347}
-    .casey-request-item:hover {background:#eef2ff}
-    .casey-request-item.selected {background:#1D2347;color:white}
-    .casey-notice {border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;font-size:11px;color:#334155;background:#f8fafc}
-    .casey-info-strong {font-weight:700;color:#1D2347}
-    .casey-calendar-scroll{overflow:auto}
-    #caseySlotOptions button {background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
-    #caseySlotOptions button:hover{background:#a7f3d0}
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Casey 6.0 — Totem e Back-office</title>
+<style>
+:root{
+  --navy:#1D2A5B; --navy-d:#141C3A; --navy-l:#2B3A74; --navy-x:#0D1226;
+  --ink:#16213F; --mut:#5A6B8C; --bor:#DEE5F0; --soft:#EEF2FA;
+  --acc:#E66B36; --ok:#16764C; --ok-bg:#EAF4EF; --err:#B42318; --err-bg:#FBEDEC;
+  --wait:#A8700C; --wait-bg:#FDF6E7; --brand:#1D2A5B;
+}
+body.farm{ --brand:#C0392B; --navy:#C0392B; --navy-l:#D4544A; --navy-d:#8E2A20; --navy-x:#1C0F0D; }
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+ background:var(--navy-x);color:var(--ink);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
+button,input{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+.wrap{max-width:1600px;margin:0 auto;padding:20px;min-height:calc(100vh - 78px);display:flex;flex-direction:column;justify-content:center}
+
+/* ---------------- barra ---------------- */
+.top{background:var(--navy);color:#fff}
+.top .in{max-width:1600px;margin:0 auto;padding:11px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:11px}
+.brand img{height:48px;width:auto;border-radius:8px;background:#fff;padding:5px 7px;display:block}
+.brand .nm{font-weight:700;font-size:15.5px;letter-spacing:-.2px}
+.bepill{display:flex;align-items:center;gap:6px;font-size:11.4px;font-weight:600;color:#A9B6D8;
+ background:rgba(255,255,255,.08);border-radius:999px;padding:5px 10px;white-space:nowrap}
+.bepill i{width:7px;height:7px;border-radius:50%;background:#8E9BBF;flex:none}
+.bepill.live{color:#BFF0D4}.bepill.live i{background:#39C07C}
+.bepill.down{color:#FFD4CE}.bepill.down i{background:#E4342A}
+.brand .sb{font-size:11.8px;color:#A9B6D8;margin-top:1px}
+.seg{display:flex;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:999px;padding:3px}
+.seg button{padding:6px 14px;border-radius:999px;font-size:12.5px;font-weight:600;color:#BFC9E4;white-space:nowrap}
+.seg button[aria-selected="true"]{background:#fff;color:var(--navy);font-weight:700}
+.sp{flex:1}
+.top a{color:#BFC9E4;font-size:12.5px;font-weight:600;padding:6px 11px;border-radius:8px;text-decoration:none}
+.top a:hover{background:rgba(255,255,255,.12);color:#fff}
+.ic{width:34px;height:34px;border-radius:9px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);
+ display:inline-flex;align-items:center;justify-content:center;color:#fff}
+.ic:hover{background:rgba(255,255,255,.22)}
+.ic.off{opacity:.42}
+
+/* ---------------- kpi ---------------- */
+.kpis{display:flex;gap:9px;margin:16px 0 14px;flex-wrap:wrap}
+.kpi{background:rgba(255,255,255,.055);border:1px solid rgba(255,255,255,.12);border-radius:12px;padding:9px 15px;min-width:128px}
+.kpi .v{font-size:19px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
+.kpi .l{font-size:11.4px;color:#A9B6D8;margin-top:1px}
+
+.grid{display:grid;grid-template-columns:392px 1fr;gap:20px;align-items:center}
+@media(max-width:1200px){.grid{grid-template-columns:1fr}}
+
+/* ---------------- totem fisico ---------------- */
+.kiosk{display:flex;flex-direction:column;align-items:center}
+.bezel{width:100%;background:#0A0E1C;border-radius:26px;padding:13px;
+ box-shadow:0 22px 50px rgba(0,0,0,.55), inset 0 0 0 1px rgba(255,255,255,.07)}
+.screen{position:relative;aspect-ratio:9/15;background:#0E1428;border-radius:15px;overflow:hidden}
+.screen video,.screen img.av{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.screen video.hide{display:none}
+.scrtop{position:absolute;top:0;left:0;right:0;padding:11px 13px;display:flex;align-items:center;justify-content:space-between;
+ background:linear-gradient(to bottom,rgba(10,14,28,.78),transparent);z-index:2}
+.pill{display:inline-flex;align-items:center;gap:7px;background:rgba(10,14,28,.6);border:1px solid rgba(255,255,255,.16);
+ border-radius:999px;padding:5px 11px;font-size:11.4px;font-weight:600;color:#fff}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--ok);flex:none}
+.dot.listen{background:#F05252}.dot.think{background:var(--acc)}.dot.idle{background:#8FA0C0}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.22}}
+.dot.anim{animation:pulse 1.1s ease-in-out infinite}
+.scrtop img{height:40px;width:auto;background:#fff;border-radius:7px;padding:4px 6px;display:block;box-shadow:0 2px 10px rgba(0,0,0,.25)}
+.scrbot{position:absolute;left:0;right:0;bottom:0;padding:13px;z-index:2;
+ background:linear-gradient(to top,rgba(10,14,28,.93) 56%,transparent)}
+.cap{background:rgba(13,18,38,.88);border:1px solid rgba(255,255,255,.14);border-radius:13px;padding:12px 14px;color:#fff}
+.cap p{margin:0;font-size:13.6px;line-height:1.45;min-height:40px}
+.src{display:none;margin-top:9px;padding-top:8px;border-top:1px solid rgba(255,255,255,.16);
+ align-items:flex-start;justify-content:space-between;gap:9px;font-size:10.6px;color:#BFC9E4}
+.src.on{display:flex}
+/* La fonte va su due righe se serve: tagliarla con i puntini nascondeva
+   proprio il nome del documento, che e' la parte che conta. */
+.src .t{font-weight:600;line-height:1.4;overflow:hidden;
+ display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.kb.nc{background:#8A5A1E}
+.kb{flex:none;padding:2px 7px;border-radius:5px;font-size:9.6px;font-weight:700;color:#fff}
+.kb.chi{background:#2563A8}.kb.caf{background:#A32B4A}.kb.tra{background:#1B7A52}
+.kb.it{background:#5B4B8A}.kb.hr{background:#8A5A1E}.kb.pr{background:#5A6B8C}
+.ask{display:flex;gap:7px;margin-top:10px}
+.ask input{flex:1;min-width:0;border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.1);
+ border-radius:11px;padding:10px 13px;font-size:13.2px;color:#fff}
+.ask input::placeholder{color:#93A2C4}
+.ask input:focus{outline:2px solid rgba(255,255,255,.5);outline-offset:-1px;background:rgba(255,255,255,.17)}
+.mic{width:44px;height:44px;flex:none;border-radius:12px;background:#fff;color:var(--navy);
+ display:flex;align-items:center;justify-content:center}
+.mic.on{background:#F05252;color:#fff;animation:pulse 1.2s ease-in-out infinite}
+.mic:disabled{opacity:.4;cursor:not-allowed}
+.go{flex:none;background:#fff;color:var(--navy);border-radius:11px;padding:10px 15px;font-size:12.8px;font-weight:700}
+.qr{display:none;margin-top:10px;background:#fff;border-radius:13px;padding:11px;align-items:center;gap:12px;
+ box-shadow:0 0 0 2px var(--acc)}
+.qr.on{display:flex}
+.qr .code{width:60px;height:60px;flex:none}
+.qr .tx{flex:1;min-width:0}
+.qr .tx b{display:block;font-size:12.6px;color:#8A3D10}
+.qr .tx span{font-size:11.2px;color:#9A6A45}
+.qr .tx .meta{display:block;margin-top:4px;font-size:10.6px;font-weight:700;color:#8A3D10;font-variant-numeric:tabular-nums}
+.qr.expired{box-shadow:0 0 0 2px #93A2C4}
+.qr.expired .code{filter:grayscale(1);opacity:.35}
+.qr.expired .tx b,.qr.expired .tx .meta{color:#5A6B8C}
+.qr .open{background:var(--acc);color:#fff;border-radius:999px;padding:8px 14px;font-size:12px;font-weight:700;flex:none}
+.neck{width:52px;height:42px;background:linear-gradient(to bottom,#11182C,#0A0E1C)}
+.foot{width:188px;height:11px;border-radius:0 0 9px 9px;background:#0A0E1C;box-shadow:0 10px 26px rgba(0,0,0,.5)}
+
+/* suggerimenti sotto al totem */
+.chip{border:1px solid rgba(255,255,255,.2);background:rgba(255,255,255,.07);border-radius:999px;
+ padding:6px 12px;font-size:12.2px;font-weight:600;color:#DDE4F3}
+.chip:hover{background:rgba(255,255,255,.17);border-color:rgba(255,255,255,.4)}
+.chip.p{border-color:rgba(230,107,54,.6);background:rgba(230,107,54,.14);color:#FFC9A8}
+
+/* ---------------- schermo intero ---------------- */
+body.show .top,body.show .kpis,body.show .panel{display:none}
+body.show .wrap{padding:0;max-width:none}
+body.show .grid{display:block;height:100vh}
+body.show .kiosk{height:100vh;justify-content:center}
+body.show .bezel{width:auto;height:94vh;padding:0;border-radius:0;box-shadow:none;background:transparent}
+body.show .screen{height:100%;aspect-ratio:9/16;border-radius:0}
+body.show .cap p{font-size:25px;line-height:1.4;min-height:74px}
+body.show .src{font-size:14px}
+body.show .ask input{font-size:17px;padding:14px 17px}
+body.show .mic{width:58px;height:58px}
+body.show .go{font-size:16px;padding:14px 22px}
+body.show .neck,body.show .foot{display:none}
+body.show .qr .code{width:84px;height:84px}
+body.show .qr .tx b{font-size:16px}body.show .qr .tx span{font-size:13.5px}
+.exit{display:none;position:fixed;top:16px;right:18px;z-index:40;background:rgba(255,255,255,.16);
+ border:1px solid rgba(255,255,255,.3);color:#fff;border-radius:10px;padding:8px 14px;font-size:12.6px;font-weight:600}
+body.show .exit{display:block}
+
+/* ---------------- pannello ---------------- */
+.panel{background:#fff;border-radius:16px;overflow:hidden;min-height:660px;display:flex;flex-direction:column}
+.tabs{display:flex;align-items:center;gap:2px;padding:8px 14px 0;border-bottom:1px solid var(--bor);flex-wrap:wrap}
+.tabs button{padding:9px 13px;font-size:12.6px;font-weight:600;color:var(--mut);border-bottom:2px solid transparent;border-radius:8px 8px 0 0}
+.tabs button[aria-selected="true"]{color:var(--brand);border-bottom-color:var(--brand);font-weight:700;background:var(--soft)}
+.tabs .who{margin-left:auto;font-size:11.4px;color:var(--mut);display:flex;align-items:center;gap:7px;padding-bottom:8px}
+.tabs .who i{width:7px;height:7px;border-radius:50%;background:var(--ok);display:inline-block}
+.badge{background:var(--err);color:#fff;border-radius:999px;padding:1px 7px;font-size:10px;font-weight:700;margin-left:5px}
+.view{display:none;padding:18px;overflow:auto;flex:1}
+.view.on{display:block}
+.vh{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:14px;flex-wrap:wrap}
+.vh h2{margin:0;font-size:17px;color:var(--brand)}
+.vh p{margin:3px 0 0;font-size:12.4px;color:var(--mut);max-width:660px}
+.lg{display:flex;gap:12px;font-size:11.2px;color:var(--mut);font-weight:600}
+.lg i{width:9px;height:9px;border-radius:3px;display:inline-block;margin-right:4px}
+
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px}
+.cal .dn{font-size:10.4px;font-weight:700;color:var(--mut);text-align:center;padding-bottom:3px}
+.day{border:1px solid var(--bor);border-radius:9px;min-height:76px;padding:5px}
+.day.pad{border-color:transparent}
+.day.today{border-color:var(--brand);border-width:2px}
+.day .n{font-size:11px;font-weight:700;color:var(--mut);margin-bottom:3px;display:flex;justify-content:space-between}
+.day .n em{font-style:normal;font-size:8.4px;background:var(--brand);color:#fff;padding:1px 5px;border-radius:4px}
+.ev{font-size:9.5px;padding:2px 4px;border-radius:4px;margin-bottom:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;background:var(--soft);color:var(--mut)}
+.ev.appt{background:var(--brand);color:#fff;font-weight:700}
+.ev.dead{background:var(--wait-bg);color:var(--wait);font-weight:700}
+.ev.free{background:var(--ok-bg);color:var(--ok);font-weight:700;border:1px dashed #A8D4BF}
+.ev.conf{background:var(--err-bg);color:var(--err);font-weight:700}
+.ev.cls{background:#EDF1F7;color:#5A6B8C}
+
+.mail{display:grid;grid-template-columns:268px 1fr;border:1px solid var(--bor);border-radius:12px;overflow:hidden;min-height:420px}
+.mlist{border-right:1px solid var(--bor);background:#FAFCFF;overflow:auto;max-height:520px}
+.mrow{padding:11px 13px;border-bottom:1px solid var(--bor);cursor:pointer}
+.mrow[aria-selected="true"]{background:#fff;box-shadow:inset 3px 0 0 var(--brand)}
+.mrow .f{font-size:11.2px;color:var(--mut);display:flex;justify-content:space-between;gap:7px}
+.mrow .s{font-size:12.4px;font-weight:600;margin-top:2px;line-height:1.3}
+.mbody{padding:20px;overflow:auto;max-height:520px}
+.mbody h3{margin:0 0 3px;font-size:16px;color:var(--brand)}
+.mbody .meta{font-size:11.4px;color:var(--mut);padding-bottom:12px;border-bottom:1px solid var(--bor);margin-bottom:13px}
+.mbody pre{white-space:pre-wrap;font:inherit;font-size:13.2px;margin:0}
+
+.tk{border:1px solid var(--bor);border-radius:13px;padding:16px;margin-bottom:12px}
+.tk.done{border-color:#A8D4BF;background:var(--ok-bg)}
+.tk .r1{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tk .id{font-size:10.4px;font-weight:700;color:var(--mut);letter-spacing:.4px}
+.tk h4{margin:3px 0 0;font-size:14.4px;color:var(--brand)}
+.lvl{font-size:9.8px;font-weight:700;padding:3px 9px;border-radius:999px;flex:none}
+.lvl.h{background:var(--err-bg);color:var(--err);border:1px solid #F0C8C4}
+.lvl.a{background:var(--wait-bg);color:var(--wait);border:1px solid #EBD9AE}
+.kv{margin-top:11px;font-size:12.4px;color:var(--mut)}.kv b{color:var(--ink)}
+.rule{margin-top:9px;background:var(--soft);border-left:3px solid var(--brand);border-radius:0 8px 8px 0;padding:9px 12px;font-size:12.2px;color:var(--mut)}
+.tk textarea{width:100%;margin-top:11px;border:1px solid var(--bor);border-radius:9px;padding:10px;font-size:12.6px;font-family:inherit;resize:vertical}
+.acts{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+.btn{border-radius:9px;padding:8px 15px;font-size:12.4px;font-weight:700}
+.btn.ok{background:var(--ok);color:#fff}.btn.gh{background:#fff;color:var(--mut);border:1px solid var(--bor)}
+.btn.pr{background:var(--brand);color:#fff}
+.empty{text-align:center;padding:60px 20px;color:var(--mut)}
+.empty .big{font-size:15px;font-weight:700;color:var(--ink);margin-bottom:5px}
+
+.ck{display:flex;gap:12px;border:1px solid var(--bor);border-radius:11px;padding:13px 15px;margin-bottom:9px}
+.ck.on{border-color:#A8D4BF;background:var(--ok-bg)}
+.ck .mk{width:20px;height:20px;border-radius:50%;border:2px solid var(--bor);flex:none;margin-top:1px;
+ display:flex;align-items:center;justify-content:center;font-size:11px;color:#fff;font-weight:700}
+.ck.on .mk{background:var(--ok);border-color:var(--ok)}
+.ck .tx b{display:block;font-size:13.2px}.ck .tx span{font-size:11.6px;color:var(--mut)}
+
+/* smistamento 15 uffici */
+.offs{display:grid;grid-template-columns:repeat(auto-fill,minmax(248px,1fr));gap:9px}
+.off{border:1px solid var(--bor);border-radius:10px;padding:11px 13px;transition:.2s}
+.off.hit{border-color:var(--acc);border-width:2px;background:#FDF6EE;box-shadow:0 0 0 3px rgba(230,107,54,.12)}
+.off .e{font-size:12.3px;font-weight:700;color:var(--brand);word-break:break-all}
+.off .s{font-size:11.2px;color:var(--mut);margin-top:2px;line-height:1.35}
+.off .c{font-size:10.6px;font-weight:700;color:var(--mut);margin-top:6px}
+.off.hit .c{color:var(--acc)}
+
+/* feed */
+.feed{border:1px solid var(--bor);border-radius:12px;overflow:hidden}
+.fr{display:flex;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--bor);font-size:12.4px}
+.fr:last-child{border-bottom:0}
+.fr .tm{font-variant-numeric:tabular-nums;color:var(--mut);font-size:11.4px;width:44px;flex:none}
+.fr .so{font-size:9.8px;font-weight:700;padding:2px 7px;border-radius:5px;flex:none;width:60px;text-align:center}
+.so.tot{background:var(--soft);color:var(--navy)}.so.tel{background:#F3EEFA;color:#5B4B8A}
+.fr .q{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fr .ou{font-size:10.4px;font-weight:700;padding:2px 8px;border-radius:999px;flex:none}
+.ou.ok{background:var(--ok-bg);color:var(--ok)}.ou.hu{background:var(--err-bg);color:var(--err)}.ou.wa{background:var(--wait-bg);color:var(--wait)}
+@keyframes slidein{from{opacity:0;transform:translateY(-7px)}to{opacity:1;transform:none}}
+.fr.new{animation:slidein .3s ease-out}
+
+.toast{position:fixed;right:22px;bottom:22px;z-index:60;display:flex;flex-direction:column;gap:9px;max-width:360px}
+.tst{background:#fff;border-left:4px solid var(--ok);border-radius:11px;padding:12px 15px;box-shadow:0 12px 34px rgba(0,0,0,.3);animation:slidein .3s}
+.tst b{display:block;font-size:12.8px;color:var(--brand)}
+.tst span{font-size:12px;color:var(--mut)}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 </style>
-</head>
-<body class="min-h-screen text-white flex flex-col justify-between p-3 md:px-7 md:py-4 select-none">
+<link rel="stylesheet" href="definitivo.css"></head>
+<body>
 
-  <!-- TOP BAR -->
-  <header class="max-w-[1440px] w-full mx-auto flex flex-wrap items-center justify-between gap-3 mb-2">
+<button class="exit" onclick="toggleShow()">Esci dallo schermo intero  ·  Esc</button>
 
-    <!-- Sinistra: Logo Ufficiale Intero -->
-    <div class="flex items-center gap-3">
-      <div class="logo-box-header">
-        <img src="HF-College_logocolore_Centrale (1).png" alt="H-FARM College"
-             onerror="this.parentElement.innerHTML='<span class=\'font-black text-xs tracking-wider\'>H-FARM COLLEGE</span>'" />
-      </div>
-      <div class="h-7 w-[1px] bg-white/20"></div>
-      <div>
-        <div class="text-sm font-bold tracking-tight text-white">Casey — Digital Colleague</div>
-        <div class="text-[11px] text-blue-200">H-FARM College · Student Services</div>
-      </div>
+<header class="top">
+  <div class="in">
+    <div class="brand">
+      <img id="brandLogo" src="hfarm-college-logo.png" alt="H-FARM College">
+      <div><div class="nm">Casey 6.0 — Digital Colleague</div><div class="sb" id="ctxLine"></div></div>
     </div>
-
-    <!-- Centro: Switch Caso (Emma / Sofia) + Filtro Prospettiva (Studente / Student Office) -->
-    <div class="flex flex-wrap items-center gap-2.5">
-      <div class="bg-[#11152C] p-1 rounded-full flex items-center text-xs border border-white/10">
-        <button onclick="setScenario('EMMA')" id="scenBtn-EMMA"
-                class="px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow">
-           Caso 1: Matricola (Emma)
-        </button>
-        <button onclick="setScenario('SOFIA')" id="scenBtn-SOFIA"
-                class="px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white">
-           Caso 2: Tirocinio (Sofia)
-        </button>
-      </div>
-
-      <div class="bg-[#11152C] p-1 rounded-full flex items-center text-xs border border-white/10">
-        <button onclick="setPerspective('STUDENT')" id="perspBtn-STUDENT"
-                class="px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white">
-           Vista Studente
-        </button>
-        <button onclick="setPerspective('OFFICE')" id="perspBtn-OFFICE"
-                class="px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow flex items-center gap-1.5">
-           Vista Student Office
-          <span id="officeAlertDot" class="w-2 h-2 rounded-full bg-rose-500 hidden"></span>
-        </button>
-      </div>
+    <div class="seg" role="tablist" aria-label="Scenario">
+      <button id="sc-COLLEGE" role="tab" aria-selected="true" onclick="setScenario('COLLEGE')">College</button>
+      <button id="sc-FARM" role="tab" aria-selected="false" onclick="setScenario('FARM')">Farm</button>
     </div>
-
-    <!-- Controlli audio: Google Cloud TTS + fallback nativo browser -->
-    <div class="flex flex-wrap items-center gap-2 text-xs">
-      <span id="videoStateBadge" class="bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 px-2.5 py-1 rounded-full font-mono text-[11px]">
-         Stato A (A.mp4)
-      </span>
-      <label for="languageSelect" class="sr-only">Lingua della conversazione</label>
-      <select id="languageSelect" onchange="onLanguageChange()" aria-label="Lingua della conversazione"
-              class="bg-white/10 hover:bg-white/15 text-white border border-white/15 rounded-full px-3 py-1.5 text-[11px] font-medium focus:outline-none cursor-pointer max-w-[180px] truncate">
-        <option class="text-slate-900" value="it-IT">Italiano</option>
-        <option class="text-slate-900" value="en-US">English</option>
-        <option class="text-slate-900" value="es-ES">Español</option>
-      </select>
-      <button type="button" id="caseyLiveBtn" onclick="CaseyLive.toggle()" title="Conversazione vocale continua con Gemini Live"
-              class="bg-blue-500/25 hover:bg-blue-500/40 text-blue-100 border border-blue-300/40 px-3 py-1.5 rounded-full font-bold">Avvia Live</button>
-      <button type="button" id="caseyLivePause" onclick="CaseyLive.pause()" hidden
-              class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">Pausa</button>
-      <span id="caseyLiveStatus" role="status" aria-live="polite" class="text-[10px] text-blue-100 max-w-[220px] truncate">Live disattivato</span>
-      <button onclick="toggleVoiceMute()" id="muteBtn"
-              class="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-full font-medium transition">
-         ON
-      </button>
-      <button onclick="triggerPresence()"
-              class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full font-medium transition">
-         Presenza
-      </button>
-      <a href="architettura.html"
-         title="Visualizza lo schema di architettura e il funzionamento tecnico"
-         class="bg-blue-500/25 hover:bg-blue-500/40 border border-blue-300/40 text-blue-100 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1">
-         Architettura
-      </a>
-      <button type="button" onclick="CaseyBridge.showLogin()" id="caseyAccountBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-1.5 rounded-full font-semibold transition">Account studente</button>
-      <a href="settings.html" class="bg-white/10 hover:bg-white/20 border border-white/15 text-white px-3 py-1.5 rounded-full font-semibold transition">Impostazioni</a>
-      <button onclick="resetDemo()"
-              class="bg-white text-[#1D2347] hover:bg-blue-50 px-3.5 py-1.5 rounded-full font-bold transition shadow">
-        ↺ Reset
-      </button>
+    <div class="seg" role="tablist" aria-label="Punto di vista">
+      <button id="pv-OFFICE" role="tab" aria-selected="true" onclick="setView('OFFICE')">Ufficio</button>
+      <button id="pv-STUDENT" role="tab" aria-selected="false" onclick="setView('STUDENT')">Persona</button>
     </div>
+    <div class="sp"></div>
+    <label class="language-control"><select data-casey-language aria-label="Lingua"><option value="it-IT">IT</option><option value="en-US">EN</option><option value="es-ES">ES</option></select></label><span class="bepill" id="bePill" title="Da dove arrivano le risposte"><i></i><span>locale</span></span>
+    <a href="settings.html" id="settingsLink">Impostazioni</a>
+    <a href="index.html?view=calendar" id="calendarLink" target="casey-calendar" rel="noopener">Calendario separato</a>
+    <button type="button" id="startDemo" class="demo-action">Avvia demo</button>
+    <a href="app-blu.html" target="_blank" rel="noopener" id="appLink">Apri l'app</a>
+    <button class="ic" onclick="toggleShow()" title="Schermo intero, modalità presentazione" aria-label="Schermo intero">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
+    <button class="ic" id="muteBtn" onclick="toggleMute()" title="Voce" aria-label="Voce">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button>
+    <button class="ic" onclick="resetAll()" title="Ricomincia" aria-label="Ricomincia">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v5h5"/></svg></button>
+  </div>
+</header>
 
-  </header>
+<div class="wrap">
+  <div id="kpis" hidden></div>
+  <div class="grid">
 
-  <!-- MAIN WORKSPACE -->
-  <main class="max-w-[1440px] w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-7 items-center">
-
-    <!-- COLONNA SINISTRA (4 col): SCHERMO ALLA PORTA 9:16 -->
-    <section class="lg:col-span-4 flex flex-col items-center">
-      <div class="kiosk-screen rounded-[38px] border-[10px] border-[#11152C] shadow-2xl relative overflow-hidden flex flex-col justify-between text-[#1D2347]">
-
-        <!-- Top Bar Kiosk -->
-        <div class="relative z-20 flex items-center justify-between px-5 pt-4">
-          <div class="flex items-center gap-2 bg-[#1D2347] text-white text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-md">
-            <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
-            <span id="kioskBadgeText">AI assistant</span>
+    <section class="kiosk" aria-label="Totem all'ingresso">
+      <div class="bezel">
+        <div class="screen">
+          <img class="av" id="avatar" src="Casey - H-FARM College/casey-avatar.png" alt="Casey">
+          <video id="vA" class="hide" playsinline muted autoplay></video>
+          <video id="vB" class="hide" playsinline muted autoplay></video>
+          <div class="scrtop">
+            <span class="pill"><span class="dot" id="dot"></span><span id="state">Pronto</span></span>
+            <img id="scrLogo" src="hfarm-college-logo.png" alt="H-FARM College">
           </div>
-
-          <div class="logo-box-kiosk">
-            <img src="HF-College_logocolore_Centrale (1).png" alt="H-FARM College" />
-          </div>
-        </div>
-
-        <!-- Area Centrale: Immagine Casey_ref_9x16.png + Doppio Player Video (A..F) -->
-        <div class="absolute inset-0 z-0 flex items-center justify-center bg-white overflow-hidden">
-          <img id="avatarFallbackImg" src="Casey_ref_9x16.png" alt=""
-               class="w-full h-full object-cover"
-               onerror="handleAvatarImgError(this)" />
-
-          <video id="videoPlayerA" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted preload="auto"></video>
-          <video id="videoPlayerB" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted preload="auto"></video>
-        </div>
-
-        <!-- Parte Bassa Kiosk: Sottotitoli + Input + QR Code Reale V1 -->
-        <div class="relative z-20 mt-auto px-4 pb-3.5 space-y-2">
-
-          <!-- Box Blu Sottotitoli -->
-          <div class="bg-[#1D2347]/95 backdrop-blur-sm text-white rounded-2xl p-3.5 shadow-xl">
-            <p id="subtitleBox" role="log" aria-live="off" class="text-[13px] leading-snug font-medium" style="max-height:155px;overflow-y:auto;overflow-wrap:anywhere">
-              <strong class="font-bold">Hi, I'm Casey, the Student</strong><br/>
-              Office's AI assistant.<br/>
-              How can I help?
-            </p>
-            <div id="citationBox" class="mt-2 pt-1.5 border-t border-white/15 flex items-center justify-between text-[10px] text-blue-200 hidden">
-              <span id="citationText" class="font-semibold truncate"> BSc Handbook 2025-26</span>
-              <span class="bg-white/15 px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ml-2">Verified</span>
-            </div>
-          </div>
-
-          <!-- Input Rapido / Microfono -->
-          <div id="caseyComposer" class="flex gap-1.5 bg-white/95 p-1.5 rounded-2xl shadow-lg border border-slate-200">
-            <button onclick="toggleListening()" title="Parla con Casey"
-                    class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-blue-50 flex items-center justify-center text-sm transition">
-              
-            </button>
-            <input id="userInput" type="text" placeholder="Scrivi 'Ciao, come stai?' o fai una domanda..."
-                   onkeydown="if(event.key==='Enter') sendUserMessage()"
-                   class="flex-1 bg-transparent px-1.5 text-xs text-[#1D2347] placeholder-slate-400 focus:outline-none font-medium" />
-            <button onclick="sendUserMessage()"
-                    class="bg-[#1D2347] hover:bg-[#283163] text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold transition">
-              Chiedi
-            </button>
-          </div>
-
-          <div id="caseyConfirm" class="casey-confirm text-[#1D2347] shadow-lg" hidden>
-            <span class="font-semibold text-[11px] flex-1" id="caseyConfirmLabel">Confermi?</span>
-            <button onclick="CaseyBridge.confirmBooking(true)" class="casey-bridge-action" id="caseyYes">Confermo</button>
-            <button onclick="CaseyBridge.confirmBooking(false)" class="rounded-full px-3 py-2 bg-slate-100 text-slate-700 text-[11px] font-bold" id="caseyNo">Non confermo</button>
-          </div>
-          <div id="caseyEscalate" class="bg-white rounded-xl text-[#1D2347] text-xs p-2 shadow-lg" hidden>
-            <p class="mb-2">Posso inoltrare questa richiesta allo Student Office, senza inviare email esterne.</p>
-            <div class="flex gap-2"><button class="casey-bridge-action" onclick="CaseyBridge.submitOfficeRequest()">Invia richiesta</button><button onclick="CaseyBridge.dismissOfficeRequest()" class="border border-slate-300 rounded-full px-3 font-semibold">Annulla</button></div>
-          </div>
-          <!-- Handoff entry point; the secure QR is generated only after matricola input. -->
-          <div id="handoffCard" role="button" tabindex="0" onclick="CaseyHandoff.open()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CaseyHandoff.open()}"
-               title="Genera un QR sicuro per continuare sul telefono"
-               class="bg-white rounded-2xl px-3.5 py-2.5 shadow-lg border border-slate-100 cursor-pointer hover:border-[#1D2347]/40 transition flex items-center gap-3.5">
-            <div class="flex items-center gap-3.5 w-full">
-              <span aria-hidden="true" style="font-size:32px;line-height:1">↗</span>
-              <div class="text-[13px] leading-snug text-[#1D2347] tracking-tight">
-                <div class="font-normal">Personal question?</div>
-                <div class="font-normal">Continue on your phone</div>
+          <div class="scrbot">
+            <div class="cap">
+              <p id="capText"></p>
+              <div class="src" id="srcBox">
+                <span class="t" id="srcText"></span><span class="kb tra" id="kbPill"></span>
               </div>
             </div>
+            <div class="qr" id="qrCard">
+              <svg class="code" id="qrCode" aria-hidden="true"></svg>
+              <div class="tx"><b id="qrTitle"></b><span id="qrSub"></span><span class="meta" id="qrMeta"></span></div>
+              <button class="open" onclick="openPhone()">Apri</button>
+            </div>
+            <div class="ask">
+              <button class="mic" id="micBtn" onclick="toggleMic()" title="Parla con Casey" aria-label="Parla con Casey">
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5"/></svg>
+              </button>
+              <input id="q" type="text" placeholder="Parla o scrivi…" autocomplete="off" onkeydown="if(event.key==='Enter')send()">
+              <button class="go" onclick="send()">Chiedi</button>
+            </div>
           </div>
-
         </div>
       </div>
-
-      <!-- Piedistallo -->
-      <div class="w-4 h-6 bg-[#11152C]"></div>
-      <div class="w-28 h-2.5 bg-[#11152C] rounded-full shadow-lg"></div>
+      <div class="neck"></div><div class="foot"></div>
     </section>
 
-    <!-- COLONNA DESTRA (8 col): AMBIENTE SIMULATO CON FILTRO STUDENTE / STUDENT OFFICE -->
-    <section class="lg:col-span-8 flex flex-col">
-
-      <!-- Barra Pulsanti Demo Rapidi -->
-      <div class="mb-2.5">
-        <div class="flex items-center justify-between mb-1.5">
-          <span id="quickPromptsLabel" class="text-[11px] font-bold uppercase tracking-wider text-blue-200">
-             Passo-passo Demo — Caso 1: Matricola (Emma):
-          </span>
-          <span id="perspectiveHint" class="text-[11px] text-blue-200/80">
-            Prospettiva attiva: <strong class="text-white"> Vista Student Office</strong>
-          </span>
-        </div>
-        <div id="quickPromptsContainer" class="flex flex-wrap gap-1.5"></div>
+    <section class="panel" aria-label="Back-office">
+      <div class="tabs" id="tabs" role="tablist"></div>
+      <div class="view" id="v-CAL">
+        <div class="vh"><div><h2 id="calTitle"></h2><p id="calSub"></p><a class="calendar-google-link" href="https://calendar.google.com/calendar/u/0/r/week" target="casey-google-calendar" rel="noopener">Apri Google Calendar ↗</a></div>
+          <div class="lg"><span><i style="background:var(--soft)"></i>Occupato</span>
+          <span><i style="background:var(--brand)"></i>Prenotato da Casey</span>
+          <span><i style="background:#A8D4BF"></i>Libero</span></div></div>
+        <div class="cal" id="cal"></div>
       </div>
-
-      <!-- Card Principale Bianca & Blu -->
-      <div class="bg-white text-[#1D2347] rounded-[28px] shadow-2xl border-4 border-[#11152C] overflow-hidden flex flex-col h-[72vh] max-h-[680px]">
-
-        <!-- Barra Tab Dinamica -->
-        <div class="bg-slate-50 border-b border-slate-200 px-6 pt-3 flex items-center justify-between">
-          <div id="tabsHeaderContainer" class="flex gap-2"></div>
-          <div id="accountBadgeRight" class="text-[11px] text-slate-500 font-semibold hidden sm:flex items-center gap-2 pb-2"></div>
-        </div>
-
-        <!-- VISTA 1: CALENDARIO OTTOBRE 2026 -->
-        <div id="view-CALENDAR" class="flex-1 p-5 overflow-y-auto flex flex-col justify-between">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
-            <div>
-              <h2 id="calendarTitle" class="text-lg font-extrabold text-[#1D2347]">
-                Ottobre 2026 — Calendario Student Office
-              </h2>
-              <p id="calendarSubtitle" class="text-xs text-slate-500">
-                Casey legge gli impegni già fissati in agenda e propone in automatico solo gli slot liberi.
-              </p>
-            </div>
-            <div id="calendarLegend" class="flex items-center gap-3 text-[11px] font-semibold"></div>
-          </div>
-
-          <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-400 uppercase mb-1">
-            <div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div>Sab</div><div>Dom</div>
-          </div>
-
-          <div class="mb-3 flex items-center justify-between gap-2 flex-wrap text-xs text-[#1D2347]" id="caseyCalendarToolbar">
-              <div class="flex items-center gap-2"><button id="caseyPrev" type="button" onclick="CaseyBridge.shiftMonth(-1)" class="casey-status-pill" aria-label="Mese precedente">←</button><strong id="caseyMonthLabel">Calendario</strong><button id="caseyNext" type="button" onclick="CaseyBridge.shiftMonth(1)" class="casey-status-pill" aria-label="Mese successivo">→</button></div>
-              <button onclick="CaseyBridge.goToday()" class="casey-status-pill">Oggi</button>
-              <button onclick="CaseyBridge.connectStudentGoogle()" id="caseyGoogleConnect" class="casey-status-pill hidden">Connetti Google</button>
-            </div>
-            <div id="caseyCalendarStatus" class="casey-notice mb-3">Verifica delle disponibilità in corso…</div>
-            <div id="caseySlotOptions" class="flex flex-wrap gap-1 mb-3"></div>
-            <div id="octoberCalendarGrid" class="grid grid-cols-7 gap-1.5 flex-1"></div>
-        </div>
-
-        <!-- VISTA 2: GMAIL SIMULATO -->
-        <div id="view-GMAIL" class="flex-1 hidden grid-cols-12 overflow-hidden">
-          <div class="col-span-5 border-r border-slate-200 overflow-y-auto bg-slate-50/60 p-3 space-y-1.5" id="gmailList"></div>
-          <div class="col-span-7 p-6 overflow-y-auto flex flex-col justify-between bg-white" id="gmailReader"></div>
-        </div>
-
-        <!-- VISTA 3: STAFF REVIEW QUEUE (MORNING BRIEFING) -->
-        <div id="view-QUEUE" class="flex-1 hidden p-6 overflow-y-auto">
-          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
-            <div>
-              <h2 class="text-lg font-extrabold text-[#1D2347]">Morning Briefing — 08:45 (Staff Review Queue)</h2>
-              <p class="text-xs text-slate-500">
-                I casi che richiedono giudizio umano (tasse, deroghe, benessere) arrivano qui riassunti con la regola dell'Handbook.
-              </p>
-            </div>
-            <span class="bg-blue-50 text-[#1D2347] border border-blue-200 text-xs font-bold px-3 py-1 rounded-full">
-              Autonomia Guadagnata: <span id="autonomyScore">94</span>% bozze approvate
-            </span>
-          </div>
-          <div id="staffQueueList" class="space-y-4"></div>
-        </div>
-
-        <!-- VISTA 4: LA MIA PRATICA / CHECKLIST (VISTA STUDENTE) -->
-        <div id="view-CHECKLIST" class="flex-1 hidden p-6 overflow-y-auto">
-          <div class="flex items-center justify-between mb-4">
-            <div>
-              <h2 id="studentCaseTitle" class="text-lg font-extrabold text-[#1D2347]">La Mia Pratica</h2>
-              <p class="text-xs text-slate-500">
-                Ogni richiesta diventa una pratica tracciata passo dopo passo fino alla chiusura.
-              </p>
-            </div>
-            <span id="studentCaseProgress" class="bg-[#1D2347] text-white text-xs font-bold px-3.5 py-1 rounded-full">
-              2 / 5 completati
-            </span>
-          </div>
-          <div class="casey-notice mb-3">Percorso dimostrativo Emma/Sofia: i passi non rappresentano dati accademici verificati del tuo account.</div>
-            <div id="studentChecklistItems" class="space-y-2.5"></div>
-        </div>
-
+      <div class="view" id="v-MAIL"><div class="mail"><div class="mlist" id="mlist"></div><div class="mbody" id="mbody"></div></div></div>
+      <div class="view" id="v-QUEUE"><div class="vh"><div><h2 id="qTitle"></h2><p id="qSub"></p></div></div><div id="queue"></div></div>
+      <div class="view" id="v-ROUTE">
+        <div class="vh"><div><h2 id="rTitle"></h2><p id="rSub"></p></div></div>
+        <div class="offs" id="offs"></div>
+      </div>
+      <div class="view" id="v-CHECK"><div class="vh"><div><h2>La mia pratica</h2><p id="ckSub"></p></div></div><div id="check"></div></div>
+      <div class="view" id="v-FEED">
+        <div class="vh"><div><h2>Attività e carico</h2>
+          <p>Le richieste non arrivano in modo costante: cambiano con il periodo dell'anno, con il giorno della settimana e con gli eventi. Il sabato e la domenica non c'è nessuno in ufficio.</p></div></div>
+        <div id="cycle"></div>
+        <div class="feed" id="feed" style="margin-top:18px"></div>
       </div>
     </section>
 
-  </main>
-
-  <!-- MODALE ANTEPRIMA DOCUMENTO (Internship Agreement di Sofia) -->
-  <div id="docPreviewModal" class="fixed inset-0 z-50 bg-black/70 hidden items-center justify-center p-4">
-    <div class="bg-white text-[#1D2347] rounded-3xl max-w-xl w-full p-6 shadow-2xl border-4 border-[#1D2347] space-y-4">
-      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div>
-          <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Template Compilato da Casey</span>
-          <h3 class="text-base font-extrabold mt-1">H-FARM College — Internship Agreement (Bozza)</h3>
-        </div>
-        <button onclick="closeDocModal()" class="text-slate-400 hover:text-[#1D2347] font-bold text-sm px-2 py-1">✕</button>
-      </div>
-      <div class="text-xs space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200 leading-relaxed">
-        <p><strong>Corso di Laurea:</strong> Bachelor's Degree (Hons) in AI & Data Science — Level 6 (3rd Year)</p>
-        <p><strong>Studente:</strong> Sofia Rossi (<code>sofia.rossi@student.h-farm.com</code>)</p>
-        <p><strong>Azienda Ospitante:</strong> Acme Analytics S.r.l.</p>
-        <p><strong>Referente HR:</strong> Giulia Neri (<code>g.neri@acmeanalytics.example</code>)</p>
-        <p><strong>Data Inizio:</strong> 2 Marzo 2027 (Regola Handbook: min. 10 settimane full-time)</p>
-        <p><strong>Passi Successivi:</strong> Firma Training Project (Associate Dean) + Polizza Generali Italia.</p>
-      </div>
-      <div class="flex justify-end">
-        <button onclick="closeDocModal()" class="bg-[#1D2347] text-white text-xs font-bold px-4 py-2 rounded-full">
-          Chiudi Anteprima
-        </button>
-      </div>
-    </div>
   </div>
+</div>
+<div class="toast" id="toasts"></div>
 
-  <script>
-    /*************************************************************************
-     * 1. GESTIONE INTELLIGENTE DEI 6 VIDEO (A..F)
-     * - I nuovi C.mp4 e F.mp4 sono puliti da 0:00 a 0:09!
-     * - Solo su A.mp4 salta l'intervallo 3.1s-5.2s per evitare che apra bocca in Idle
-     *************************************************************************/
-    const AVATAR_IMAGE_CANDIDATES = ['Casey_ref_9x16.png', 'Casey_ref_9x16.jpg', 'Casey_avatar_HFARM.jpg', 'casey.png', 'casey.jpg'];
-    let avatarImgTry = 0;
+<!-- caricati prima del codice della pagina: al suo avvio CaseyBackend deve gia' esistere -->
 
-    function handleAvatarImgError(imgEl) {
-      avatarImgTry++;
-      if (avatarImgTry < AVATAR_IMAGE_CANDIDATES.length) {
-        imgEl.src = AVATAR_IMAGE_CANDIDATES[avatarImgTry];
-      }
+
+
+
+<script>
+/* =====================================================================
+   Casey 6.0 — MVP definitivo
+   Due regole che non si toccano:
+   1) Il totem NON sa con chi sta parlando. Risposte sempre generiche.
+   2) Totem e telefono non parlano mai insieme: quando la sessione passa
+      sul telefono, il totem tace e si libera.
+   ===================================================================== */
+
+const WH=['10:00','11:00','14:00','15:00'];
+const DAYNAMES=['LUN','MAR','MER','GIO','VEN','SAB','DOM'];
+const localToday=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Rome'}).format(new Date());
+const TODAY=localToday.startsWith('2026-10-')?Number(localToday.slice(-2)):null, PAD=3; // Demo calendar: October 2026.
+
+/* I 15 indirizzi del campus, dall'incontro con lo Student Office.
+   Lo smistamento corretto fra questi e' il problema numero uno dichiarato. */
+const OFFICES=[
+ ['student.office@h-farm.com','Vita accademica, assenze, certificati, casi limite esami',14],
+ ['student.admin@h-farm.com','Carriera amministrativa, tasse, deroghe economiche',6],
+ ['admission.college@h-farm.com','Ammissioni e iscrizioni',3],
+ ['info.accommodation@h-farm.com','Alloggi e residenze',4],
+ ['careerservice.edu@h-farm.com','Stage, convenzioni, contratti, orientamento',7],
+ ['mobility.office@h-farm.com','Erasmus, exchange, free movers',5],
+ ['inclusion.office@h-farm.com','DSA, ADHD, bisogni educativi speciali',2],
+ ['help.mates@h-farm.com','Supporto fra pari, orientamento pratico',3],
+ ['counseling.college@h-farm.com','Sportello psicologico e benessere',1],
+ ['collegeprotection@h-farm.com','Segnalazioni e tutela',0],
+ ['support@h-farm.com','Supporto tecnico, account, stampanti',9],
+ ['library@h-farm.com','Biblioteca, Halliday Labs, prestiti',5],
+ ['studentlife@h-farm.com','Club, eventi, vita studentesca',6],
+ ['sports@h-farm.com','Impianti sportivi',4],
+ ['marketing.college@h-farm.com','Comunicazione e promozione',1]
+];
+const OFFICES_FARM=[
+ ['welcome@h-farm.com','Welcome Center, pacchi, accoglienza',12],
+ ['food@h-farm.com','Ristoranti, mensa, caffetteria',9],
+ ['shop@h-farm.com','Shop, tessere, abbonamenti',7],
+ ['facility@h-farm.com','Spazi, sale, manutenzione, mobilità',8],
+ ['it@h-farm.com','Account, badge digitale, wifi',11],
+ ['sport@h-farm.com','Palestra, campi, skate park',5],
+ ['events@h-farm.com','Eventi e prenotazioni',6],
+ ['admin@h-farm.com','Amministrazione, rimborsi, contratti',3]
+];
+
+const DATA={
+COLLEGE:{
+ ctx:'H-FARM College · Student Office', office:'Student Office', officeMail:'student.office@h-farm.com',
+ person:{name:'Giulia Bernardi', first:'Giulia', mail:'g.bernardi@student.h-farm.com', code:'MAT-2025-8841', role:'BSc AI & Data Science · Level 5'},
+ calTitle:'Calendario Student Office',
+ calSub:'Calendario dimostrativo. Gli eventi mostrati non sono prenotazioni reali.',
+ apptTitle:'Ritiro Student Badge', personTab:'La mia pratica',
+ qTitle:'Coda di approvazione', qSub:'Casey non decide su tasse, deroghe, casi limite, dati sensibili e benessere. Prepara la bozza e la lascia qui.',
+ rTitle:'Smistamento sui 15 uffici',
+ rSub:"Il problema numero uno dichiarato dallo Student Office non è rispondere: è far arrivare la richiesta all'indirizzo giusto. I numeri sono le richieste indirizzate oggi.",
+ ckSub:'Quello che manca per essere a posto.',
+ offices:OFFICES,
+ greet:"Ciao, sono Casey. Posso aiutarti con corsi, regolamenti e servizi del campus.",
+ kb:[
+  {k:['meeting room','sala riunioni','prenotare un\'aula','prenotare aula','halliday','aula studio','spazio studio'],
+   kb:'tra',lab:'Trasversale',src:'Regolamento spazi campus e biblioteca',off:11,
+   a:"Le meeting room non sono prenotabili dagli studenti: è una regola, non una questione di disponibilità. Per lavorare in gruppo ci sono gli Halliday Labs in biblioteca, aperta dal lunedì al venerdì fino alle 22 e nel weekend fino alle 19 e 30."},
+  {k:['tennis','padel','campo','sport','palestra','calcetto'],
+   kb:'tra',lab:'Trasversale',src:'Sports Center · sports@h-farm.com',off:13,
+   a:"I campi si prenotano dall'app Sportclubby con la tariffa studenti, oppure scrivendo a sports at h-farm punto com."},
+  {k:['club','student club','fondare','apache','book club'],
+   kb:'tra',lab:'Trasversale',src:'Student Life · studentlife@h-farm.com',off:12,
+   a:"I club attivi sono nella sezione Experiences dell'app: Apache, Book Club, Chess Club, H-Altura e gli altri. Per fondarne uno nuovo si manda il progetto a studentlife."},
+  {k:['stampare','stampante','printer','credito di stampa'],
+   kb:'tra',lab:'Trasversale',src:'Tutorial stampanti campus',off:10,
+   a:"Ci sono due stampanti, una in biblioteca e una nell'edificio College. Si attivano avvicinando il badge al lettore, e il credito si ricarica al Welcome Center. Ti mostro il tutorial completo."},
+  {k:['check-in','check in','check-out','bluetooth','presenze','appello','firma'],
+   kb:'tra',lab:'Trasversale',src:'Attendance Monitoring System',off:0,
+   a:"Il check-in si fa dall'app dentro l'aula, con wifi, bluetooth e GPS attivi, entro i primi dieci minuti della lezione. Il check-out negli ultimi quindici. Se dà errore, quasi sempre è il bluetooth spento."},
+  {k:['enhancing','corsi extra','extracurricular','attività extra'],
+   kb:'tra',lab:'Trasversale',src:'Enhancing Courses · sezione Academic dell\'app',off:0,
+   a:"Gli Enhancing sono i corsi extracurricolari: li trovi nella sezione Academic dell'app, sotto Enhancing. Quando non c'è nulla in elenco vuol dire che le iscrizioni del periodo sono chiuse."},
+  {k:['secondo anno','2° anno','level 5','che lezioni','materie','moduli'],
+   kb:'chi',lab:'Chichester',src:'BSc AI & Data Science Handbook · moduli Level 5',off:0,
+   a:"Al Level 5 ci sono sei moduli da dieci crediti: Multivariable Calculus, Software Engineering, Databases, Fundamentals of Statistics, Economics for Information Technologists e Machine Learning."},
+  {k:['passare','soglia','voto minimo','40','sufficienza','provisional'],
+   kb:'chi',lab:'Chichester',src:'Handbook · Assessment Regulations',off:0,
+   a:"Nei moduli Chichester si passa al quaranta per cento. Fra il trentacinque e il trentanove si applica il Provisional Pass. Resit e Mitigating Circumstances si gestiscono su ChiView."},
+  {k:['ca\' foscari','ca foscari','trentesimi','cfu'],
+   kb:'caf',lab:"Ca' Foscari",src:'Regolamento didattico corsi convenzionati',off:0,
+   a:"Nei corsi in convenzione con Ca' Foscari il voto è in trentesimi, la sufficienza è diciotto e i crediti sono CFU. È un sistema diverso da quello Chichester: le regole dell'uno non valgono per l'altro."},
+  {k:['ai ethics','plagio','misconduct','chatgpt','copiato','intelligenza artificiale nei compiti'],
+   kb:'chi',lab:'Chichester',src:'AI Ethics & Academic Misconduct Policy',off:0,
+   a:"Il primo passo è sempre parlare con il docente del modulo, che valuta il caso e se serve coinvolge lo Student Office. Non è una cosa che posso istruire io, e non è una cosa che si risolve per email."}
+ ],
+ triages:[
+  {k:['certificato','malattia','assenza','assenze','giustificare','sono stato male','influenza'],
+   q:"Posso aiutarti subito. Quanti giorni di calendario copre il certificato? Meno di cinque, tra cinque e quattordici, oppure più di due settimane?",
+   opts:[
+    {l:'Meno di 5 giorni',kb:'tra',lab:'Trasversale',src:'Policy assenze e certificati medici',off:-1,
+     a:"Sotto i cinque giorni di calendario l'assenza non viene giustificata, nemmeno con il certificato. Non serve scrivere allo Student Office: l'esito non cambierebbe, e intanto hai la risposta adesso."},
+    {l:'Fra 5 e 14 giorni',kb:'tra',lab:'Trasversale',src:'Policy assenze e certificati medici',off:0,
+     a:"Da cinque giorni in su, contati di calendario e non lavorativi, l'assenza con certificato è giustificata. Apro la pratica e ti dico dove caricare il documento."},
+    {l:'Più di 2 settimane',kb:'tra',lab:'Trasversale',src:'Policy assenze e certificati medici',off:0,
+     a:"Oltre le due settimane, oltre alla giustificazione c'è anche l'accesso alle registrazioni delle lezioni. Preparo la richiesta di sblocco per lo Student Office."}]},
+  {k:['esame','appello','non mi sono presentato','lutto','proroga consegna','deferral','resit','consegna in ritardo'],
+   q:"Capisco. Per mandarti all'ufficio giusto mi serve sapere di che caso si tratta: un problema di salute o familiare, una consegna in ritardo, oppure un esame da rifare?",
+   opts:[
+    {l:'Problema di salute o familiare',kb:'chi',lab:'Chichester',src:'Extension & Mitigating Circumstances · modulo nell\'app',off:0,
+     a:"Questo rientra nelle Mitigating Circumstances. Il modulo è nella sezione Academic dell'app, sotto Forms. Preparo la pratica per lo Student Office con il riferimento al regolamento: la valutazione la fa una persona, non io."},
+    {l:'Ho consegnato in ritardo',kb:'chi',lab:'Chichester',src:'Handbook · Late Submission',off:0,
+     a:"Sulle consegne in ritardo il primo passo è il docente del modulo, che è l'unico che può valutare il caso. Se poi serve, è lui a coinvolgere lo Student Office. Ti preparo il riassunto da mandargli."},
+    {l:'Devo rifare un esame',kb:'chi',lab:'Chichester',src:'Handbook · Resit & Deferral',off:0,
+     a:"Resit e deferral si gestiscono su ChiView e hanno finestre precise. Smisto la richiesta allo Student Office, che ti conferma le date valide per il tuo modulo."}]}
+ ],
+ chips:{gen:[['Come si stampa?','Come funziona la stampante in campus?'],
+             ['Posso prenotare una meeting room?','Posso prenotare una meeting room?'],
+             ['Certificato medico','Sono stato male e ho un certificato, come giustifico le assenze?'],
+             ['Caso limite su un esame','Non mi sono presentato a un esame, cosa devo fare?']],
+        per:[['Sposta il ritiro del badge','Non riesco a venire mercoledì per il badge, mi trovi un altro slot?'],
+             ['Chiedi una deroga sulla rata','Posso chiedere una deroga sulla prima rata?']]},
+ handover:{title:'Continua sul tuo telefono',sub:'Niente login e niente codice: il profilo lo legge l\'app',
+  say:"Questa è una cosa tua personale, e qui al totem passa gente. Inquadra il codice: continuiamo sul tuo telefono, dove sei già riconosciuto, e io resto libero per chi è in fila."},
+ escal:{k:['rata','tasse','deroga','pagare','dilazion'],
+  say:"Su tasse e deroghe non decido io: decide una persona. Ho preparato la pratica con il riferimento al regolamento e l'ho mandata a Student Administration. Ti rispondono loro.",
+  src:'Smistamento · student.admin@h-farm.com',kb:'pr',lab:'Smistamento',off:1,
+  tk:{id:'SO-2026-104',who:'Studente Level 4 · Chichester',to:'Student Administration · student.admin@h-farm.com',
+   q:'Chiede una deroga sulla scadenza della prima rata.',
+   rule:"Importi, dilazioni e deroghe economiche sono decisioni riservate a una persona. Casey raccoglie e smista, non propone una cifra né una data. I promemoria sulle scadenze non sono di Casey: li segue un altro team.",
+   lvl:'h',lvlTxt:'SEMPRE UNA PERSONA',
+   draft:"Buongiorno,\n\nabbiamo ricevuto la sua richiesta di deroga sulla prima rata.\nLa pratica è stata presa in carico da Student Administration: le confermiamo l'esito entro due giorni lavorativi.\n\nStudent Office"}}
+},
+FARM:{
+ ctx:'H-FARM Campus · Servizi', office:'Campus Services', officeMail:'welcome@h-farm.com',
+ person:{name:'Giulia Bernardi', first:'Giulia', mail:'g.bernardi@h-farm.com', code:'HF-2026-4417', role:'Campus pass · edificio College'},
+ calTitle:'Agenda Welcome Center',
+ calSub:'Stessa identica interfaccia del College. È cambiata solo la knowledge base caricata.',
+ apptTitle:'Ritiro pacco al Welcome Center', personTab:'Le mie cose',
+ qTitle:'Coda di approvazione', qSub:'Casey non decide su rimborsi, eccezioni e casi fuori policy. Prepara la bozza e la lascia qui.',
+ rTitle:'Smistamento sui servizi del campus',
+ rSub:'Stessa logica del College: cambiano solo i destinatari e i documenti caricati. Questi indirizzi sono di esempio, l\'elenco ufficiale dei servizi campus non ce l\'hanno ancora dato.',
+ ckSub:'Quello che hai in sospeso sul campus.',
+ offices:OFFICES_FARM,
+ greet:"Ciao, sono Casey. Posso aiutarti con ristoranti, spazi, tessere e servizi del campus.",
+ kb:[
+  {k:['mangiare','ristorante','ristoranti','pranzo','mensa','aperto','orari'],kb:'tra',lab:'Ristoranti',src:'Servizi di sede · ristoranti del campus',off:1,
+   a:"Amor è aperto tutti i giorni dalle nove alle ventuno. La Serra dal lunedì al venerdì dalle otto alle diciotto, e Basta al Sugo solo a pranzo, dalle dodici e trenta alle quattordici e trenta."},
+  {k:['palestra','abbonamento','40 gym','pesi','corsi'],kb:'hr',lab:'Shop',src:'Shop · abbonamento palestra',off:2,
+   a:"La 40 Gym è in Casa 40: al piano terra pesi e cardio, al primo la sala corsi. L'abbonamento si attiva dallo Shop dell'app e costa venticinque euro al mese."},
+  {k:['badge','digital badge','wallet','tessera','telefono al lettore'],kb:'it',lab:'Wallet',src:'Shop · Digital Badge',off:4,
+   a:"Con il Digital Badge aggiungi il badge del campus al Wallet del telefono e lasci a casa quello fisico: avvicini il telefono al lettore ed entri. Si attiva dallo Shop, venticinque euro all'anno."},
+  {k:['pacco','pacchi','corriere','ritiro','consegna'],kb:'tra',lab:'Logistica',src:'Pacchi · Welcome Center',off:0,
+   a:"I pacchi si ritirano al Welcome Center negli orari di apertura. Quando ne arriva uno te lo trovi nella sezione Pacchi dell'app, con il codice di ritiro."},
+  {k:['monopattini','monopattino','bici','ricarica','stazioni'],kb:'tra',lab:'Mobilità',src:'Wayfinding · mobilità nel campus',off:3,
+   a:"I monopattini si sbloccano dall'app BiT e le stazioni di ricarica sono segnate sulla mappa del campus, nella sezione Wayfinding."},
+  {k:['padel','tennis','campo','skate','arrampicata','parete'],kb:'tra',lab:'Sport',src:'Shop · tessere sportive',off:5,
+   a:"Le tessere sono nello Shop: noleggio attrezzatura da due euro, parete di arrampicata da tre, e c'è anche quella per lo Skate Park e la Pump Track."},
+  {k:['evento','eventi','game changer','meetup','hacktoberfest'],kb:'chi',lab:'Eventi',src:'Eventi · calendario campus',off:6,
+   a:"I prossimi sono il Grok Bot Meetup il ventidue, l'Hacktoberfest Hack Day il ventiquattro e Game Changer Italy il trenta in Big Hall. Li trovi tutti nella sezione Eventi."},
+  {k:['sala','spazio','prenotare sala','riunione','big hall'],kb:'tra',lab:'Spazi',src:'Servizi di sede · spazi e sale',off:3,
+   a:"Le sale si prenotano dal calendario aziendale. Per la Big Hall e gli spazi grandi serve passare dal facility, perché vanno coordinati con gli eventi già in programma."}
+ ],
+ triages:[],
+ handover:{title:'Continua sul tuo telefono',sub:'Il profilo lo legge l\'app del campus',
+  say:"Questa è una cosa tua personale e qui alla reception passa gente. Inquadra il codice: continuiamo sul tuo telefono, dove sei già riconosciuto, e io resto libero."},
+ escal:{k:['rimborso','nota spese','fattura','eccezione','fuori policy','disdetta'],
+  say:"Su rimborsi ed eccezioni non decido io. Ho preparato la richiesta con il riferimento alla policy e l'ho mandata all'amministrazione del campus, che ti risponde direttamente.",
+  src:'Smistamento · amministrazione campus',kb:'pr',lab:'Smistamento',off:7,
+  tk:{id:'HF-2026-318',who:'Persona con campus pass · edificio College',to:'Amministrazione campus · admin@h-farm.com',
+   q:'Chiede il rimborso di un abbonamento palestra non utilizzato.',
+   rule:"Rimborsi, storni e deroghe alle condizioni di acquisto sono decisioni riservate a una persona. Casey raccoglie e smista, non promette un esito.",
+   lvl:'h',lvlTxt:'SEMPRE UNA PERSONA',
+   draft:"Buongiorno,\n\nabbiamo ricevuto la sua richiesta di rimborso sull'abbonamento.\nLa pratica è stata presa in carico dall'amministrazione del campus: le confermiamo l'esito entro due giorni lavorativi.\n\nCampus Services"}}
+}};
+
+/* ---------------- stato ---------------- */
+let S='COLLEGE', VIEW='OFFICE', TAB='CAL', D=null;
+let session='TOTEM', muted=false, pendingTriage=null, moved=false, selMail=0, listening=false;
+let calOffice=[],calPerson=[],mailOffice=[],mailPerson=[],queue=[],checklist=[],feed=[],offCount=[],lastOff=-1;
+let kpi={tot:0,solved:0,phone:0,human:0};
+let capTimer=null,feedTimer=null,idleTimer=null;
+
+/* =====================================================================
+   VOCE — Casey ha un volto maschile, quindi sceglie una voce maschile.
+   Il difetto della versione precedente: l'ordinamento premiava solo la
+   qualita', per cui "Elsa Online (Natural)" vinceva sempre.
+   ===================================================================== */
+const MALE=['diego','cosimo','gianni','luca','paolo','carlo','giorgio','marco','alessandro','fabio','male','uomo'];
+const FEM=['elsa','alice','federica','isabella','emma','chiara','giulia','sara','laura','female','donna'];
+let voice=null;
+function pickVoice(){
+  if(!('speechSynthesis' in window))return;
+  const it=speechSynthesis.getVoices().filter(v=>(v.lang||'').toLowerCase().startsWith('it'));
+  if(!it.length)return;
+  const sc=v=>{const n=(v.name||'').toLowerCase();let s=0;
+    if(MALE.some(m=>n.includes(m)))s+=1000;
+    if(FEM.some(f=>n.includes(f)))s-=1000;
+    if(n.includes('natural')||n.includes('online'))s+=120;
+    if(n.includes('enhanced')||n.includes('premium')||n.includes('siri'))s+=90;
+    if(n.includes('google'))s+=60;return s;};
+  it.sort((a,b)=>sc(b)-sc(a)); voice=it[0];
+}
+if('speechSynthesis' in window){pickVoice();speechSynthesis.onvoiceschanged=pickVoice;}
+
+/* Un solo cancello: se la sessione e' sul telefono, il totem tace. */
+function speak(text,done){
+  if(muted||session==='PHONE'||!('speechSynthesis' in window)){if(done)done();return;}
+  try{speechSynthesis.cancel();}catch(e){}
+  const u=new SpeechSynthesisUtterance(text);
+  u.lang=window.CaseyLanguage?.get()||'it-IT'; if(voice && voice.lang.toLowerCase().startsWith(u.lang.slice(0,2)))u.voice=voice; u.rate=1.03; u.pitch=.98;
+  u.onend=u.onerror=()=>{if(done)done();};
+  speechSynthesis.speak(u);
+}
+function shutUp(){try{speechSynthesis.cancel();}catch(e){}}
+
+/* =====================================================================
+   MICROFONO — si parla davvero con Casey, non e' un'icona decorativa.
+   ===================================================================== */
+const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
+let reco=null;
+function setupMic(){
+  const b=document.getElementById('micBtn');
+  if(!SR){ b.disabled=true; b.title='Il riconoscimento vocale non è disponibile in questo browser. Usa Chrome o Edge.'; return; }
+  reco=new SR(); reco.lang=window.CaseyLanguage?.get()||'it-IT'; reco.interimResults=true; reco.continuous=false;
+  reco.onresult=e=>{
+    let txt='',fin=false;
+    for(let i=e.resultIndex;i<e.results.length;i++){txt+=e.results[i][0].transcript;if(e.results[i].isFinal)fin=true;}
+    document.getElementById('q').value=txt;
+    /* Sul parziale, mentre la persona sta ancora parlando, decidiamo
+       gia' se la richiesta e' personale. Non serve un modello: bastano
+       le parole chiave. Quando smette di parlare la decisione c'e' gia',
+       e il totem non deve pensarci dopo. */
+    if(!fin) preclassifica(txt);
+    if(fin){stopMic();send(txt);}
+  };
+  reco.onerror=()=>stopMic();
+  reco.onend=()=>stopMic();
+}
+/* Classificatore privacy, deterministico, sul parziale.
+   Costa niente e toglie un passaggio dal percorso critico. */
+let prePersonale=null;
+function preclassifica(parziale){
+  const q=(parziale||'').toLowerCase();
+  if(q.length<8) return;
+  const p = parolePersonali().some(k=>q.includes(k));
+  if(p===prePersonale) return;
+  prePersonale=p;
+  setState(p?'think':'idle', p?'Ti ascolto · cosa personale':'Ti ascolto','listen');
+}
+function toggleMic(){ listening?stopMic():startMic(); }
+function startMic(){
+  if(!reco)return;
+  prePersonale=null;
+  shutUp();
+  if(session==='PHONE')backToTotem();
+  try{reco.start();}catch(e){return;}
+  listening=true;
+  document.getElementById('micBtn').classList.add('on');
+  setState('idle','Ti ascolto','listen');
+  document.getElementById('q').placeholder='Parla pure…';
+}
+function stopMic(){
+  if(!listening)return;
+  listening=false;
+  try{reco.stop();}catch(e){}
+  document.getElementById('micBtn').classList.remove('on');
+  document.getElementById('q').placeholder='Parla o scrivi…';
+  if(document.getElementById('state').textContent==='Ti ascolto')setState('idle','Pronto','');
+}
+
+/* ---------------- video ---------------- */
+const CASEY={COLLEGE:'Casey - H-FARM College/',FARM:'Casey - H-FARM/'};
+function caseyDir(){return CASEY[S]||CASEY.COLLEGE;}
+const VID={idle:['A.mp4','B.mp4'],talk:['C.mp4','A.mp4'],think:['E.mp4','A.mp4'],point:['D.mp4','B.mp4','A.mp4'],hand:['F.mp4','D.mp4','A.mp4']};
+let liveV='vA',videoState='',videoRevision=0;
+function playState(st){
+ const signature=S+':'+st;if(signature===videoState)return;videoState=signature;
+ const revision=++videoRevision,c=VID[st]||VID.idle;
+ const cur=document.getElementById(liveV),nxt=document.getElementById(liveV==='vA'?'vB':'vA');let i=0;
+ const restore=()=>{if(revision!==videoRevision)return;document.getElementById('avatar').style.opacity=1;cur.classList.add('hide');nxt.classList.add('hide');};
+ const go=()=>{if(revision!==videoRevision)return;if(i>=c.length){restore();return;}const f=caseyDir()+c[i++];
+ nxt.onloadeddata=()=>{if(revision!==videoRevision)return;nxt.classList.remove('hide');cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;nxt.play().catch(restore);};
+ nxt.onerror=go;nxt.loop=(st==='idle'||st==='think');nxt.src=f;nxt.load();};go();
+}
+
+function setState(st,label,cls){
+  document.getElementById('state').textContent=label;
+  const d=document.getElementById('dot');
+  d.className='dot'+(cls?' '+cls:'')+(cls&&cls!=='idle'?' anim':'');
+  playState(st);
+}
+
+/* ---------------- sottotitoli ---------------- */
+function say(text,src,kbCls,kbLab,end){
+  clearInterval(capTimer);
+  const p=document.getElementById('capText'), sb=document.getElementById('srcBox');
+  if(src){document.getElementById('srcText').textContent=src;
+    const pl=document.getElementById('kbPill');pl.className='kb '+(kbCls||'tra');pl.textContent=kbLab||'';
+    sb.classList.add('on');}
+  else sb.classList.remove('on');
+  setState('talk','Risponde','think');
+  p.textContent='';
+  const w=text.split(' ');let i=0;
+  capTimer=setInterval(()=>{ if(i<w.length)p.textContent+=(i?' ':'')+w[i++]; else clearInterval(capTimer); },90);
+  speak(text,()=>{clearInterval(capTimer);p.textContent=text;
+    if(end){setState(end,'Pronto','');setTimeout(()=>setState('idle','Pronto',''),3200);}
+    else setState('idle','Pronto','');});
+  armIdle();
+}
+function showSilent(t,s){
+  clearInterval(capTimer);
+  document.getElementById('capText').textContent=t;
+  const sb=document.getElementById('srcBox');
+  if(s){document.getElementById('srcText').textContent=s;
+    const pl=document.getElementById('kbPill');pl.className='kb pr';pl.textContent='Sessione';sb.classList.add('on');}
+  else sb.classList.remove('on');
+}
+
+/* ---------------- privacy: il totem dimentica ---------------- */
+function armIdle(){clearTimeout(idleTimer);idleTimer=setTimeout(()=>{if(session!=='PHONE')goIdle();},75000);}
+function goIdle(){
+  shutUp();clearInterval(capTimer);pendingTriage=null;closeSession();
+  document.getElementById('qrCard').classList.remove('on');
+  document.getElementById('srcBox').classList.remove('on');
+  document.getElementById('capText').textContent=D.greet;
+  setState('idle','Pronto','');
+}
+
+/* =====================================================================
+   SESSIONE DEL TOTEM
+   Il QR non punta a una pagina generica: porta con se' un id di
+   conversazione che vale venti minuti. Serve perche' il totem e'
+   pubblico e il codice resta a schermo anche dopo che la persona se
+   n'e' andata: scaduto quello, il collegamento non vale piu'.
+   ===================================================================== */
+const APP_BASE='https://casey-digital-colleague-live.vercel.app/';
+const SESSION_MIN=20;
+let cid=null, cidUntil=0, cidTimer=null;
+function appFile(){ return S==='FARM' ? 'app-rossa.html' : 'app-blu.html'; }
+function newCid(){
+  const A='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';  // niente caratteri che si confondono
+  let x=''; for(let i=0;i<6;i++) x+=A[Math.floor(Math.random()*A.length)];
+  return 'CSY-'+x;
+}
+function openSession(){
+  cid=newCid(); cidUntil=Date.now()+SESSION_MIN*60000;
+  const url=APP_BASE+appFile()+'?cid='+cid+'&s='+S;
+  try{ if(window.CaseyQR) window.CaseyQR.render(document.getElementById('qrCode'), url); }catch(e){}
+  document.getElementById('qrCard').classList.remove('expired');
+  tickCid(); clearInterval(cidTimer); cidTimer=setInterval(tickCid,1000);
+}
+function tickCid(){
+  const el=document.getElementById('qrMeta'); if(!el||!cid) return;
+  const left=cidUntil-Date.now();
+  if(left<=0){
+    clearInterval(cidTimer);
+    document.getElementById('qrCard').classList.add('expired');
+    el.textContent='Sessione '+cid+' · scaduta';
+    return;
+  }
+  const m=Math.floor(left/60000), sec=Math.floor(left/1000)%60;
+  el.textContent='Sessione '+cid+' · scade fra '+m+':'+String(sec).padStart(2,'0');
+}
+function closeSession(){ clearInterval(cidTimer); cid=null; }
+
+/* =====================================================================
+   PASSAGGIO AL TELEFONO
+   Il totem si zittisce, dimentica e torna disponibile per chi e' in fila.
+   ===================================================================== */
+function handover(){
+  const h=D.handover;
+  document.getElementById('qrTitle').textContent=h.title;
+  document.getElementById('qrSub').textContent=h.sub;
+  document.getElementById('qrCard').classList.add('on');
+  openSession();
+  say(h.say,'Passaggio al telefono · il totem resta libero','pr','Privacy','hand');
+  setTimeout(toPhone,Math.max(4200,h.say.length*58));
+}
+function toPhone(){
+  if(session==='PHONE')return;
+  session='PHONE';shutUp();clearInterval(capTimer);clearTimeout(idleTimer);stopMic();
+  showSilent('La conversazione è passata sul telefono. Il totem è libero per la persona successiva.',
+             'Nessun dato personale resta su questo schermo');
+  setState('idle','Libero','idle');
+  pushFeed('telefono','sessione trasferita dal totem','wa','in corso');
+}
+function backToTotem(){session='TOTEM';goIdle();}
+function openPhone(){
+  if(!cid) openSession();
+  try{localStorage.setItem('CASEY_HANDOVER',JSON.stringify({scenario:S,cid:cid,ts:Date.now()}));}catch(e){}
+  if(chan)chan.postMessage({type:'HANDOVER',scenario:S,cid:cid});
+  toPhone();
+  window.open(appFile()+'?s='+S+'&casey=1&cid='+encodeURIComponent(cid),'_blank');
+}
+
+const chan=('BroadcastChannel' in window)?new BroadcastChannel('casey_sync'):null;
+if(chan)chan.onmessage=e=>handlePhone(e.data||{});
+window.addEventListener('storage',e=>{
+  if(e.key==='CASEY_ACTION'&&e.newValue){try{handlePhone(JSON.parse(e.newValue));}catch(x){}}
+});
+/* Tutto cio' che arriva dal telefono aggiorna il back-office IN SILENZIO. */
+function handlePhone(m){
+  if(m.type==='SLOT_CONFIRMED'){
+    bookSlot(m.day,m.time);
+    toast('Confermato dal telefono',D.apptTitle+' · '+dayLabel(m.day)+' alle '+m.time);
+    pushFeed('telefono',D.apptTitle.toLowerCase()+' spostato','ok','risolto');
+    kpi.phone++;kpi.solved++;renderKpi();
+    if(session==='PHONE')showSilent('Pratica chiusa dal telefono. Il totem è libero.','Nessun dato personale resta su questo schermo');
+  }
+  if(m.type==='ESCALATE'){
+    addTicket();toast('Inoltrata dal telefono',D.escal.tk.to);
+    bumpOffice(D.escal.off);
+    pushFeed('telefono','eccezione inoltrata a una persona','hu','umano');
+  }
+  if(m.type==='PHONE_CLOSED')backToTotem();
+}
+function toast(t,x){
+  const b=document.getElementById('toasts'),e=document.createElement('div');
+  e.className='tst';e.innerHTML='<b></b><span></span>';
+  e.querySelector('b').textContent=t;e.querySelector('span').textContent=x;
+  b.appendChild(e);setTimeout(()=>e.remove(),6500);
+}
+
+/* ---------------- schermo intero da career day ---------------- */
+function toggleShow(){
+  const on=document.body.classList.toggle('show');
+  if(on){ if(document.documentElement.requestFullscreen)document.documentElement.requestFullscreen().catch(()=>{}); }
+  else { if(document.fullscreenElement&&document.exitFullscreen)document.exitFullscreen().catch(()=>{}); }
+}
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&document.body.classList.contains('show'))document.body.classList.remove('show'); });
+
+/* =====================================================================
+   COMPRENSIONE DELLA RICHIESTA
+   Ordine: triage aperto, pratiche personali, eccezioni, domande di
+   controllo, knowledge base, saluti, e infine l'ammissione di non sapere.
+   Il totem non nomina mai nessuno: non sa con chi sta parlando.
+   ===================================================================== */
+function send(custom){
+  const inp=document.getElementById('q');
+  const text=String(custom||inp.value||'').trim();
+  if(!text)return;
+  inp.value='';
+  if(session==='PHONE')backToTotem();
+  kpi.tot++;renderKpi();armIdle();
+  setState('think','Cerca nelle fonti','think');
+  setTimeout(()=>route(text.toLowerCase(),text),600);
+}
+/* Una lista sola: la usa sia il percorso normale sia il
+   preclassificatore sul parziale del microfono. Due liste che
+   divergono sarebbero un modo elegante di sbagliare. */
+function parolePersonali(){
+  return S==='COLLEGE'
+    ? ['badge','sposta','spostare','non riesco','altro slot','appuntamento']
+    : ['sposta','spostare','non riesco','altro slot','onboarding','colloquio'];
+}
+function route(q,orig){
+  if(pendingTriage){
+    const hit=pendingTriage.find(o=>q.includes(o.l.toLowerCase())||(o.key&&q.includes(o.key)));
+    if(hit){pendingTriage=null;answer(hit);
+      kpi.solved++;renderKpi();pushFeed('totem',shorten(orig),hit.off===-1?'ok':'wa',hit.off===-1?'risolto':'in attesa');return;}
+  }
+  if(parolePersonali().some(k=>q.includes(k))){handover();return;}
+
+  if(D.escal.k.some(k=>q.includes(k))){
+    addTicket();bumpOffice(D.escal.off);
+    say(D.escal.say,D.escal.src,D.escal.kb,D.escal.lab,'point');
+    setView('OFFICE');setTab('QUEUE');
+    kpi.human++;renderKpi();pushFeed('totem','eccezione: passata a una persona','hu','umano');
+    return;
+  }
+  for(const t of D.triages){
+    if(t.k.some(k=>q.includes(k))){
+      pendingTriage=t.opts.map(o=>({...o,key:o.l.toLowerCase().split(' ')[0]}));
+      say(t.q,null,null,null,'point');return;
     }
-
-    const VIDEO_STATE_MAP = {
-      A: ['A.mp4', 'B.mp4'],
-      B: ['B.mp4', 'A.mp4'],
-      C: ['C.mp4', 'A.mp4'],
-      D: ['D.mp4', 'B.mp4', 'A.mp4'],
-      E: ['E.mp4', 'A.mp4'],
-      F: ['F.mp4', 'D.mp4', 'A.mp4']
-    };
-
-    let currentVideoState = null;
-    let videoRevision = 0;
-    let activePlayer = document.getElementById('videoPlayerA');
-    let standbyPlayer = document.getElementById('videoPlayerB');
-    const videoBadge = document.getElementById('videoStateBadge');
-
-    function attachSmartTrim(player) {
-      player.ontimeupdate = () => {
-        const src = player.currentSrc || player.src || '';
-        if ((currentVideoState === 'A' || currentVideoState === 'LISTEN') && src.includes('A.mp4')) {
-          if (player.currentTime >= 3.1 && player.currentTime < 5.2) {
-            player.currentTime = 5.25;
-          }
-        }
-      };
+  }
+  for(const it of D.kb){
+    if(it.k.some(k=>q.includes(k))){
+      answer(it);bumpOffice(it.off);
+      pushFeed('totem',shorten(orig),'ok','risolto');kpi.solved++;renderKpi();return;
     }
-    attachSmartTrim(activePlayer);
-    attachSmartTrim(standbyPlayer);
-
-    function playVideoCandidates(candidates, loopVideo, stateLabel) {
-      const generation = ++videoRevision;
-      let idx = 0;
-      function tryNext() {
-        if (idx >= candidates.length) {
-          videoBadge.textContent = ` Foto: Casey_ref_9x16.png`;
-          return;
-        }
-        const file = candidates[idx];
-        idx++;
-        standbyPlayer.muted = true;
-        standbyPlayer.loop = loopVideo;
-        standbyPlayer.src = file;
-
-        standbyPlayer.onloadeddata = () => {
-          if (generation !== videoRevision) return;
-          standbyPlayer.muted = true;
-
-          // Su A.mp4 parte dal secondo 5.25 (calmo a labbra chiuse); i nuovi C.mp4 e F.mp4 partono da 0:00!
-          if ((stateLabel === 'A' || stateLabel === 'LISTEN') && file === 'A.mp4' && standbyPlayer.duration > 6) {
-            standbyPlayer.currentTime = 5.25;
-          } else {
-            standbyPlayer.currentTime = 0;
-          }
-
-          standbyPlayer.playbackRate = (stateLabel === 'C' && file === 'C.mp4') ? 1.12 : 1.0;
-
-          standbyPlayer.classList.remove('hidden');
-          activePlayer.classList.add('hidden');
-          activePlayer.pause();
-          standbyPlayer.play().catch(() => {});
-          videoBadge.textContent = ` Stato ${stateLabel} (${file})`;
-          const tmp = activePlayer;
-          activePlayer = standbyPlayer;
-          standbyPlayer = tmp;
-        };
-
-        standbyPlayer.onerror = () => tryNext();
-        standbyPlayer.onended = () => {
-          if (!loopVideo) setAvatarState('A');
-        };
-      }
-      tryNext();
+  }
+  if(['ciao','buongiorno','salve','buonasera','come stai','come va','tutto bene'].some(k=>q.includes(k))){
+    // Risposta volutamente generica: il totem e' pubblico e non sa chi ha davanti.
+    const r=(q.includes('come stai')||q.includes('come va')||q.includes('tutto bene'))
+      ? "Io sto bene, grazie. E tu come stai? Chiedimi pure di corsi, regolamenti o servizi del campus."
+      : "Ciao. Chiedimi pure di corsi, regolamenti o servizi del campus. Se invece è una cosa tua personale ti passo sul telefono, così non facciamo coda.";
+    say(r,null,null,null,null);return;
+  }
+  /* Non lo sappiamo in locale. Se il backend e' collegato gli chiediamo,
+     ma accettiamo la sua risposta SOLO se porta fonti verificate.
+     Se non risponde, o risponde senza fonti, si va sul ramo onesto:
+     non si inventa niente e si passa la domanda a un ufficio. */
+  /* 2. documenti ufficiali, in locale. Non serve rete e non si inventa:
+     si riporta il passaggio trovato e si dice da quale documento viene. */
+  if(window.CaseyRAG && CaseyRAG.disponibile()){
+    /* CTX_TOTEM e' una costante, non si calcola dalla domanda.
+       Se bastasse scrivere "secondo il regolamento di Chichester"
+       per vedere i documenti di Chichester, chiunque si allargherebbe
+       l'accesso da solo. L'ateneo viene da chi sei, non da cosa chiedi. */
+    var doc=CaseyRAG.rispondi(orig, CTX_TOTEM);
+    if(doc){
+      say(doc.testo, doc.etichetta, doc.confermata?'tra':'nc',
+          doc.confermata?'Documento':'Non confermato','point');
+      pushFeed('totem',shorten(orig),doc.confermata?'ok':'wa',
+               doc.confermata?'risolto':'fonte non confermata');
+      kpi.solved++;renderKpi();
+      return;
     }
-
-    function setAvatarState(state) {
-      if (currentVideoState === state) return;
-      currentVideoState = state;
-      const badge = document.getElementById('kioskBadgeText');
-      const dot = document.getElementById('statusDot');
-
-      if (state === 'LISTEN') {
-        badge.textContent = 'In ascolto...';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
-      } else if (state === 'E') {
-        badge.textContent = 'Elaborazione...';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
-      } else {
-        badge.textContent = 'AI assistant';
-        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
-      }
-
-      const key = state === 'LISTEN' ? 'A' : state;
-      const loopStates = ['A', 'LISTEN', 'C', 'E'];
-      const candidates = VIDEO_STATE_MAP[key] || VIDEO_STATE_MAP.A;
-      playVideoCandidates(candidates, loopStates.includes(state), state);
-    }
-
-    /*************************************************************************
-     * 2. STATO GLOBALE: SCENARIO (EMMA / SOFIA) & PROSPETTIVA (STUDENT / OFFICE)
-     *************************************************************************/
-    let currentScenario = 'EMMA';
-    let currentPerspective = new URLSearchParams(location.search).get('mobile')==='1'?'STUDENT':'OFFICE';
-    let currentTab = 'CALENDAR';
-    let autonomyPercentage = 94;
-    const WORKING_HOURS = ['10:00', '11:00', '14:00', '15:00'];
-
-    let officeCalendar = [];
-    let studentCalendar = [];
-    let officeEmails = [];
-    let studentEmails = [];
-    let staffQueue = [];
-    let checklistSteps = [];
-    let suggestedSlots = [];
-    let selectedMailIdx = 0;
-    let slotAlreadyMoved = false;
-
-    function initScenarioData() {
-      slotAlreadyMoved = false;
-      suggestedSlots = [];
-      selectedMailIdx = 0;
-
-      if (currentScenario === 'EMMA') {
-        checklistSteps = [
-          { done: true,  title: 'Attivazione H-Account (emma.smith@student.h-farm.com) e Wi-Fi', meta: 'Completato' },
-          { done: true,  title: 'Accesso a Canvas e Career Passport (ChiView attivo da Novembre)', meta: 'Completato' },
-          { done: false, title: 'Configurazione H-FARM App (Check-in entro 10 min / Check-out ultimi 15 min)', meta: 'Da verificare' },
-          { done: false, title: 'Ritiro Student ID Badge fisico allo Student Office', meta: 'Mer 14 Ott, 10:00 (Conflitto!)' },
-          { done: false, title: 'Pagamento 1ª Rata Tuition Fee L4 (Scadenza: 11 Ottobre)', meta: 'In attesa Student Admin' }
-        ];
-
-        officeCalendar = [
-          { day: 2,  time: '09:00', title: 'Tuition Fee Info L4', type: 'BUSY' },
-          { day: 8,  time: '14:00', title: 'Academic Board', type: 'BUSY' },
-          { day: 11, time: '23:59', title: 'Scadenza 1ª Rata L4', type: 'DEADLINE' },
-          { day: 13, time: '10:00', title: 'H-ACK Kickoff', type: 'BUSY' },
-          { day: 14, time: '10:00', title: 'Ritiro Badge — Emma', type: 'APPOINTMENT', id: 'main-appt' },
-          { day: 14, time: '11:00', title: 'Colloquio Ammissioni', type: 'BUSY' },
-          { day: 14, time: '14:00', title: 'Riunione H-MATES', type: 'BUSY' },
-          { day: 14, time: '15:00', title: 'Allineamento IT', type: 'BUSY' },
-          { day: 15, time: '10:00', title: 'Sessione Career Service', type: 'BUSY' },
-          { day: 15, time: '11:00', title: 'Board Chichester', type: 'BUSY' },
-          { day: 15, time: '15:00', title: 'Sportello Inclusion', type: 'BUSY' },
-          { day: 16, time: '10:00', title: 'Briefing Settimanale', type: 'BUSY' },
-          { day: 16, time: '14:00', title: 'Revisione Regolamenti', type: 'BUSY' },
-          { day: 16, time: '15:00', title: 'Chiusura Ufficio', type: 'BUSY' },
-          { day: 27, time: '09:00', title: 'Inizio Reading Week', type: 'DEADLINE' },
-          { day: 28, time: '10:00', title: 'Pitch Finale Casey', type: 'APPOINTMENT' }
-        ];
-
-        studentCalendar = [
-          { day: 11, time: '23:59', title: 'Scadenza 1ª Rata L4', type: 'DEADLINE' },
-          { day: 14, time: '10:00', title: ' Lezione Programming + Badge', type: 'CONFLICT', id: 'main-appt' },
-          { day: 15, time: '09:00', title: 'Lezione Linear Algebra', type: 'CLASS' },
-          { day: 16, time: '14:00', title: 'Lezione Probability', type: 'CLASS' },
-          { day: 27, time: '09:00', title: 'Reading Week', type: 'DEADLINE' }
-        ];
-
-        studentEmails = [
-          {
-            from: 'Student Office <student.office@h-farm.com>',
-            to: 'Emma Smith <emma.smith@student.h-farm.com>',
-            time: '14 Ott, 09:00',
-            subject: 'Promemoria: Ritiro Student Badge — Mercoledì 14 Ottobre ore 10:00',
-            body: `Ciao Emma,\n\nTi aspettiamo allo Student Office mercoledì 14 ottobre alle 10:00 per ritirare il tuo Student ID Badge.\n\nNel frattempo puoi accedere al Campus con il QR code temporaneo sull'H-FARM App.`,
-            hasIcs: false
-          },
-          {
-            from: 'IT Support <support@h-farm.com>',
-            to: 'Emma Smith <emma.smith@student.h-farm.com>',
-            time: '10 Ott, 11:30',
-            subject: 'Benvenuta in H-FARM College — Attivazione H-Account e Piattaforme',
-            body: `Ciao Emma,\n\nIl tuo H-Account (emma.smith@student.h-farm.com) è attivo. Ricorda di usare l'H-FARM App per registrare le presenze in aula (check-in entro i primi 10 minuti e check-out negli ultimi 15 minuti).`,
-            hasIcs: false
-          }
-        ];
-
-        officeEmails = [
-          {
-            from: 'Casey System <student.office@h-farm.com>',
-            to: 'Student Office <student.office@h-farm.com>',
-            time: '14 Ott, 08:45',
-            subject: 'Briefing Mattutino — Onboarding Matricole Level 4 (BSc AI & Data Science)',
-            body: `Stato Onboarding Coorte Level 4:\n• Pratiche attive: 142 matricole\n• Ritiri badge programmati oggi: 18\n• Richieste in coda di approvazione umana: 0`,
-            hasIcs: false
-          }
-        ];
-
-        staffQueue = [];
-      } else {
-        checklistSteps = [
-          { done: true,  title: 'Verifica requisiti Third Year Experiential Term (min. 10 settimane full-time)', meta: 'Verificato da Handbook' },
-          { done: false, title: 'Bozza Internship Agreement con Acme Analytics (HR: Giulia Neri)', meta: 'Da generare' },
-          { done: false, title: 'Check-in call con il Career Service (careerservice.edu@h-farm.com)', meta: 'Da prenotare' },
-          { done: false, title: 'Firma Training Project (Associate Dean) + Polizza Generali Italia', meta: 'Dopo il check-in' }
-        ];
-
-        officeCalendar = [
-          { day: 8,  time: '14:00', title: 'Career Day Prep', type: 'BUSY' },
-          { day: 14, time: '10:00', title: 'Colloqui Aziende', type: 'BUSY' },
-          { day: 14, time: '11:00', title: 'Review CV L6', type: 'BUSY' },
-          { day: 14, time: '14:00', title: 'Allineamento Partner', type: 'BUSY' },
-          { day: 14, time: '15:00', title: 'Workshop LinkedIn', type: 'BUSY' },
-          { day: 15, time: '11:00', title: 'Call Aziende Partner', type: 'BUSY' },
-          { day: 15, time: '14:00', title: 'Validazione Tesi L6', type: 'BUSY' },
-          { day: 15, time: '15:00', title: 'Briefing Startup Center', type: 'BUSY' },
-          { day: 16, time: '10:00', title: 'Board Career Service', type: 'BUSY' },
-          { day: 16, time: '14:00', title: 'Archivio Convenzioni', type: 'BUSY' },
-          { day: 16, time: '15:00', title: 'Chiusura Settimanale', type: 'BUSY' },
-          { day: 28, time: '10:00', title: 'Pitch Finale Casey', type: 'APPOINTMENT' }
-        ];
-
-        studentCalendar = [
-          { day: 14, time: '09:00', title: 'Lezione Neural Networks', type: 'CLASS' },
-          { day: 15, time: '14:00', title: 'Lezione Big Data', type: 'CLASS' },
-          { day: 20, time: '10:00', title: 'Business Project Lab', type: 'CLASS' }
-        ];
-
-        studentEmails = [
-          {
-            from: 'Giulia Neri — HR Acme Analytics <g.neri@acmeanalytics.example>',
-            to: 'Sofia Rossi <sofia.rossi@student.h-farm.com>',
-            time: '14 Ott, 18:20',
-            subject: 'Offerta di Stage Curriculare — Data Science Intern (Inizio 2 Marzo)',
-            body: `Ciao Sofia,\n\nSiamo felici di confermarti la nostra proposta di stage presso Acme Analytics con inizio previsto il 2 Marzo.\nFammi sapere quali documenti servono al Career Service di H-FARM College per attivare la convenzione e l'assicurazione.\n\nUn caro saluto,\nGiulia Neri — HR Manager, Acme Analytics`,
-            hasIcs: false
-          }
-        ];
-
-        officeEmails = [
-          {
-            from: 'Career Service System <careerservice.edu@h-farm.com>',
-            to: 'Career Service Team <careerservice.edu@h-farm.com>',
-            time: '14 Ott, 08:45',
-            subject: 'Stato Pratiche Third Year Experiential Term — Level 6',
-            body: `Riepilogo 3° Anno BSc AI & Data Science:\n• Opzione 1 (Internship min. 10w full-time): 34 studenti\n• Opzione 2 (Pre-Accelerator min. 12w): 8 studenti\n• Opzione 3 (Dissertation): 12 studenti`,
-            hasIcs: false
-          }
-        ];
-
-        staffQueue = [];
-      }
-
-      renderAll();
-    }
-
-    function computeFreeSlots() {
-      const dayLabels = { 15: 'Giovedì 15 Ott', 16: 'Venerdì 16 Ott' };
-      const results = [];
-      for (const d of [15, 16]) {
-        const busy = officeCalendar.filter(e => e.day === d).map(e => e.time);
-        for (const h of WORKING_HOURS) {
-          if (!busy.includes(h)) {
-            results.push({ day: d, dayLabel: dayLabels[d], time: h });
-          }
-        }
-      }
-      return results;
-    }
-
-    function setScenario(scen) {
-      currentScenario = scen;
-      document.getElementById('scenBtn-EMMA').className = scen === 'EMMA'
-        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow'
-        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white';
-      document.getElementById('scenBtn-SOFIA').className = scen === 'SOFIA'
-        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow'
-        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white';
-      resetDemo();
-    }
-
-    function setPerspective(persp) {
-      currentPerspective = persp;
-      document.getElementById('perspBtn-STUDENT').className = persp === 'STUDENT'
-        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow'
-        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white';
-      document.getElementById('perspBtn-OFFICE').className = persp === 'OFFICE'
-        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow flex items-center gap-1.5'
-        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white flex items-center gap-1.5';
-
-      document.getElementById('perspectiveHint').innerHTML = persp === 'STUDENT'
-        ? `Prospettiva attiva: <strong class="text-white"> Vista Studente (${currentScenario === 'EMMA' ? 'Emma' : 'Sofia'})</strong>`
-        : `Prospettiva attiva: <strong class="text-white"> Vista Student Office (Back-Office)</strong>`;
-
-      if (persp === 'STUDENT' && currentTab === 'QUEUE') currentTab = 'CHECKLIST';
-      if (persp === 'OFFICE' && currentTab === 'CHECKLIST') currentTab = 'QUEUE';
-
-      selectedMailIdx = 0;
-      renderAll();
-    }
-
-    function switchTab(tab) {
-      currentTab = tab;
-      renderAll();
-    }
-
-    function simulateQrContinueOnPhone() {
-      setPerspective('STUDENT');
-      switchTab('CHECKLIST');
-      streamSubtitles(
-        currentScenario === 'EMMA'
-          ? "Hai inquadrato il QR code! Ora sei nella tua Vista Studente personale, Emma: qui vedi la tua checklist di onboarding, il tuo calendario lezioni e le tue mail."
-          : "Hai inquadrato il QR code! Ora sei nella tua Vista Studente, Sofia: qui puoi seguire tutti gli step della tua pratica di tirocinio.",
-        "H-FARM Privacy Handover • Sessione Personale Attiva",
-        'D'
-      );
-    }
-
-    /*************************************************************************
-     * 3. CONVERSAZIONE GENERALE + CONOSCENZA HANDBOOK (Testi 100% puliti)
-     *************************************************************************/
-    const SMALL_TALK_QA = [
-      {
-        keys: ['come stai', 'come va', 'tutto bene', 'how are you'],
-        reply: "Tutto benissimo, grazie! Sono operativo 24 ore su 24 per aiutare gli studenti e lo Student Office di H-FARM College. Tu come stai? Come posso esserti utile?"
-      },
-      {
-        keys: ['chi sei', 'cosa fai', 'cosa sai fare', 'presentati', 'who are you'],
-        reply: "Sono Casey, il nuovo collega digitale dello Student Office di H-FARM College. Rispondo citando l'Handbook ufficiale, prenoto o sposto appuntamenti in calendario, apro pratiche e passo le eccezioni allo staff umano."
-      },
-      {
-        keys: ['grazie', 'perfetto', 'ottimo', 'gentilissimo', 'thank you', 'thanks'],
-        reply: "Di nulla, figurati! Se hai altre domande su corsi, app o appuntamenti sono sempre qui. Buona giornata in campus!"
-      },
-      {
-        keys: ['ciao', 'buongiorno', 'buonasera', 'salve', 'hey', 'ehi', 'hello', 'hi'],
-        reply: "Ciao! Benvenuto allo Student Office di H-FARM College. Dimmi pure: vuoi controllare una regola dell'Handbook o gestire un appuntamento?"
-      }
-    ];
-
-    const HANDBOOK_QA = [
-      {
-        keys: ['check-in', 'check in', 'check-out', 'errore', 'bluetooth', '10 minuti'],
-        cite: 'BSc Handbook 2025-26 • Attendance Monitoring System',
-        reply: "Per fare il check-in sull'H-FARM App devi trovarti fisicamente in aula, connesso al Wi-Fi H-FARM, con Bluetooth e localizzazione attivi. Il Check-in va fatto entro i primi 10 minuti e il Check-out negli ultimi 15 minuti della lezione.",
-        markEmmaStep: 2
-      },
-      {
-        keys: ['80%', 'frequenza', 'presenza', 'presenze', 'attendance', 'assenza'],
-        cite: 'BSc Handbook 2025-26 • Attendance Policy',
-        reply: "La frequenza minima obbligatoria è dell'80% per ogni corso. Se scendi sotto l'80%, il voto d'esame viene bloccato al punteggio minimo di superamento, cioè 40%."
-      },
-      {
-        keys: ['provisional pass', '35%', '39%', 'resit', 'bocciato'],
-        cite: 'BSc Handbook 2025-26 • Provisional Pass & Resit',
-        reply: "Al primo anno Level 4, un voto tra 35% e 39% in massimo tre moduli passa come Provisional Pass se la tua media annuale è almeno 40%. Sotto il 35% devi invece svolgere il Resit, dove il voto massimo ottenibile è 40%."
-      },
-      {
-        keys: ['direttore', 'director', 'l.s.'],
-        cite: 'BSc Handbook 2025-26 • Program Director',
-        reply: "Il Program Director del Bachelor's Degree in AI & Data Science è il Dottor L.S."
-      },
-      {
-        keys: ['mensa', 'pranzo', 'serra', 'amor', 'basta al sugo', '12:00'],
-        cite: 'BSc Handbook 2025-26 • Dining & H-FARM App',
-        reply: "Puoi pranzare a La Serra, Basta al Sugo o Amor Bistrot: il pranzo va prenotato sull'H-FARM App entro le ore 12:00 mostrando poi il QR code alla cassa."
-      },
-      {
-        keys: ['biblioteca', 'library', 'halliday', 'orari'],
-        cite: 'BSc Handbook 2025-26 • Library Services',
-        reply: "Da settembre a giugno la Biblioteca è aperta dal lunedì al venerdì dalle 8:30 alle 22:00, e sabato e domenica dalle 10:00 alle 19:30. Puoi prenotare anche le sale studio Halliday Labs."
-      }
-    ];
-
-    function sendUserMessage(customText = null) {
-      const input = document.getElementById('userInput');
-      const text = (customText || input.value || '').trim();
-      if (!text) return;
-      input.value = '';
-
-      setAvatarState('E');
-
-      setTimeout(() => {
-        const q = text.toLowerCase();
-
-        if (currentScenario === 'SOFIA') {
-          if (q.includes('stage') || q.includes('acme') || q.includes('documenti') || q.includes('2 marzo')) {
-            suggestedSlots = computeFreeSlots();
-            switchTab('CALENDAR');
-            renderAll();
-            streamSubtitles(
-              "Congratulazioni Sofia! Prima di iniziare il 2 marzo servono l'Agreement tra università e azienda, il Training Project firmato dall'Associate Dean e l'assicurazione Generali. Ho aperto la tua pratica e visto che giovedì 15 alle 10:00 c'è uno slot libero col Career Service: chi è il tuo referente HR in Acme?",
-              "BSc Handbook 2025-26 • Third Year Experiential Term",
-              'D'
-            );
-            return;
-          }
-
-          if (q.includes('giulia neri') || q.includes('10:00') || q.includes('giovedì') || q.includes('prenota')) {
-            if (!slotAlreadyMoved) {
-              slotAlreadyMoved = true;
-              suggestedSlots = [];
-              checklistSteps[1].done = true;
-              checklistSteps[1].meta = 'Bozza pronta (Giulia Neri)';
-              checklistSteps[2].done = true;
-              checklistSteps[2].meta = 'Prenotato Gio 15 Ott, 10:00';
-
-              officeCalendar.push({ day: 15, time: '10:00', title: 'Check-in Stage — Sofia ✓', type: 'APPOINTMENT', id: 'sofia-checkin' });
-              studentCalendar.push({ day: 15, time: '10:00', title: 'Check-in Career Service ✓', type: 'APPOINTMENT', id: 'sofia-checkin' });
-
-              studentEmails.unshift({
-                from: 'Casey • Career Service <careerservice.edu@h-farm.com>',
-                to: 'Sofia Rossi <sofia.rossi@student.h-farm.com>',
-                time: 'Adesso',
-                subject: 'Conferma Check-in Tirocinio (Giovedì 15 Ott ore 10:00) + Bozza Agreement Acme',
-                body: `Ciao Sofia,\n\nHo aggiornato la tua pratica per il tirocinio presso Acme Analytics (inizio: 2 Marzo):\n\n1. Bozza Internship Agreement compilata per Giulia Neri (HR)\n2. Check-in prenotato con il Career Service: Giovedì 15 Ottobre alle ore 10:00\n\nQui sotto puoi scaricare l'invito (.ics) o vedere l'anteprima del contratto.`,
-                hasIcs: true,
-                icsTitle: 'Check-in Tirocinio Career Service — Sofia',
-                icsDay: 15,
-                icsTime: '10:00',
-                hasDocPreview: true
-              });
-
-              officeEmails.unshift({
-                from: 'Casey AI Colleague <careerservice.edu@h-farm.com>',
-                to: 'Career Service <careerservice.edu@h-farm.com>',
-                time: 'Adesso',
-                subject: 'Nuova Pratica Stage: Sofia Rossi — Acme Analytics (Check-in Gio 15 ore 10:00)',
-                body: `Pratica aperta automaticamente da Casey:\n• Studente: Sofia Rossi (Level 6)\n• Azienda: Acme Analytics (HR: Giulia Neri)\n• Bozza Agreement pronta.`,
-                hasIcs: false,
-                hasDocPreview: true
-              });
-              selectedMailIdx = 0;
-            }
-            renderAll();
-            streamSubtitles(
-              "Perfetto! Ho preparato la bozza di Agreement per Giulia Neri, prenotato il check-in con il Career Service per giovedì 15 ottobre alle 10:00 e inviato l'invito sulla tua mail.",
-              "Career Service Tools • Agreement Drafted & Slot Booked",
-              'D'
-            );
-            return;
-          }
-
-          if (q.includes('part-time') || q.includes('20 settimane') || q.includes('eccezione')) {
-            if (!staffQueue.some(item => item.id === 'CASE-SOFIA-309')) {
-              staffQueue.unshift({
-                id: 'CASE-SOFIA-309',
-                student: 'Sofia Rossi • BSc AI & Data Science, Year 3 (Level 6)',
-                office: 'Career Service (careerservice.edu@h-farm.com)',
-                question: 'Acme Analytics chiede se posso svolgere lo stage part-time su 20 settimane invece di 10 full-time.',
-                rule: 'BSc Handbook 2025-26 (Third Year Experiential Term): durata minima obbligatoria 10 settimane full-time.',
-                doneByCasey: 'Pratica aperta • Bozza Agreement compilata • Check-in fissato Gio 15 ore 10:00',
-                draftReply: 'Ciao Sofia, abbiamo ricevuto la tua pratica e la bozza di Agreement preparata da Casey. Poiché il regolamento prevede almeno 10 settimane full-time, sottoponiamo la deroga part-time su 20 settimane all\'Associate Dean e ti confermiamo entro martedì.',
-                status: 'PENDING',
-                targetStudentEmail: 'Sofia Rossi <sofia.rossi@student.h-farm.com>'
-              });
-            }
-            setPerspective('OFFICE');
-            switchTab('QUEUE');
-            renderAll();
-            streamSubtitles(
-              "Questa è un'eccezione, quindi decide una persona: la regola dell'Handbook richiede almeno 10 settimane a tempo pieno. Ho passato la pratica al Career Service con tutto il riepilogo: avrai risposta entro martedì.",
-              "BSc Handbook 2025-26 • Handed to Career Service",
-              'F'
-            );
-            return;
-          }
-        }
-
-        if ((q.includes('spost') || q.includes('slot') || q.includes('liberi') || q.includes('badge')) && !q.includes('14:00') && !q.includes('11:00') && !q.includes('conferma')) {
-          suggestedSlots = computeFreeSlots();
-          switchTab('CALENDAR');
-          renderAll();
-          const slotsStr = suggestedSlots.map(s => `${s.dayLabel} alle ${s.time}`).join(' oppure ');
-          streamSubtitles(
-            `Ho controllato il calendario di Ottobre dello Student Office: mercoledì 14 è tutto pieno, ma ho trovato liberi ${slotsStr}. Quale dei due preferisci prenotare?`,
-            "Google Calendar • Ricerca Slot Liberi in Tempo Reale",
-            'A'
-          );
-          return;
-        }
-
-        if (q.includes('14:00') || q.includes('giovedì') || q.includes('11:00') || q.includes('venerdì') || q.includes('prenota')) {
-          const chosenDay = (q.includes('venerdì') || q.includes('16')) ? 16 : 15;
-          const chosenTime = chosenDay === 16 ? '11:00' : '14:00';
-          const dayName = chosenDay === 16 ? 'Venerdì 16 Ottobre' : 'Giovedì 15 Ottobre';
-
-          if (!slotAlreadyMoved) {
-            slotAlreadyMoved = true;
-            suggestedSlots = [];
-
-            officeCalendar = officeCalendar.filter(e => e.id !== 'main-appt');
-            officeCalendar.push({ day: chosenDay, time: chosenTime, title: 'Ritiro Badge — Emma ✓', type: 'APPOINTMENT', id: 'main-appt' });
-
-            studentCalendar = studentCalendar.filter(e => e.id !== 'main-appt');
-            studentCalendar.push({ day: 14, time: '10:00', title: 'Lezione Programming', type: 'CLASS' });
-            studentCalendar.push({ day: chosenDay, time: chosenTime, title: 'Ritiro Badge ✓', type: 'APPOINTMENT', id: 'main-appt' });
-
-            checklistSteps[3].done = true;
-            checklistSteps[3].meta = `Spostato a ${dayName}, ${chosenTime}`;
-
-            studentEmails.unshift({
-              from: 'Casey • Student Office <student.office@h-farm.com>',
-              to: 'Emma Smith <emma.smith@student.h-farm.com>',
-              time: 'Adesso',
-              subject: `Conferma Spostamento: Ritiro Badge — ${dayName} ore ${chosenTime}`,
-              body: `Ciao Emma,\n\nIl tuo appuntamento per il ritiro dello Student Badge è stato aggiornato:\n\n• Vecchio slot annullato: Mercoledì 14 Ottobre, ore 10:00\n• Nuovo slot confermato: ${dayName} 2026, ore ${chosenTime}\n\nQui sotto puoi scaricare il file .ICS per il tuo calendario.`,
-              hasIcs: true,
-              icsTitle: 'Ritiro Student Badge — H-FARM Student Office',
-              icsDay: chosenDay,
-              icsTime: chosenTime
-            });
-
-            officeEmails.unshift({
-              from: 'Casey AI Colleague <student.office@h-farm.com>',
-              to: 'Student Office <student.office@h-farm.com>',
-              time: 'Adesso',
-              subject: `Slot Aggiornato Automaticamente: Emma Smith → ${dayName} ore ${chosenTime}`,
-              body: `Azione eseguita da Casey:\n• Cancellato slot Mercoledì 14 Ott ore 10:00 (conflitto lezione L4)\n• Prenotato slot ${dayName} ore ${chosenTime}.`,
-              hasIcs: false
-            });
-            selectedMailIdx = 0;
-          }
-
-          renderAll();
-          streamSubtitles(
-            `Fatto in 30 secondi! Ho spostato il ritiro del badge a ${dayName} alle ${chosenTime}, liberato lo slot di mercoledì mattina e inviato la conferma con l'invito calendario sulla tua Gmail.`,
-            "Google Calendar + Gmail • Azione Completata",
-            'D'
-          );
-          return;
-        }
-
-        if (q.includes('rata') || q.includes('pagare') || q.includes('11 ottobre') || q.includes('tasse')) {
-          if (!staffQueue.some(item => item.id === 'CASE-EMMA-104')) {
-            staffQueue.unshift({
-              id: 'CASE-EMMA-104',
-              student: 'Emma Smith • BSc AI & Data Science, Year 1 (Level 4)',
-              office: 'Student Administration (student.admin@h-farm.com)',
-              question: 'Posso posticipare il pagamento della 1ª rata oltre la scadenza dell\'11 ottobre?',
-              rule: 'BSc Handbook 2025-26 (Academic Timeline): 1ª rata L4 entro l\'11 ottobre. Eventuali proroghe sui pagamenti richiedono sempre decisione umana (GDPR Art. 22).',
-              doneByCasey: 'Caso aperto • Scadenza verificata • Inoltrato a Student Administration',
-              draftReply: 'Ciao Emma, abbiamo ricevuto la tua richiesta tramite Casey. L\'ufficio Student Administration (student.admin@h-farm.com) ha preso in carico la pratica e ti confermerà il piano aggiornato entro domani alle 10:00.',
-              status: 'PENDING',
-              targetStudentEmail: 'Emma Smith <emma.smith@student.h-farm.com>'
-            });
-          }
-          setPerspective('OFFICE');
-          switchTab('QUEUE');
-          renderAll();
-          streamSubtitles(
-            "Le decisioni su tasse, rate e scadenze spettano sempre a una persona. Ho riassunto la tua richiesta con la regola dell'Handbook e l'ho passata nella coda dello Student Office: ti risponderanno entro domani alle 10:00.",
-            "BSc Handbook 2025-26 • Handover to Student Administration",
-            'F'
-          );
-          return;
-        }
-
-        for (const rule of HANDBOOK_QA) {
-          if (rule.keys.some(k => q.includes(k))) {
-            if (typeof rule.markEmmaStep === 'number' && currentScenario === 'EMMA') {
-              checklistSteps[rule.markEmmaStep].done = true;
-              checklistSteps[rule.markEmmaStep].meta = 'Verificato con Casey';
-              renderAll();
-            }
-            streamSubtitles(rule.reply, rule.cite, 'D');
-            return;
-          }
-        }
-
-        for (const st of SMALL_TALK_QA) {
-          if (st.keys.some(k => q.includes(k))) {
-            streamSubtitles(st.reply, null, 'B');
-            return;
-          }
-        }
-
-        streamSubtitles(
-          "Non ho trovato una sezione specifica su questo punto nel BSc AI & Data Science Handbook 2025-26. Per non inventare informazioni, passo la tua richiesta allo Student Office.",
-          "Guardrail: Niente fonte, niente risposta",
-          'F'
-        );
-      }, 650);
-    }
-
-    /*************************************************************************
-     * 4. APPROVAZIONE / MODIFICA BOZZA STAFF & DOWNLOAD .ICS
-     *************************************************************************/
-    function approveQueueItem(idx) {
-      const item = staffQueue[idx];
-      if (!item || item.status === 'APPROVED') return;
-      const editedText = document.getElementById(`draftInput-${idx}`)
-        ? document.getElementById(`draftInput-${idx}`).value
-        : item.draftReply;
-      item.draftReply = editedText;
-      item.status = 'APPROVED';
-      autonomyPercentage = Math.min(99, autonomyPercentage + 1);
-      document.getElementById('autonomyScore').textContent = autonomyPercentage;
-
-      const replyMail = {
-        from: item.office,
-        to: item.targetStudentEmail,
-        time: 'Adesso (Approvata dallo Staff)',
-        subject: `Risposta Ufficiale H-FARM College — Pratica ${item.id}`,
-        body: `${editedText}\n\n---\nRiferimento Handbook: ${item.rule}`,
-        hasIcs: false
-      };
-
-      studentEmails.unshift(replyMail);
-      officeEmails.unshift(replyMail);
-      selectedMailIdx = 0;
-
-      switchTab('GMAIL');
-      renderAll();
-    }
-
-    function rejectQueueItem(idx) {
-      if (!staffQueue[idx]) return;
-      staffQueue[idx].status = 'REJECTED';
-      renderAll();
-    }
-
-    function downloadIcsFile(title, day, timeHourMin) {
-      const cleanTime = timeHourMin.replace(':', '') + '00';
-      const endHour = String(Number(timeHourMin.split(':')[0]) + 1).padStart(2, '0') + timeHourMin.split(':')[1] + '00';
-      const dayStr = String(day).padStart(2, '0');
-      const ics = [
-        'BEGIN:VCALENDAR',
-        'VERSION:2.0',
-        'PRODID:-//H-FARM College//Casey Digital Colleague//IT',
-        'BEGIN:VEVENT',
-        `DTSTART:202610${dayStr}T${cleanTime}`,
-        `DTEND:202610${dayStr}T${endHour}`,
-        `SUMMARY:${title}`,
-        'LOCATION:H-FARM Campus, Via Adriano Olivetti 1, Roncade (TV)',
-        'DESCRIPTION:Appuntamento confermato da Casey — H-FARM College.',
-        'END:VEVENT',
-        'END:VCALENDAR'
-      ].join('\r\n');
-
-      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `H-FARM_Appuntamento_${day}_Ottobre.ics`;
-      a.click();
-      URL.revokeObjectURL(url);
-    }
-
-    function openDocModal() {
-      const m = document.getElementById('docPreviewModal');
-      m.classList.remove('hidden');
-      m.classList.add('flex');
-    }
-
-    function closeDocModal() {
-      const m = document.getElementById('docPreviewModal');
-      m.classList.add('hidden');
-      m.classList.remove('flex');
-    }
-
-    /*************************************************************************
-     * 5. RENDERING INTERFACCIA COMPLETA
-     *************************************************************************/
-    function renderAll() {
-      const promptsLabel = document.getElementById('quickPromptsLabel');
-      const promptsBox = document.getElementById('quickPromptsContainer');
-
-      const prompts = currentScenario === 'EMMA'
-        ? [
-            { label: ' 1. Chiedi slot liberi per spostare il Badge', msg: 'Devo spostare il ritiro del badge di domani alle 10, che slot liberi ci sono questa settimana?' },
-            { label: ' 2. Conferma Giovedì 15 alle 14:00', msg: 'Perfetto, prenota pure giovedì 15 ottobre alle 14:00' },
-            { label: ' 3. Errore Check-in App (Regola Handbook)', msg: 'Il check-in in aula sull\'app mi dà errore, come funziona?' },
-            { label: ' 4. Chiedi proroga Rata (Passa a Staff Queue)', msg: 'Posso pagare la prima rata dopo la scadenza dell\'11 ottobre?' }
-          ]
-        : [
-            { label: ' 1. "Ho trovato stage da Acme dal 2 marzo! Cosa faccio?"', msg: 'Ho trovato uno stage da Acme Analytics dal 2 marzo! Cosa devo fare?' },
-            { label: ' 2. "Il contatto HR è Giulia Neri, prenota Gio 15 ore 10"', msg: 'Il contatto HR è Giulia Neri. Prenotiamo il check-in giovedì 15 alle 10:00?' },
-            { label: ' 3. "Acme chiede part-time su 20 settimane" (Eccezione)', msg: 'Acme chiede se posso farlo part-time su 20 settimane. Va bene?' },
-            { label: ' 4. "Come funziona il Provisional Pass?"', msg: 'Cos\'è il Provisional Pass (35-39%) e quando si fa il Resit?' }
-          ];
-
-      promptsLabel.textContent = currentScenario === 'EMMA'
-        ? ' Passo-passo Demo — Caso 1: Matricola (Emma):'
-        : ' Passo-passo Demo — Caso 2: Tirocinio 3° Anno (Sofia):';
-
-      promptsBox.innerHTML = prompts.map(p => `
-        <button onclick="sendUserMessage('${p.msg.replace(/'/g, "\\'")}')"
-                class="bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs px-3 py-1.5 rounded-full transition font-medium">
-          ${p.label}
-        </button>
-      `).join('');
-
-      const pendingCount = staffQueue.filter(q => q.status === 'PENDING').length;
-      const dotAlert = document.getElementById('officeAlertDot');
-      if (pendingCount > 0) dotAlert.classList.remove('hidden');
-      else dotAlert.classList.add('hidden');
-
-      const activeEmails = currentPerspective === 'STUDENT' ? studentEmails : officeEmails;
-      const tabsHeader = document.getElementById('tabsHeaderContainer');
-      const accountRight = document.getElementById('accountBadgeRight');
-
-      if (currentPerspective === 'STUDENT') {
-        const studentMailAddr = currentScenario === 'EMMA' ? 'emma.smith@student.h-farm.com' : 'sofia.rossi@student.h-farm.com';
-        accountRight.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${studentMailAddr}`;
-
-        const studentTabs = [
-          { id: 'CHECKLIST', label: ` La Mia Pratica (${checklistSteps.filter(s => s.done).length}/${checklistSteps.length})` },
-          { id: 'CALENDAR',  label: ' Il Mio Calendario (Ottobre 2026)' },
-          { id: 'GMAIL',     label: ` La Mia Mail (${activeEmails.length})` }
-        ];
-        tabsHeader.innerHTML = studentTabs.map(t => `
-          <button onclick="switchTab('${t.id}')"
-                  class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 transition flex items-center gap-2 ${currentTab === t.id ? 'border-[#1D2347] text-[#1D2347] bg-white' : 'border-transparent text-slate-500 hover:text-[#1D2347]'}">
-            ${t.label}
-          </button>
-        `).join('');
-      } else {
-        const officeMailAddr = currentScenario === 'EMMA' ? 'student.office@h-farm.com' : 'careerservice.edu@h-farm.com';
-        accountRight.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#1D2347]"></span> ${officeMailAddr}`;
-
-        const officeTabs = [
-          { id: 'CALENDAR', label: ' Calendario Ufficio (Ottobre 2026)' },
-          { id: 'GMAIL',    label: ` Gmail Ufficio (${activeEmails.length})` },
-          { id: 'QUEUE',    label: ` Staff Review Queue ${pendingCount > 0 ? `<span class="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full">${pendingCount}</span>` : ''}` }
-        ];
-        tabsHeader.innerHTML = officeTabs.map(t => `
-          <button onclick="switchTab('${t.id}')"
-                  class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 transition flex items-center gap-2 ${currentTab === t.id ? 'border-[#1D2347] text-[#1D2347] bg-white' : 'border-transparent text-slate-500 hover:text-[#1D2347]'}">
-            ${t.label}
-          </button>
-        `).join('');
-      }
-
-      ['CALENDAR', 'GMAIL', 'QUEUE', 'CHECKLIST'].forEach(v => {
-        const el = document.getElementById(`view-${v}`);
-        if (v === currentTab) {
-          el.classList.remove('hidden');
-          if (v === 'GMAIL') el.classList.add('grid');
-        } else {
-          el.classList.add('hidden');
-          el.classList.remove('grid');
-        }
-      });
-
-      const calTitle = document.getElementById('calendarTitle');
-      const calSub = document.getElementById('calendarSubtitle');
-      const calLegend = document.getElementById('calendarLegend');
-      const eventsToRender = currentPerspective === 'STUDENT' ? studentCalendar : officeCalendar;
-
-      if (currentPerspective === 'STUDENT') {
-        calTitle.textContent = currentScenario === 'EMMA'
-          ? 'Ottobre 2026 — Calendario Personale di Emma (Level 4)'
-          : 'Ottobre 2026 — Calendario Personale di Sofia (Level 6)';
-        calSub.textContent = 'Mostra le tue lezioni, le scadenze e i tuoi appuntamenti con gli uffici.';
-        calLegend.innerHTML = `
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-100 border border-blue-300"></span> Lezione</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#1D2347]"></span> Appuntamento Ufficio</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Slot Proposto</span>
-        `;
-      } else {
-        calTitle.textContent = currentScenario === 'EMMA'
-          ? 'Ottobre 2026 — Calendario Student Office'
-          : 'Ottobre 2026 — Calendario Career Service';
-        calSub.textContent = 'Casey legge gli impegni già fissati in agenda e propone allo studente solo gli slot liberi.';
-        calLegend.innerHTML = `
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Occupato Ufficio</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#1D2347]"></span> Prenotato da Casey</span>
-          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Slot Libero Proposto</span>
-        `;
-      }
-
-      const calGrid = document.getElementById('octoberCalendarGrid');
-      let gridHtml = '';
-      for (let empty = 0; empty < 3; empty++) {
-        gridHtml += `<div class="bg-slate-50/60 rounded-xl border border-slate-100 p-1.5"></div>`;
-      }
-      for (let day = 1; day <= 31; day++) {
-        const dayEvs = eventsToRender.filter(e => e.day === day);
-        const dayFree = suggestedSlots.filter(s => s.day === day);
-        const isToday = day === 14;
-
-        gridHtml += `
-          <div class="rounded-xl border ${isToday ? 'border-[#1D2347] bg-blue-50/30' : 'border-slate-200 bg-white'} p-1.5 flex flex-col justify-between min-h-[62px]">
-            <div class="flex items-center justify-between">
-              <span class="text-[11px] font-bold ${isToday ? 'bg-[#1D2347] text-white px-1.5 rounded-full' : 'text-slate-600'}">${day}</span>
-              ${isToday ? '<span class="text-[9px] font-bold text-[#1D2347]">OGGI</span>' : ''}
-            </div>
-            <div class="space-y-1 mt-1">
-              ${dayEvs.map(ev => {
-                let badgeClass = 'bg-slate-100 text-slate-600';
-                if (ev.type === 'APPOINTMENT') badgeClass = 'bg-[#1D2347] text-white font-semibold shadow-sm';
-                else if (ev.type === 'CONFLICT') badgeClass = 'bg-rose-600 text-white font-bold';
-                else if (ev.type === 'CLASS') badgeClass = 'bg-blue-50 text-[#1D2347] border border-blue-200 font-medium';
-                else if (ev.type === 'DEADLINE') badgeClass = 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold';
-                return `<div class="text-[9px] px-1.5 py-0.5 rounded truncate ${badgeClass}" title="${ev.time} ${ev.title}">
-                  ${ev.time} ${ev.title}
-                </div>`;
-              }).join('')}
-              ${dayFree.map(fs => `
-                <button onclick="sendUserMessage('Prenota ${fs.dayLabel} alle ${fs.time}')"
-                        class="w-full text-left text-[9px] px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-bold animate-pulse transition">
-                   LIBERO ${fs.time} (Clicca)
-                </button>
-              `).join('')}
-            </div>
-          </div>
-        `;
-      }
-      calGrid.innerHTML = gridHtml;
-
-      document.getElementById('gmailList').innerHTML = activeEmails.map((m, idx) => `
-        <div onclick="selectedMailIdx=${idx}; renderAll();"
-             class="p-3 rounded-xl cursor-pointer border transition ${idx === selectedMailIdx ? 'bg-[#1D2347] text-white border-[#1D2347] shadow' : 'bg-white hover:bg-slate-100 border-slate-200 text-[#1D2347]'}">
-          <div class="flex items-center justify-between text-[10px] ${idx === selectedMailIdx ? 'text-blue-200' : 'text-slate-400'}">
-            <span class="font-bold truncate">${m.from.split('<')[0]}</span>
-            <span>${m.time}</span>
-          </div>
-          <div class="text-xs font-bold mt-1 truncate">${m.subject}</div>
-        </div>
-      `).join('');
-
-      const mail = activeEmails[selectedMailIdx] || activeEmails[0];
-      document.getElementById('gmailReader').innerHTML = mail ? `
-        <div>
-          <div class="border-b border-slate-200 pb-3 mb-4">
-            <h3 class="text-base font-extrabold text-[#1D2347]">${mail.subject}</h3>
-            <div class="text-xs text-slate-500 mt-1">
-              <strong>Da:</strong> ${mail.from}<br/>
-              <strong>A:</strong> ${mail.to}
-            </div>
-          </div>
-          <pre class="whitespace-pre-wrap font-sans text-xs text-slate-700 leading-relaxed">${mail.body}</pre>
-          <div class="mt-5 flex flex-wrap gap-2">
-            ${mail.hasIcs ? `
-              <button onclick="downloadIcsFile('${mail.icsTitle}', ${mail.icsDay}, '${mail.icsTime}')"
-                      class="bg-[#1D2347] hover:bg-[#283163] text-white text-xs font-bold px-4 py-2 rounded-full shadow flex items-center gap-1.5 transition">
-                 Scarica Invito Calendario (.ICS)
-              </button>
-            ` : ''}
-            ${mail.hasDocPreview ? `
-              <button onclick="openDocModal()"
-                      class="bg-blue-50 hover:bg-blue-100 text-[#1D2347] border border-blue-200 text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition">
-                 Visualizza Bozza Internship Agreement
-              </button>
-            ` : ''}
-          </div>
-        </div>
-        <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
-          <span> Verificato da Casey Digital Colleague</span>
-          <span>H-FARM College Mail</span>
-        </div>
-      ` : '';
-
-      const qList = document.getElementById('staffQueueList');
-      if (staffQueue.length === 0) {
-        qList.innerHTML = `
-          <div class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400 text-xs">
-            Nessun caso umano in attesa di approvazione.<br/>
-            Clicca sull'ultimo pulsante rapido in alto (<strong>Proroga Rata</strong> o <strong>Part-time 20 settimane</strong>) per vedere il passaggio allo staff.
-          </div>
-        `;
-      } else {
-        qList.innerHTML = staffQueue.map((item, idx) => `
-          <div class="border-2 border-[#1D2347]/15 rounded-2xl p-5 bg-slate-50/70 space-y-3">
-            <div class="flex items-center justify-between">
-              <div class="font-extrabold text-sm text-[#1D2347]">${item.student}</div>
-              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : item.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">
-                ${item.status}
-              </span>
-            </div>
-            <div class="grid grid-cols-12 gap-2 text-xs border-t border-slate-200 pt-3">
-              <div class="col-span-3 font-bold text-slate-400">Question</div>
-              <div class="col-span-9 font-semibold text-[#1D2347]">${item.question}</div>
-
-              <div class="col-span-3 font-bold text-slate-400">Rule quoted</div>
-              <div class="col-span-9 text-slate-700">${item.rule}</div>
-
-              <div class="col-span-3 font-bold text-slate-400">Done by Casey</div>
-              <div class="col-span-9 text-slate-600">${item.doneByCasey}</div>
-
-              <div class="col-span-3 font-bold text-slate-400">Suggested reply</div>
-              <div class="col-span-9">
-                <textarea id="draftInput-${idx}" rows="3"
-                          class="w-full bg-white p-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs focus:outline-none focus:border-[#1D2347]">${item.draftReply}</textarea>
-              </div>
-            </div>
-            ${item.status === 'PENDING' ? `
-              <div class="flex items-center gap-2.5 pt-2">
-                <button onclick="approveQueueItem(${idx})"
-                        class="bg-[#B91C1C] hover:bg-red-800 text-white text-xs font-bold px-5 py-2 rounded-full shadow transition">
-                  Approve & Send Email
-                </button>
-                <button onclick="document.getElementById('draftInput-${idx}').focus()"
-                        class="bg-[#1D2347] hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-full transition">
-                  Edit Draft
-                </button>
-                <button onclick="rejectQueueItem(${idx})"
-                        class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-4 py-2 rounded-full transition">
-                  Reject
-                </button>
-              </div>
-            ` : ''}
-          </div>
-        `).join('');
-      }
-
-      document.getElementById('studentCaseTitle').textContent = currentScenario === 'EMMA'
-        ? 'Pratica Onboarding — Emma Smith (1° Anno BSc AI & Data Science)'
-        : 'Pratica Third Year Experiential Term — Sofia Rossi (3° Anno BSc AI)';
-      const doneCount = checklistSteps.filter(s => s.done).length;
-      document.getElementById('studentCaseProgress').textContent = `${doneCount} / ${checklistSteps.length} completati`;
-
-      document.getElementById('studentChecklistItems').innerHTML = checklistSteps.map(st => `
-        <div class="p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${st.done ? 'bg-blue-50/50 border-[#1D2347]/20 text-[#1D2347]' : 'bg-white border-slate-200 text-slate-700'}">
-          <div class="flex items-center gap-3">
-            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${st.done ? 'bg-[#1D2347] text-white' : 'bg-slate-100 text-slate-400'}">
-              ${st.done ? '✓' : '•'}
-            </span>
-            <span class="text-xs font-bold">${st.title}</span>
-          </div>
-          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.done ? 'bg-[#1D2347]/10 text-[#1D2347]' : 'bg-slate-100 text-slate-500'} shrink-0">
-            ${st.meta}
-          </span>
-        </div>
-      `).join('');
-    }
-
-    /*************************************************************************
-     * 6. VOCE CASEY 5.1: Google Cloud Chirp 3 HD / fallback browser
-     * Il motore vive in casey-voice.js. Nessuna credenziale nel frontend.
-     *************************************************************************/
-    let voiceMuted = false;
-    let subtitleTimer = null;
-    let speechSequence = 0;
-    window.cancelStandardSpeech = () => {
-      speechSequence++;
-      if (subtitleTimer) clearInterval(subtitleTimer);
-      window.CaseyVoice.stop();
-    };
-
-    function onLanguageChange() {
-      const value = document.getElementById('languageSelect').value;
-      window.CaseyVoice.setLanguage(value);
-      if (window.CaseyLive?.active) void window.CaseyLive.changeLanguage();
-    }
-
-    function speakWithCaseyVoice(text, onFinishCallback) {
-      if (voiceMuted) { onFinishCallback(); return; }
-      window.CaseyVoice.speak(text, onFinishCallback);
-    }
-
-    function streamSubtitles(text, citation, endState = 'A') {
-      if (subtitleTimer) clearInterval(subtitleTimer);
-      window.CaseyVoice.stop();
-      const currentSequence = ++speechSequence;
-      const subBox = document.getElementById('subtitleBox');
-      const citBox = document.getElementById('citationBox');
-      const citText = document.getElementById('citationText');
-
-      const cleanText = text.trim();
-
-      subBox.textContent = '';
-      if (citation) {
-        citText.textContent = ' ' + citation.trim();
-        citBox.classList.remove('hidden');
-      } else {
-        citBox.classList.add('hidden');
-      }
-
-      // Passa a C.mp4 mentre Casey parla
-      setAvatarState('C');
-
-      const finishTalking = () => {
-        if (currentSequence !== speechSequence) return;
-        subBox.textContent = cleanText;
-        subBox.scrollTop = subBox.scrollHeight;
-        setAvatarState(endState);
-      };
-      if (voiceMuted) { finishTalking(); return; }
-      window.CaseyVoice.speak(cleanText, finishTalking, (spoken) => {
-        if (currentSequence !== speechSequence) return;
-        subBox.textContent = spoken;
-        subBox.scrollTop = subBox.scrollHeight;
-      });
-    }
-
-    function triggerPresence() {
-      if (window.CaseyLive?.active) {
-        window.CaseyLive.sendText('Saluta brevemente e chiedi come puoi aiutarmi.');
-        return;
-      }
-      setAvatarState('B');
-      setTimeout(() => {
-        const greetings = {
-          'it-IT': [
-            'Ciao Emma! Benvenuta allo Student Office di H-FARM College. Come posso aiutarti nella tua prima settimana?',
-            'Ciao Sofia! Pronta per attivare il tuo tirocinio del terzo anno? Dimmi pure come posso aiutarti.'
-          ],
-          'en-US': [
-            'Hi Emma! Welcome to the H-FARM College Student Office. How can I help you in your first week?',
-            'Hi Sofia! Ready to arrange your third-year internship? How can I help?'
-          ],
-          'es-ES': [
-            '¡Hola, Emma! Bienvenida a la oficina de estudiantes de H-FARM College. ¿Cómo puedo ayudarte en tu primera semana?',
-            '¡Hola, Sofia! ¿Lista para organizar tus prácticas del tercer año? ¿En qué puedo ayudarte?'
-          ]
-        };
-        const phrases = greetings[window.CaseyVoice.getLanguage()] || greetings['it-IT'];
-        streamSubtitles(currentScenario === 'EMMA' ? phrases[0] : phrases[1],
-          'BSc AI & Data Science Handbook 2025-26', 'A');
-      }, 0);
-    }
-
-    function toggleVoiceMute() {
-      voiceMuted = !voiceMuted;
-      window.CaseyLive?.setMuted?.(voiceMuted);
-      if (voiceMuted) {
-        window.CaseyVoice.stop();
-        speechSequence++;
-        setAvatarState('A');
-      }
-      document.getElementById('muteBtn').textContent = voiceMuted ? ' OFF' : ' ON';
-    }
-
-    let standardRecognition = null;
-    window.stopStandardListening = () => { if (standardRecognition) { standardRecognition.abort(); standardRecognition = null; } };
-    function toggleListening() {
-      if (window.CaseyLive?.active) { window.CaseyLive.pause(); return; }
-      window.CaseyVoice.stop();
-      window.stopStandardListening();
-      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
-      if (!SpeechRec) return alert("Usa Chrome, Edge o Safari per parlare col microfono.");
-      const rec = new SpeechRec();
-      standardRecognition = rec;
-      rec.onend = () => { if (standardRecognition === rec) standardRecognition = null; };
-      rec.lang = window.CaseyVoice.getLanguage();
-      setAvatarState('LISTEN');
-      rec.onresult = (e) => sendUserMessage(e.results[0][0].transcript);
-      rec.onerror = () => setAvatarState('A');
-      rec.start();
-    }
-
-    function resetDemo() {
-      void window.CaseyLive?.stop?.();
-      window.CaseyDialogue?.clear();
-      window.stopStandardListening();
-      window.CaseyVoice.stop();
-      speechSequence++;
-      if (subtitleTimer) clearInterval(subtitleTimer);
-      document.getElementById('citationBox').classList.add('hidden');
-      document.getElementById('subtitleBox').innerHTML =
-        `<strong class="font-bold">Hi, I'm Casey, the Student</strong><br/>Office's AI assistant.<br/>How can I help?`;
-      currentTab = 'CALENDAR';
-      initScenarioData();
-      setAvatarState('A');
-    }
-
-    document.getElementById('languageSelect').value = window.CaseyVoice.getLanguage();
-    initScenarioData();
-    setAvatarState('A');
-  </script>
-
-  <div id="caseyAuthOverlay" class="casey-auth-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="caseyAuthTitle">
-   <div class="casey-auth-dialog">
-    <div class="flex justify-between items-center mb-3"><h2 id="caseyAuthTitle" class="text-xl font-extrabold">Account studente</h2><button aria-label="Chiudi" onclick="CaseyBridge.hideLogin()" class="text-sm text-slate-500">Chiudi</button></div>
-    <p class="text-xs text-slate-600 mb-4">Accedi con un codice temporaneo via email. La matricola non è una password: per prenotare devi essere nel registro studenti verificato.</p>
-    <form id="caseyOtpStart"><label class="text-xs font-bold" for="caseyEmail">Email universitaria</label><input type="email" id="caseyEmail" autocomplete="email" required placeholder="nome@universita.it"/><button class="casey-bridge-action" type="submit">Invia codice</button></form>
-    <form id="caseyOtpVerify" hidden><label class="text-xs font-bold" for="caseyOtp">Codice ricevuto</label><input id="caseyOtp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" required/><button type="submit" class="casey-bridge-action">Verifica e accedi</button></form>
-    <p id="caseyAuthFeedback" class="mt-3 text-xs text-slate-600" role="status"></p>
-    <button type="button" id="caseyLogout" onclick="CaseyBridge.logout()" class="text-xs font-bold underline mt-4" hidden>Disconnetti account</button>
-   </div>
-  </div>
-  <script src="config.js"></script>
-  <script src="handoff-client.js"></script>
-  <script src="vendor/qrcode.js"></script>
-  <script src="casey-handoff.js"></script>
-  <link rel="stylesheet" href="handoff.css">
-  <script src="auth.0916809e.js"></script>
-  <script src="casey-tools.js"></script>
-  <script src="casey-live.js"></script>
-  <script src="casey-bridge.js"></script>
-</body>
+  }
+  /* 3. backend, se collegato. Stessa regola: solo con citazioni. */
+  if(window.CaseyBackend && CaseyBackend.configurato()){
+    setState('think','Cerco nelle fonti ufficiali','think');
+    CaseyBackend.chiedi(orig).then(function(r){
+      if(r && r.fonti.length){
+        say(r.testo,'Fonte verificata: '+r.fonti.map(function(f){return f.titolo;}).join(' · '),'tra','Documento','point');
+        pushFeed('totem',shorten(orig),'ok','risolto');kpi.solved++;renderKpi();
+      } else nonSo(orig);
+    });
+    return;
+  }
+  nonSo(orig);
+}
+function nonSo(orig){
+  say("Su questo non ho una fonte verificata, quindi non rispondo a caso. Posso girare la domanda all'ufficio giusto: inquadra il codice e la mandiamo dal tuo telefono.",
+      'Nessuna fonte verificata · non invento','pr','Prudenza','hand');
+  const c=document.getElementById('qrCard');c.classList.add('on');
+  openSession();
+  document.getElementById('qrTitle').textContent='Manda la domanda dal telefono';
+  document.getElementById('qrSub').textContent="Arriva all'ufficio giusto con il tuo profilo già compilato";
+  pushFeed('totem','domanda senza fonte verificata','wa','in attesa');
+  setTimeout(toPhone,7000);
+}
+function answer(it){ say(it.a,it.src,it.kb,it.lab,'point'); if(it.off>=0)bumpOffice(it.off); }
+function shorten(s){return s.length>52?s.slice(0,50)+'…':s;}
+function bumpOffice(i){
+  if(i===undefined||i===null||i<0||!offCount[i]&&offCount[i]!==0)return;
+  offCount[i]++;lastOff=i;renderOffices();
+}
+
+/* ---------------- prenotazione ---------------- */
+function freeSlots(){const o=[];for(const d of[22,23]){const b=calOffice.filter(e=>e.d===d).map(e=>e.t);
+  for(const h of WH)if(!b.includes(h))o.push({d,t:h});}return o;}
+function dayLabel(d){return ({21:'mercoledì 21',22:'giovedì 22',23:'venerdì 23'})[d]||('il '+d);}
+function bookSlot(day,time){
+  if(moved)return; moved=true;
+  calOffice=calOffice.filter(e=>e.id!=='appt');
+  calOffice.push({d:day,t:time,title:D.apptTitle+' ✓',k:'appt',id:'appt'});
+  calPerson=calPerson.filter(e=>e.id!=='appt');
+  calPerson.push({d:day,t:time,title:D.apptTitle+' ✓',k:'appt',id:'appt'});
+  markCheck(3,'Confermato dal telefono · '+dayLabel(day)+' alle '+time);
+  const m={from:'Casey · '+D.office+' <'+D.officeMail+'>',to:D.person.name+' <'+D.person.mail+'>',when:'adesso',
+    subj:'Confermato: '+D.apptTitle+' — '+dayLabel(day)+' alle '+time,
+    body:'Ciao '+D.person.first+',\n\nabbiamo registrato la conferma arrivata dal tuo telefono (profilo '+D.person.code+').\n\n· Slot liberato: mercoledì 21 ottobre, ore 10:00\n· Slot confermato: '+dayLabel(day)+' 2026, ore '+time+'\n\nNon serve che tu faccia altro.\n\n'+D.office};
+  mailPerson.unshift(m);
+  mailOffice.unshift({...m,to:D.office+' <'+D.officeMail+'>',
+    subj:'Slot aggiornato dal telefono: '+D.person.name+' → '+dayLabel(day)+' '+time,
+    body:'Operazione chiusa senza coda al totem.\n\n· Profilo verificato: '+D.person.name+' ('+D.person.role+')\n· Vecchio slot liberato: mercoledì 21 ottobre ore 10:00\n· Nuovo slot: '+dayLabel(day)+' ore '+time});
+  selMail=0;renderAll();
+}
+function addTicket(){const t=D.escal.tk;if(queue.some(x=>x.id===t.id))return;queue.unshift({...t,status:'PENDING'});renderAll();}
+function approve(i){
+  const t=queue[i];if(!t||t.status==='DONE')return;
+  const ta=document.getElementById('dr'+i); t.draft=ta?ta.value:t.draft; t.status='DONE';
+  const m={from:t.to,to:D.person.name+' <'+D.person.mail+'>',when:'adesso',
+    subj:'Risposta ufficiale — pratica '+t.id,body:t.draft+'\n\n---\nRiferimento: '+t.rule};
+  mailPerson.unshift(m);mailOffice.unshift(m);selMail=0;
+  toast('Approvata','La risposta è partita verso '+D.person.mail);
+  setTab('MAIL');renderAll();
+}
+function reject(i){const t=queue[i];if(!t)return;t.status='DONE';
+  t.draft='(Bozza scartata: la pratica resta interamente a una persona.)';renderAll();}
+function markCheck(i,meta){if(!checklist[i])return;checklist[i].done=true;checklist[i].meta=meta;renderAll();}
+
+/* ---------------- attivita simulata ---------------- */
+const SAMPLES={
+ COLLEGE:[['orari della biblioteca','ok','risolto'],['come si ricarica il credito stampa','ok','risolto'],
+  ['scadenza iscrizione agli appelli','ok','risolto'],['prenotare il campo da padel','ok','risolto'],
+  ['il check-in non funziona in aula 2','ok','risolto'],['quando aprono gli enhancing','ok','risolto'],
+  ['richiesta certificato di iscrizione','wa','in attesa'],['deroga su un prerequisito','hu','umano'],
+  ['dove si ritira il badge','ok','risolto'],['differenza fra resit e deferral','ok','risolto'],
+  ['estensione per motivi di salute','hu','umano'],['aprire un nuovo student club','ok','risolto'],
+  ['posso fare Erasmus al terzo anno','ok','risolto'],['la lavanderia è aperta la domenica','ok','risolto']],
+ FARM:[['rimborso spese trasferta','ok','risolto'],['orari della mensa','ok','risolto'],
+  ['configurare la stampante di piano','ok','risolto'],['giorni di permesso residui','ok','risolto'],
+  ['accesso al parcheggio','ok','risolto'],['prenotare la sala grande per tre ore','wa','in attesa'],
+  ['anticipo sul TFR','hu','umano'],['cambio sede da Treviso a Milano','hu','umano'],
+  ['attivazione della VPN','ok','risolto'],['badge smagnetizzato','ok','risolto']]};
+function pushFeed(so,t,cls,out){
+  const n=new Date();
+  feed.unshift({tm:String(n.getHours()).padStart(2,'0')+':'+String(n.getMinutes()).padStart(2,'0'),
+    so,q:t,cls,out,fresh:true});
+  if(feed.length>13)feed.pop();
+  renderFeed();
+}
+function seedFeed(){
+  feed=[];const L=SAMPLES[S];let h=8,m=42;
+  for(let i=0;i<7;i++){const s=L[i%L.length];m+=7+Math.floor(Math.random()*11);if(m>=60){m-=60;h++;}
+    feed.unshift({tm:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'),
+      so:Math.random()<.78?'totem':'telefono',q:s[0],cls:s[1],out:s[2]});}
+}
+function startFeed(){clearInterval(feedTimer);}
+
+/* =====================================================================
+   DISEGNO
+   ===================================================================== */
+function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function kpiCard(v,l){return '<div class="kpi"><div class="v">'+esc(v)+'</div><div class="l">'+esc(l)+'</div></div>';}
+function renderKpi(){document.getElementById('kpis').replaceChildren();}
+
+function renderTabs(){
+  const pend=queue.filter(t=>t.status==='PENDING').length;
+  const tabs=VIEW==='OFFICE'
+    ?[['CAL','Calendario'],['MAIL','Email'],['QUEUE','Coda'+(pend?'<span class="badge">'+pend+'</span>':'')],
+      ['ROUTE','Smistamento'],['FEED','Attività']]
+    :[['CHECK',D.personTab],['CAL','Il mio calendario'],['MAIL','Le mie email']];
+  if(!tabs.some(t=>t[0]===TAB))TAB=tabs[0][0];
+  document.getElementById('tabs').innerHTML=
+    tabs.map(t=>'<button role="tab" aria-selected="'+(TAB===t[0])+'" onclick="setTab(\''+t[0]+'\')">'+t[1]+'</button>').join('')+
+    '<span class="who"><i></i>'+esc(VIEW==='OFFICE'?D.officeMail:D.person.mail+' · '+D.person.code)+'</span>';
+  ['CAL','MAIL','QUEUE','ROUTE','CHECK','FEED'].forEach(v=>document.getElementById('v-'+v).classList.toggle('on',v===TAB));
+}
+function renderCal(){
+  const isO=VIEW==='OFFICE', ev=isO?calOffice:calPerson;
+  document.getElementById('calTitle').textContent=isO?D.calTitle:'Il mio calendario — ottobre 2026';
+  document.getElementById('calSub').textContent=isO?D.calSub:'Casey non ci scrive dentro senza una conferma esplicita.';
+  const free=isO&&!moved?freeSlots():[];
+  let h=DAYNAMES.map(d=>'<div class="dn">'+d+'</div>').join('');
+  for(let i=0;i<PAD;i++)h+='<div class="day pad"></div>';
+  for(let d=1;d<=31;d++){
+    const mine=ev.filter(e=>e.d===d).sort((a,b)=>a.t.localeCompare(b.t)), fr=free.filter(f=>f.d===d);
+    h+='<div class="day'+(d===TODAY?' today':'')+'"><div class="n"><span>'+d+'</span>'+(d===TODAY?'<em>OGGI</em>':'')+'</div>'+
+      mine.map(e=>'<div class="ev '+(e.k||'')+'">'+esc(e.t+' '+e.title)+'</div>').join('')+
+      fr.map(f=>'<div class="ev free">'+esc(f.t)+' libero</div>').join('')+'</div>';
+  }
+  document.getElementById('cal').innerHTML=h;
+}
+function renderMail(){
+  const l=VIEW==='OFFICE'?mailOffice:mailPerson;
+  if(selMail>=l.length)selMail=0;
+  document.getElementById('mlist').innerHTML=l.map((m,i)=>
+    '<div class="mrow" role="option" aria-selected="'+(i===selMail)+'" onclick="selMail='+i+';renderMail()">'+
+    '<div class="f"><span>'+esc(m.from.split('<')[0].trim())+'</span><span>'+esc(m.when)+'</span></div>'+
+    '<div class="s">'+esc(m.subj)+'</div></div>').join('')||'<div class="empty">Nessun messaggio</div>';
+  const m=l[selMail];
+  document.getElementById('mbody').innerHTML=m
+    ?'<h3>'+esc(m.subj)+'</h3><div class="meta">Da '+esc(m.from)+'<br>A '+esc(m.to)+'</div><pre>'+esc(m.body)+'</pre>'
+    :'<div class="empty">Seleziona un messaggio</div>';
+}
+function renderQueue(){
+  document.getElementById('qTitle').textContent=D.qTitle;
+  document.getElementById('qSub').textContent=D.qSub;
+  const b=document.getElementById('queue');
+  if(!queue.length){b.innerHTML='<div class="empty"><div class="big">Nessuna pratica in attesa</div>'+
+    'Quando Casey incontra qualcosa che non deve decidere da solo — tasse, deroghe, casi limite, dati sensibili, benessere — la prepara e la lascia qui con la bozza già scritta.</div>';return;}
+  b.innerHTML=queue.map((t,i)=>
+    '<div class="tk'+(t.status==='DONE'?' done':'')+'"><div class="r1"><div><div class="id">'+esc(t.id)+' · '+esc(t.who)+'</div>'+
+    '<h4>'+esc(t.q)+'</h4></div><span class="lvl '+t.lvl+'">'+esc(t.lvlTxt)+'</span></div>'+
+    '<div class="kv">Destinatario: <b>'+esc(t.to)+'</b></div><div class="rule">'+esc(t.rule)+'</div>'+
+    (t.status==='DONE'?'<div class="kv" style="margin-top:12px;color:var(--ok);font-weight:700">Chiusa dallo staff</div>'
+      :'<textarea id="dr'+i+'" rows="4">'+esc(t.draft)+'</textarea><div class="acts">'+
+       '<button class="btn ok" onclick="approve('+i+')">Approva e invia</button>'+
+       '<button class="btn gh" onclick="reject('+i+')">Scarta la bozza</button></div>')+'</div>').join('');
+}
+function renderOffices(){
+  document.getElementById('rTitle').textContent=D.rTitle;
+  document.getElementById('rSub').textContent=D.rSub;
+  document.getElementById('offs').innerHTML=D.offices.map((o,i)=>
+    '<div class="off'+(i===lastOff?' hit':'')+'"><div class="e">'+esc(o[0])+'</div>'+
+    '<div class="s">'+esc(o[1])+'</div><div class="c">'+
+    (i===lastOff?' · ultima smistata qui':'')+'</div></div>').join('');
+}
+function renderCheck(){
+  document.getElementById('ckSub').textContent=D.ckSub;
+  document.getElementById('check').innerHTML=checklist.map(c=>
+    '<div class="ck'+(c.done?' on':'')+'"><div class="mk">'+(c.done?'✓':'')+'</div>'+
+    '<div class="tx"><b>'+esc(c.t)+'</b><span>'+esc(c.meta)+'</span></div></div>').join('');
+}
+function renderFeed(){
+  document.getElementById('feed').innerHTML=feed.map(f=>
+    '<div class="fr'+(f.fresh?' new':'')+'"><span class="tm">'+esc(f.tm)+'</span>'+
+    '<span class="so '+(f.so==='totem'?'tot':'tel')+'">'+esc(f.so)+'</span>'+
+    '<span class="q">'+esc(f.q)+'</span><span class="ou '+f.cls+'">'+esc(f.out)+'</span></div>').join('');
+  feed.forEach(f=>f.fresh=false);
+}
+/* Il carico non e' costante: e' uno dei punti emersi con lo Student Office. */
+function renderCycle(){
+  const D7=[['Lun',78],['Mar',71],['Mer',83],['Gio',69],['Ven',92],['Sab',46],['Dom',58]];
+  const W=760,bw=62,gap=30,x0=46;
+  let s='<svg viewBox="0 0 '+W+' 168" width="100%" role="img" aria-label="Richieste per giorno della settimana">';
+  s+='<line x1="'+x0+'" y1="126" x2="'+(W-14)+'" y2="126" stroke="#DEE5F0" stroke-width="1.4"/>';
+  D7.forEach((d,i)=>{
+    const we=i>=5,h=Math.round(d[1]/100*96),x=x0+i*(bw+gap),y=126-h;
+    s+='<rect x="'+x+'" y="'+y+'" width="'+bw+'" height="'+h+'" rx="5" fill="'+(we?'#E66B36':'#1D2A5B')+'"/>';
+    s+='<text x="'+(x+bw/2)+'" y="'+(y-7)+'" text-anchor="middle" font-size="12.5" font-weight="700" fill="'+(we?'#8A3D10':'#1D2A5B')+'">'+d[1]+'</text>';
+    s+='<text x="'+(x+bw/2)+'" y="144" text-anchor="middle" font-size="11.5" font-weight="600" fill="#5A6B8C">'+d[0]+'</text>';
+  });
+  s+='<text x="'+(x0+5*(bw+gap))+'" y="162" font-size="11.4" font-weight="700" fill="#8A3D10">nessuno in ufficio</text></svg>';
+  document.getElementById('cycle').innerHTML=
+    '<div style="border:1px solid var(--bor);border-radius:12px;padding:16px 18px">'+
+    '<div style="font-size:13.6px;font-weight:700;color:var(--brand);margin-bottom:2px">Richieste per giorno della settimana</div>'+
+    '<div style="font-size:12.3px;color:var(--mut);margin-bottom:12px">Nel fine settimana arrivano un centinaio di richieste che nessuno legge fino al lunedì mattina. Casey risponde subito a quelle che hanno una fonte e lascia in coda solo le altre.</div>'+s+'</div>';
+}
+function renderAll(){renderTabs();renderCal();renderMail();renderQueue();renderOffices();renderCheck();renderFeed();renderCycle();renderKpi();}
+
+function setScenario(s){
+  S=s;document.body.classList.toggle('farm',s==='FARM');
+  videoState="";syncLogo();
+  document.getElementById('sc-COLLEGE').setAttribute('aria-selected',s==='COLLEGE');
+  document.getElementById('sc-FARM').setAttribute('aria-selected',s==='FARM');
+  loadScenario();
+}
+/* il logo deve essere sempre quello ufficiale dello scenario:
+   College -> H-FARM College, Farm -> H-FARM */
+function syncLogo(){
+  var f=(S==='FARM'), src=f?'hfarm-logo.png':'hfarm-college-logo.png', alt=f?'H-FARM':'H-FARM College';
+  const av=document.getElementById('avatar');av.src=caseyDir()+'casey-avatar.png';av.style.opacity=1;['vA','vB'].forEach(id=>{const v=document.getElementById(id);v.pause();v.classList.add('hide');});
+  ['brandLogo','scrLogo'].forEach(function(id){
+    var e=document.getElementById(id);
+    if(e){e.setAttribute('src',src);e.setAttribute('alt',alt);}
+  });
+}
+function setView(v){
+  VIEW=v;
+  document.getElementById('pv-OFFICE').setAttribute('aria-selected',v==='OFFICE');
+  document.getElementById('pv-STUDENT').setAttribute('aria-selected',v==='STUDENT');
+  if(v==='STUDENT'&&['QUEUE','FEED','ROUTE'].includes(TAB))TAB='CHECK';
+  if(v==='OFFICE'&&TAB==='CHECK')TAB='QUEUE';
+  selMail=0;renderAll();
+}
+function setTab(t){TAB=t;renderAll();}
+function toggleMute(){muted=!muted;if(muted)shutUp();document.getElementById('muteBtn').classList.toggle('off',muted);}
+function resetAll(){loadScenario();}
+
+/* Il totem non sa chi ha davanti, quindi vede solo i documenti
+   validi per tutti. Questa costante non va mai resa variabile. */
+var CTX_TOTEM = Object.freeze({ istituzione:'SHARED', corso:null, anno:null });
+
+/* la pillola dice sempre da dove arriva la risposta: niente magia nascosta */
+function pillaBackend(st,motivo){
+  var e=document.getElementById('bePill'); if(!e) return;
+  var t={spento:'locale',provo:'controllo…',collegato:'collegato',assente:'locale (backend assente)'}[st]||'locale';
+  e.className='bepill'+(st==='collegato'?' live':(st==='assente'?' down':''));
+  e.querySelector('span').textContent=t;
+  e.title=motivo?('Da dove arrivano le risposte — '+motivo):'Da dove arrivano le risposte';
+}
+if(window.CaseyBackend){
+  CaseyBackend.quandoCambia(pillaBackend);
+  if(CaseyBackend.configurato()) CaseyBackend.sonda();
+}
+
+/* ---------------- avvio ---------------- */
+function loadScenario(){
+  D=DATA[S];
+  session='TOTEM';moved=false;pendingTriage=null;selMail=0;queue=[];lastOff=-1;stopMic();
+  shutUp();clearInterval(capTimer);clearTimeout(idleTimer);
+  document.getElementById('ctxLine').textContent=D.ctx;
+  const al=document.getElementById('appLink');
+  if(al){ al.href=appFile(); al.textContent = S==='FARM' ? "Apri l'app Campus" : "Apri l'app College"; }
+  offCount=D.offices.map(()=>0);
+  const C=[{d:21,t:'10:00',title:D.apptTitle,k:'appt',id:'appt'},{d:21,t:'11:00',title:'Colloquio',k:''},
+    {d:21,t:'14:00',title:'Riunione interna',k:''},{d:21,t:'15:00',title:'Allineamento',k:''},
+    {d:22,t:'10:00',title:'Sessione',k:''},{d:22,t:'15:00',title:'Sportello',k:''},
+    {d:23,t:'11:00',title:'Briefing',k:''},{d:23,t:'15:00',title:'Chiusura settimana',k:''},
+    {d:20,t:'09:00',title:'Board',k:''},{d:28,t:'10:00',title:'Demo Casey',k:'appt'}];
+  calOffice=C.map(e=>({...e}));
+  if(S==='COLLEGE'){
+    calPerson=[{d:21,t:'10:00',title:'Lezione Programming + badge',k:'conf',id:'appt'},
+      {d:22,t:'09:00',title:'Linear Algebra',k:'cls'},{d:23,t:'14:00',title:'Probability',k:'cls'},
+      {d:26,t:'09:00',title:'Reading week',k:'dead'}];
+    checklist=[{t:'Account e profilo attivi',meta:'Completato',done:true},
+      {t:'Accesso a Canvas e Career Passport',meta:'Completato',done:true},
+      {t:"Check-in in aula dall'app",meta:'Da verificare',done:false},
+      {t:'Ritiro dello Student Badge',meta:'Mercoledì 21 alle 10:00 — si sovrappone a una lezione',done:false},
+      {t:'Iscrizione agli Enhancing del secondo semestre',meta:'Finestra non ancora aperta',done:false}];
+    mailPerson=[{from:'Student Office <student.office@h-farm.com>',to:D.person.name+' <'+D.person.mail+'>',
+      when:'oggi 09:00',subj:'Promemoria: ritiro badge mercoledì 21 ottobre ore 10:00',
+      body:'Ciao '+D.person.first+",\n\nti aspettiamo allo Student Office mercoledì 21 ottobre alle 10:00 per ritirare lo Student ID Badge.\nSe hai lezione in quell'ora, chiedi a Casey al totem oppure dalla tua app: trova lui uno slot libero."}];
+  }else{
+    calPerson=[{d:21,t:'10:00',title:'Kickoff cliente + onboarding',k:'conf',id:'appt'},
+      {d:22,t:'09:00',title:'Standup del team',k:'cls'},{d:23,t:'14:00',title:'Pairing con il tutor',k:'cls'}];
+    checklist=[{t:'Contratto firmato e anagrafica in HR',meta:'Completato',done:true},
+      {t:'Account aziendale attivo',meta:'Completato',done:true},
+      {t:'Badge e VPN',meta:'Da fare oggi',done:false},
+      {t:'Colloquio di onboarding',meta:'Mercoledì 21 alle 10:00 — si sovrappone al kickoff',done:false},
+      {t:'Corso sicurezza D.Lgs 81',meta:'Entro il primo mese',done:false}];
+    mailPerson=[{from:'People & Culture <hr@acmeanalytics.example>',to:D.person.name+' <'+D.person.mail+'>',
+      when:'oggi 09:00',subj:'Benvenuto in Acme Analytics — onboarding mercoledì 21 ottobre ore 10:00',
+      body:'Ciao '+D.person.first+',\n\nti aspettiamo mercoledì 21 ottobre alle 10:00 per il colloquio di onboarding.\nPer badge, VPN e policy puoi chiedere a Casey al totem della reception o dal telefono.'}];
+  }
+  mailOffice=[{from:'Casey <'+D.officeMail+'>',to:D.office+' <'+D.officeMail+'>',when:'oggi 08:45',
+    subj:'Riepilogo del mattino — '+D.office,
+    body:'Le conversazioni vengono conservate nella sezione Casey dell’app. Questo pannello non mostra statistiche di utilizzo.'}];
+  kpi={tot:47,solved:38,phone:7,human:2};
+  seedFeed();goIdle();renderAll();startFeed();
+}
+document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
+</script>
+<script src="qr.js"></script>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script></body>
 </html>
