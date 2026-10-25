@@ -34,3 +34,8 @@ body.calendar-only .vh{margin-bottom:8px}
 body.calendar-only .day .n{margin-bottom:2px}
 body.calendar-only .ev{margin-bottom:2px;padding:2px 4px}
 @media(max-height:600px){body.calendar-only .wrap{padding:6px}body.calendar-only #v-CAL.on{padding:8px}body.calendar-only .vh{margin-bottom:5px}body.calendar-only .day{padding:3px}body.calendar-only .ev{font-size:10px}}
+/* All calendar views use equal tracks; event text never sizes a day. */
+#cal{grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:20px repeat(var(--calendar-weeks,5),110px);grid-auto-rows:110px;align-items:stretch}
+#cal .day{min-width:0;min-height:0;overflow:hidden;box-sizing:border-box}
+#cal .ev{max-width:100%;box-sizing:border-box}
+body.calendar-only #cal{grid-template-rows:20px repeat(var(--calendar-weeks,5),minmax(0,1fr));grid-auto-rows:minmax(0,1fr)}
