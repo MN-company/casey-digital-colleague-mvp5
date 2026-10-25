@@ -50,4 +50,12 @@ A card is an original article or section on a PDF page; long sections continue o
 
 ## Demo access
 
-Preview accepts the aliases `demo` and `casey` for the dedicated synthetic demo user. Passwords are distributed privately, not embedded in public code. Personal users can request an email link or enter an email OTP; callbacks return to the exact Preview URL. Paolo’s requested email has an active demo roster in Preview and production, with mailbox confirmation required and no password reset or admin privileges. The existing Casey account is preserved. Actual personal mailbox delivery remains user acceptance.
+Preview accepts the aliases `demo` and `casey` for the dedicated synthetic demo user. Passwords are distributed privately, not embedded in public code. Personal users can request an email link or enter an email OTP; callbacks return to the exact Preview URL. Paolo’s requested email has an active demo roster in Preview and production, with email confirmed directly at the user’s request. The previously unused Preview demo account has a demo password; the production password and admin privileges are unchanged. The existing Casey account is preserved. No mailbox round-trip is required for demo password login.
+
+## Presenter layout and settings correction
+
+The current interface restores the Settings link and removes the previous-demo link, usage KPI cards, per-office counters and the synthetic activity increment timer. Settings uses its own existing Preview console API rather than the chat-only adapter. The deployed existing `casey-handoff-ui` function is v8: its only code change adds the exact current branch origin and localhost:8000 to the existing origin allowlist; administrator and operation checks remain unchanged. OAuth is not yet configured in Preview and the console says so plainly. No production OAuth configuration was copied.
+
+`index.html?view=casey` is the independent presenter view; `index.html?view=calendar` is the independent office/calendar view. “Avvia demo” opens the calendar in a separate window and selects the Casey presenter layout. “Schermo intero” then uses the browser Fullscreen API from a separate user click, because popup opening consumes browser activation. Users can position the calendar on the second display/window. Opening or closing the calendar leaves Casey’s conversation running. The calendar shown here is explicitly a visual prototype, with a separate direct link to Google Calendar; it does not claim live booking synchronization.
+
+Validation covers popup opening, isolated layouts, actual native fullscreen, exit behavior, settings backend origin acceptance and real password sign-in for the requested personal demo email without a verification message.

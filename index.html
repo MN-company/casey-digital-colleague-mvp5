@@ -248,7 +248,9 @@ body.show .exit{display:block}
     </div>
     <div class="sp"></div>
     <label class="language-control"><select data-casey-language aria-label="Lingua"><option value="it-IT">IT</option><option value="en-US">EN</option><option value="es-ES">ES</option></select></label><span class="bepill" id="bePill" title="Da dove arrivano le risposte"><i></i><span>locale</span></span>
-    <a href="legacy.html">Demo precedente</a>
+    <a href="settings.html" id="settingsLink">Impostazioni</a>
+    <a href="index.html?view=calendar" id="calendarLink" target="casey-calendar" rel="noopener">Calendario separato</a>
+    <button type="button" id="startDemo" class="demo-action">Avvia demo</button>
     <a href="app-blu.html" target="_blank" rel="noopener" id="appLink">Apri l'app</a>
     <button class="ic" onclick="toggleShow()" title="Schermo intero, modalità presentazione" aria-label="Schermo intero">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
@@ -260,7 +262,7 @@ body.show .exit{display:block}
 </header>
 
 <div class="wrap">
-  <div class="kpis" id="kpis"></div>
+  <div id="kpis" hidden></div>
   <div class="grid">
 
     <section class="kiosk" aria-label="Totem all'ingresso">
@@ -301,7 +303,7 @@ body.show .exit{display:block}
     <section class="panel" aria-label="Back-office">
       <div class="tabs" id="tabs" role="tablist"></div>
       <div class="view" id="v-CAL">
-        <div class="vh"><div><h2 id="calTitle"></h2><p id="calSub"></p></div>
+        <div class="vh"><div><h2 id="calTitle"></h2><p id="calSub"></p><a class="calendar-google-link" href="https://calendar.google.com/calendar/u/0/r/week" target="casey-google-calendar" rel="noopener">Apri Google Calendar ↗</a></div>
           <div class="lg"><span><i style="background:var(--soft)"></i>Occupato</span>
           <span><i style="background:var(--brand)"></i>Prenotato da Casey</span>
           <span><i style="background:#A8D4BF"></i>Libero</span></div></div>
@@ -342,7 +344,8 @@ body.show .exit{display:block}
 
 const WH=['10:00','11:00','14:00','15:00'];
 const DAYNAMES=['LUN','MAR','MER','GIO','VEN','SAB','DOM'];
-const TODAY=19, PAD=3;              // lunedi 19 ottobre 2026; il 1 ottobre e' giovedi
+const localToday=new Intl.DateTimeFormat('sv-SE',{timeZone:'Europe/Rome'}).format(new Date());
+const TODAY=localToday.startsWith('2026-10-')?Number(localToday.slice(-2)):null, PAD=3; // Demo calendar: October 2026.
 
 /* I 15 indirizzi del campus, dall'incontro con lo Student Office.
    Lo smistamento corretto fra questi e' il problema numero uno dichiarato. */
@@ -379,7 +382,7 @@ COLLEGE:{
  ctx:'H-FARM College · Student Office', office:'Student Office', officeMail:'student.office@h-farm.com',
  person:{name:'Giulia Bernardi', first:'Giulia', mail:'g.bernardi@student.h-farm.com', code:'MAT-2025-8841', role:'BSc AI & Data Science · Level 5'},
  calTitle:'Calendario Student Office',
- calSub:'Quando una persona conferma uno slot dal telefono, qui compare senza che nessuno riscriva nulla.',
+ calSub:'Calendario dimostrativo. Gli eventi mostrati non sono prenotazioni reali.',
  apptTitle:'Ritiro Student Badge', personTab:'La mia pratica',
  qTitle:'Coda di approvazione', qSub:'Casey non decide su tasse, deroghe, casi limite, dati sensibili e benessere. Prepara la bozza e la lascia qui.',
  rTitle:'Smistamento sui 15 uffici',
@@ -928,28 +931,15 @@ function seedFeed(){
     feed.unshift({tm:String(h).padStart(2,'0')+':'+String(m).padStart(2,'0'),
       so:Math.random()<.78?'totem':'telefono',q:s[0],cls:s[1],out:s[2]});}
 }
-function startFeed(){
-  clearInterval(feedTimer);
-  feedTimer=setInterval(()=>{
-    const L=SAMPLES[S],s=L[Math.floor(Math.random()*L.length)];
-    pushFeed(Math.random()<.78?'totem':'telefono',s[0],s[1],s[2]);
-    kpi.tot++; if(s[1]==='ok')kpi.solved++; if(s[1]==='hu')kpi.human++;
-    const r=Math.floor(Math.random()*D.offices.length); offCount[r]++; renderOffices(); renderKpi();
-  },6500);
-}
+function startFeed(){clearInterval(feedTimer);}
 
 /* =====================================================================
    DISEGNO
    ===================================================================== */
 function esc(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
 function kpiCard(v,l){return '<div class="kpi"><div class="v">'+esc(v)+'</div><div class="l">'+esc(l)+'</div></div>';}
-function renderKpi(){
-  const p=kpi.tot?Math.round(kpi.solved/kpi.tot*100):0;
-  document.getElementById('kpis').innerHTML=
-    kpiCard(kpi.tot,'richieste oggi')+kpiCard(p+'%','chiuse senza una persona')+
-    kpiCard(kpi.human,'passate a una persona')+kpiCard(kpi.phone,'chiuse dal telefono')+
-    kpiCard(kpi.solved,'email mai arrivate agli uffici');
-}
+function renderKpi(){document.getElementById('kpis').replaceChildren();}
+
 function renderTabs(){
   const pend=queue.filter(t=>t.status==='PENDING').length;
   const tabs=VIEW==='OFFICE'
@@ -1009,7 +999,7 @@ function renderOffices(){
   document.getElementById('rSub').textContent=D.rSub;
   document.getElementById('offs').innerHTML=D.offices.map((o,i)=>
     '<div class="off'+(i===lastOff?' hit':'')+'"><div class="e">'+esc(o[0])+'</div>'+
-    '<div class="s">'+esc(o[1])+'</div><div class="c">'+offCount[i]+' richieste oggi'+
+    '<div class="s">'+esc(o[1])+'</div><div class="c">'+
     (i===lastOff?' · ultima smistata qui':'')+'</div></div>').join('');
 }
 function renderCheck(){
@@ -1131,12 +1121,12 @@ function loadScenario(){
   }
   mailOffice=[{from:'Casey <'+D.officeMail+'>',to:D.office+' <'+D.officeMail+'>',when:'oggi 08:45',
     subj:'Riepilogo del mattino — '+D.office,
-    body:'Richieste gestite da Casey dalle 08:00:\n\n· Risolte sul posto con fonte citata: 38\n· Passate sul telefono perché personali: 7\n· Passate a una persona: 2\n\nDal fine settimana: 104 richieste arrivate, 81 già chiuse prima di lunedì mattina.\n\nNessuna risposta è stata data senza una fonte verificata.'}];
+    body:'Le conversazioni vengono conservate nella sezione Casey dell’app. Questo pannello non mostra statistiche di utilizzo.'}];
   kpi={tot:47,solved:38,phone:7,human:2};
   seedFeed();goIdle();renderAll();startFeed();
 }
 document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
 </script>
 <script src="qr.js"></script>
-<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script></body>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script></body>
 </html>

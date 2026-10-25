@@ -1,7 +1,7 @@
 /* OAuth admin console: access token appears only in URL fragment briefly, then in sessionStorage. */
 (() => {
  'use strict';
- const $ = id=>document.getElementById(id), API=window.CASEY_CONFIG.apiUrl;
+ const $ = id=>document.getElementById(id), API=window.CASEY_CONFIG.settingsApiUrl||window.CASEY_CONFIG.apiUrl;
  const key='casey-v3-admin';
 
  // Do not leave Student Office access open on a shared demonstrator.
@@ -62,7 +62,7 @@
   if(token){try{await refresh();await Promise.all([refreshRoster(),refreshDocuments()]);if(!error)banner('Accesso amministrativo attivo. Controlla lo stato delle integrazioni.','good');return;}catch(e){token=null;try{sessionStorage.removeItem(key);}catch{}banner('Accesso scaduto: autentica nuovamente il tuo account Google.','bad');}}
   signed(false);
   try{const c=await call('public_config');if(c.oauth_configured){$('connectGoogle').classList.remove('disabled-link');$('connectGoogle').removeAttribute('aria-disabled');$('connectHelp').textContent='Accesso riservato agli account staff configurati. La prima autorizzazione Google potrebbe mostrare la schermata di consenso.';if(!error)banner('Pronto per il collegamento OAuth. Accedi con il tuo account staff.');}
-  else{banner('OAuth non configurato sul server: servono le variabili GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET, CASEY_ADMIN_EMAILS e CASEY_TOKEN_ENCRYPTION_KEY.','bad');$('connectHelp').textContent='Configura i secret in Supabase → Edge Functions → Secrets e aggiungi il redirect URI indicato nel README alle credenziali Google Cloud.';}}
+  else{banner('Google Calendar e Gmail non sono ancora collegati a questa demo.');$('connectHelp').textContent='Le impostazioni sono disponibili. Il collegamento Google richiede prima la configurazione dell’account autorizzato.';}}
   catch(e){banner('Impossibile raggiungere la configurazione server: '+e.message,'bad');}
  }
  document.addEventListener('DOMContentLoaded',init);

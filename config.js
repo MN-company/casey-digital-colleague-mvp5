@@ -3,6 +3,7 @@ window.CASEY_CONFIG=Object.freeze({
  supabaseUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co',
  publishableKey:'sb_publishable_ihmctxeXcVW3N_kMHo0Myg_Em5AIqVa',
  apiUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co/functions/v1/casey-definitivo-ui',
+ settingsApiUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co/functions/v1/casey-handoff-ui',
  handoffUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co/functions/v1/casey-definitivo-handoff',
  liveTokenUrl:'',liveEnabled:false,
  sessionStorageKey:'casey-definitivo-kiosk-session',authStorageKey:'casey-handoff-v2-phone-auth',
