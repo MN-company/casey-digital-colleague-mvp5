@@ -1,50 +1,9 @@
-# Casey — Digital Colleague · MVP 5.0
+# Casey 6.0 — Definitivo Preview
 
-MVP dimostrativo di assistente digitale per gli studenti di H-FARM College. Questa repository contiene l'interfaccia originale integrata con il backend Supabase, il calendario Student Office, le richieste interne e il modulo Auth con email/password e OTP.
+New totem and College app frontend, integrated with authenticated conversations and single-use QR handoff in a separate Supabase Preview project.
 
-**Versione pubblica del codice, non un'istanza indipendente.** Le API e il database attualmente puntano al progetto Supabase di Casey; per installare una propria istanza occorre creare/configurare un proprio progetto e applicare lo schema compatibile. Non ci sono API key private nel repository.
+Serve the static files over HTTP on port 8000; open index.html or app-blu.html. Document retrieval connects to the existing Supabase hybrid RAG; the ZIP retrieval engine and corpus are excluded.
 
-## Prova online
+See [integration, verification and outstanding work](docs/CASEY_6_DEFINITIVO_PREVIEW.md). This branch uses Preview configuration: do not merge or promote it directly to production.
 
-- App: https://casey-digital-colleague-live.vercel.app/
-- Impostazioni Student Office: https://casey-digital-colleague-live.vercel.app/settings.html
-- Architettura: https://casey-digital-colleague-live.vercel.app/architettura.html
-
-Nota: l'accesso con email e password è disponibile sull'app in produzione tramite un aggiornamento mirato del file `auth.0916809e.js`. Per usarlo devi avere un utente creato in **Supabase Authentication → Users** con password impostata ed email confermata, e un profilo attivo in `dc_v4_student_roster` con il medesimo indirizzo email. Creare soltanto una riga nel registro studenti non crea l'identità Supabase Auth.
-
-## Struttura
-
-- `index.html`, `styles.css`: interfaccia originale e navigazione studente/ufficio.
-- `casey-bridge.js`: collegamento UI ↔ API Supabase.
-- `auth.0916809e.js`: verifica email OTP oppure accesso con password tramite Supabase Auth.
-- `settings.html`, `settings.js`, `settings.css`: connessione dello Student Office, calendario e gestione.
-- `architettura.html`: vista illustrativa dell'architettura.
-- `A.mp4` ... `F.mp4`, immagini: avatar e asset grafici originali.
-- `config.js`: **solo configurazione pubblica** (Supabase URL e publishable key).
-- `supabase/functions/casey-original-ui/index.js`: sorgente della Edge Function backend, **senza credenziali**.
-- `vercel.json`: configurazione deploy statico.
-- `docs/`: istruzioni di test e deploy.
-
-## Architettura
-
-Vercel (frontend statico) → Supabase Edge Function `casey-original-ui` → PostgreSQL / Supabase Auth → Google Calendar e Gmail (via OAuth staff/studente). Il sistema conserva richieste in Supabase: la scheda "Le mie richieste" **non** è la posta Gmail. Le email di conferma sono un'azione separata, se prevista e attivata nel flusso di prenotazione.
-
-L'account staff Google deve autorizzare i permessi necessari tramite `/settings.html`. **Un collegamento OAuth attivo non significa che ogni conversazione o richiesta generi un messaggio Gmail.**
-
-## Funzionalità demo
-
-Interfaccia originale conservata; calendario navigabile; utenti studenti verificati; richieste salvate nel database; prenotazioni con esplicita conferma; integrazione Google Calendar dello Student Office; eventuale invio email sulla conferma prenotazione; fallback AI tramite OpenRouter se configurato. I casi Emma/Sofia e l'avatar possono utilizzare contenuti dimostrativi. Non considerare la lista come garanzia di test end-to-end in ogni ambiente.
-
-## Prerequisiti e avvio
-
-Per aprire localmente il frontend puoi usare un server statico (`python3 -m http.server 8000`) e visitare `http://localhost:8000`. Le operazioni autenticabili richiedono il backend Supabase configurato. Per un deploy completo vedi `docs/DEPLOY.md`; per una prova guidata `docs/TESTING.md`.
-
-**Non pubblicare mai** file `client_secret*.json`, chiavi `OPENROUTER_API_KEY`, service-role Supabase, token OAuth, refresh token o segreti di cifratura. Il solo fatto che `config.js` sia pubblico è previsto: contiene esclusivamente una publishable key.
-
-## Aggiornamento 5.1 — Google Cloud Voice (IT/EN/ES)
-
-Il TTS principale ora è Google Cloud Chirp 3 HD, mediato dalla nuova Edge Function `casey-tts` e con fallback automatico Web Speech API. Il riconoscimento vocale (STT) rimane quello del browser; ElevenLabs è stato rimosso. UI e avatar originali invariati, salvo il nuovo selettore lingua. La lingua viene inoltrata anche al modello esistente, mentre alcuni messaggi statici della demo sono tuttora italiani.
-
-**La nuova voce Google non funzionerà finché non verrà salvata in Supabase la credenziale `GOOGLE_TTS_SERVICE_ACCOUNT_JSON` e non verrà distribuita `casey-tts`.** Fino a quel momento viene usata automaticamente la voce del browser.
-
-Vedi [istruzioni complete e test](docs/GOOGLE_CLOUD_VOICE.md).
+Production remains on main. Calendar/email writes are disabled here. Dashboard and Campus shell remain demonstrations. Gemini generation is currently blocked by the configured provider project's depleted prepaid credits; document excerpts work independently.

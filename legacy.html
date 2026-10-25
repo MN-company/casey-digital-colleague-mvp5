@@ -1,0 +1,1465 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Casey — H-FARM College Digital Colleague</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="casey-voice.js"></script>
+  <script src="casey-dialogue.js"></script>
+  <script src="casey-dates.js"></script>
+  <style>
+    :root {
+      --hfarm-navy: #1D2347;
+      --hfarm-navy-dark: #11152C;
+    }
+    body {
+      background-color: var(--hfarm-navy);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    }
+    .kiosk-screen {
+      aspect-ratio: 9 / 16;
+      height: 78vh;
+      max-height: 740px;
+      background: #ffffff;
+    }
+    .logo-box-header {
+      width: 92px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-box-header img {
+      height: 50px;
+      width: auto;
+      object-fit: contain;
+      transform: scale(1.42);
+      filter: brightness(0) invert(1);
+    }
+    .logo-box-kiosk {
+      width: 72px;
+      height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .logo-box-kiosk img {
+      height: 44px;
+      width: auto;
+      object-fit: contain;
+      transform: scale(1.45);
+      mix-blend-mode: multiply;
+    }
+  
+    /* Casey 5.0 bridge components — the original layout and Tailwind classes stay intact. */
+    .casey-bridge-action {border-radius:999px;padding:7px 13px;background:#1D2347;color:white;font-weight:700;font-size:11px}
+    .casey-bridge-action:disabled {opacity:.45;cursor:not-allowed}
+    .casey-status-pill {border-radius:999px;border:1px solid #cbd5e1;padding:4px 9px;font-size:10px;font-weight:650;color:#475569}
+    .casey-day {min-height:62px;max-height:128px;overflow:hidden;cursor:pointer}
+    .casey-day:focus-visible{outline:3px solid #2563eb;outline-offset:2px}
+    .casey-day.today{border-color:#1D2347;background:#eff6ff}
+    .casey-event {font-size:9px;line-height:1.2;border-radius:5px;padding:2px 4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;display:block;margin-top:3px}
+    .casey-event.google {background:#eef2ff;color:#1d2347;border:1px solid #c7d2fe}
+    .casey-event.casey {background:#1D2347;color:white}
+    .casey-event.free {background:#d1fae5;color:#065f46}
+    .casey-confirm {display:flex;gap:8px;justify-content:center;align-items:center;padding:9px;background:#fff;border-radius:15px;border:1px solid #93c5fd}
+    .casey-auth-overlay[hidden], .casey-confirm[hidden], .casey-notice[hidden] {display:none!important}
+    .casey-auth-overlay {position:fixed;inset:0;z-index:99;background:rgba(4,8,30,.72);display:grid;place-items:center;padding:20px}
+    .casey-auth-dialog {background:white;max-width:410px;width:100%;padding:24px;border-radius:25px;color:#1D2347;box-shadow:0 30px 70px #02061780}
+    .casey-auth-dialog input {width:100%;border:1px solid #cbd5e1;padding:10px 12px;border-radius:12px;margin:7px 0;color:#1D2347}
+    .casey-request-item {text-align:left;display:block;width:100%;padding:14px;border:1px solid #e2e8f0;border-radius:13px;background:white;color:#1D2347}
+    .casey-request-item:hover {background:#eef2ff}
+    .casey-request-item.selected {background:#1D2347;color:white}
+    .casey-notice {border:1px solid #cbd5e1;border-radius:12px;padding:10px 12px;font-size:11px;color:#334155;background:#f8fafc}
+    .casey-info-strong {font-weight:700;color:#1D2347}
+    .casey-calendar-scroll{overflow:auto}
+    #caseySlotOptions button {background:#ecfdf5;color:#065f46;border:1px solid #a7f3d0}
+    #caseySlotOptions button:hover{background:#a7f3d0}
+</style>
+</head>
+<body class="min-h-screen text-white flex flex-col justify-between p-3 md:px-7 md:py-4 select-none">
+
+  <!-- TOP BAR -->
+  <header class="max-w-[1440px] w-full mx-auto flex flex-wrap items-center justify-between gap-3 mb-2">
+
+    <!-- Sinistra: Logo Ufficiale Intero -->
+    <div class="flex items-center gap-3">
+      <div class="logo-box-header">
+        <img src="HF-College_logocolore_Centrale (1).png" alt="H-FARM College"
+             onerror="this.parentElement.innerHTML='<span class=\'font-black text-xs tracking-wider\'>H-FARM COLLEGE</span>'" />
+      </div>
+      <div class="h-7 w-[1px] bg-white/20"></div>
+      <div>
+        <div class="text-sm font-bold tracking-tight text-white">Casey — Digital Colleague</div>
+        <div class="text-[11px] text-blue-200">H-FARM College · Student Services</div>
+      </div>
+    </div>
+
+    <!-- Centro: Switch Caso (Emma / Sofia) + Filtro Prospettiva (Studente / Student Office) -->
+    <div class="flex flex-wrap items-center gap-2.5">
+      <div class="bg-[#11152C] p-1 rounded-full flex items-center text-xs border border-white/10">
+        <button onclick="setScenario('EMMA')" id="scenBtn-EMMA"
+                class="px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow">
+           Caso 1: Matricola (Emma)
+        </button>
+        <button onclick="setScenario('SOFIA')" id="scenBtn-SOFIA"
+                class="px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white">
+           Caso 2: Tirocinio (Sofia)
+        </button>
+      </div>
+
+      <div class="bg-[#11152C] p-1 rounded-full flex items-center text-xs border border-white/10">
+        <button onclick="setPerspective('STUDENT')" id="perspBtn-STUDENT"
+                class="px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white">
+           Vista Studente
+        </button>
+        <button onclick="setPerspective('OFFICE')" id="perspBtn-OFFICE"
+                class="px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow flex items-center gap-1.5">
+           Vista Student Office
+          <span id="officeAlertDot" class="w-2 h-2 rounded-full bg-rose-500 hidden"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Controlli audio: Google Cloud TTS + fallback nativo browser -->
+    <div class="flex flex-wrap items-center gap-2 text-xs">
+      <span id="videoStateBadge" class="bg-emerald-500/20 border border-emerald-400/40 text-emerald-200 px-2.5 py-1 rounded-full font-mono text-[11px]">
+         Stato A (A.mp4)
+      </span>
+      <label for="languageSelect" class="sr-only">Lingua della conversazione</label>
+      <select id="languageSelect" onchange="onLanguageChange()" aria-label="Lingua della conversazione"
+              class="bg-white/10 hover:bg-white/15 text-white border border-white/15 rounded-full px-3 py-1.5 text-[11px] font-medium focus:outline-none cursor-pointer max-w-[180px] truncate">
+        <option class="text-slate-900" value="it-IT">Italiano</option>
+        <option class="text-slate-900" value="en-US">English</option>
+        <option class="text-slate-900" value="es-ES">Español</option>
+      </select>
+      <button type="button" id="caseyLiveBtn" onclick="CaseyLive.toggle()" title="Conversazione vocale continua con Gemini Live"
+              class="bg-blue-500/25 hover:bg-blue-500/40 text-blue-100 border border-blue-300/40 px-3 py-1.5 rounded-full font-bold">Avvia Live</button>
+      <button type="button" id="caseyLivePause" onclick="CaseyLive.pause()" hidden
+              class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full">Pausa</button>
+      <span id="caseyLiveStatus" role="status" aria-live="polite" class="text-[10px] text-blue-100 max-w-[220px] truncate">Live disattivato</span>
+      <button onclick="toggleVoiceMute()" id="muteBtn"
+              class="bg-white/10 hover:bg-white/20 text-white px-2.5 py-1.5 rounded-full font-medium transition">
+         ON
+      </button>
+      <button onclick="triggerPresence()"
+              class="bg-white/10 hover:bg-white/20 text-white px-3 py-1.5 rounded-full font-medium transition">
+         Presenza
+      </button>
+      <a href="architettura.html"
+         title="Visualizza lo schema di architettura e il funzionamento tecnico"
+         class="bg-blue-500/25 hover:bg-blue-500/40 border border-blue-300/40 text-blue-100 px-3 py-1.5 rounded-full font-bold transition flex items-center gap-1">
+         Architettura
+      </a>
+      <button type="button" onclick="CaseyBridge.showLogin()" id="caseyAccountBtn" class="bg-white/10 hover:bg-white/20 border border-white/20 text-white px-3 py-1.5 rounded-full font-semibold transition">Account studente</button>
+      <a href="settings.html" class="bg-white/10 hover:bg-white/20 border border-white/15 text-white px-3 py-1.5 rounded-full font-semibold transition">Impostazioni</a>
+      <button onclick="resetDemo()"
+              class="bg-white text-[#1D2347] hover:bg-blue-50 px-3.5 py-1.5 rounded-full font-bold transition shadow">
+        ↺ Reset
+      </button>
+    </div>
+
+  </header>
+
+  <!-- MAIN WORKSPACE -->
+  <main class="max-w-[1440px] w-full mx-auto flex-1 grid grid-cols-1 lg:grid-cols-12 gap-7 items-center">
+
+    <!-- COLONNA SINISTRA (4 col): SCHERMO ALLA PORTA 9:16 -->
+    <section class="lg:col-span-4 flex flex-col items-center">
+      <div class="kiosk-screen rounded-[38px] border-[10px] border-[#11152C] shadow-2xl relative overflow-hidden flex flex-col justify-between text-[#1D2347]">
+
+        <!-- Top Bar Kiosk -->
+        <div class="relative z-20 flex items-center justify-between px-5 pt-4">
+          <div class="flex items-center gap-2 bg-[#1D2347] text-white text-xs font-semibold px-3.5 py-1.5 rounded-full shadow-md">
+            <span id="statusDot" class="w-2.5 h-2.5 rounded-full bg-emerald-400"></span>
+            <span id="kioskBadgeText">AI assistant</span>
+          </div>
+
+          <div class="logo-box-kiosk">
+            <img src="HF-College_logocolore_Centrale (1).png" alt="H-FARM College" />
+          </div>
+        </div>
+
+        <!-- Area Centrale: Immagine Casey_ref_9x16.png + Doppio Player Video (A..F) -->
+        <div class="absolute inset-0 z-0 flex items-center justify-center bg-white overflow-hidden">
+          <img id="avatarFallbackImg" src="Casey_ref_9x16.png" alt=""
+               class="w-full h-full object-cover"
+               onerror="handleAvatarImgError(this)" />
+
+          <video id="videoPlayerA" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted preload="auto"></video>
+          <video id="videoPlayerB" class="absolute inset-0 w-full h-full object-cover hidden" playsinline muted preload="auto"></video>
+        </div>
+
+        <!-- Parte Bassa Kiosk: Sottotitoli + Input + QR Code Reale V1 -->
+        <div class="relative z-20 mt-auto px-4 pb-3.5 space-y-2">
+
+          <!-- Box Blu Sottotitoli -->
+          <div class="bg-[#1D2347]/95 backdrop-blur-sm text-white rounded-2xl p-3.5 shadow-xl">
+            <p id="subtitleBox" role="log" aria-live="off" class="text-[13px] leading-snug font-medium" style="max-height:155px;overflow-y:auto;overflow-wrap:anywhere">
+              <strong class="font-bold">Hi, I'm Casey, the Student</strong><br/>
+              Office's AI assistant.<br/>
+              How can I help?
+            </p>
+            <div id="citationBox" class="mt-2 pt-1.5 border-t border-white/15 flex items-center justify-between text-[10px] text-blue-200 hidden">
+              <span id="citationText" class="font-semibold truncate"> BSc Handbook 2025-26</span>
+              <span class="bg-white/15 px-1.5 py-0.5 rounded text-[9px] font-bold shrink-0 ml-2">Verified</span>
+            </div>
+          </div>
+
+          <!-- Input Rapido / Microfono -->
+          <div id="caseyComposer" class="flex gap-1.5 bg-white/95 p-1.5 rounded-2xl shadow-lg border border-slate-200">
+            <button onclick="toggleListening()" title="Parla con Casey"
+                    class="w-8 h-8 rounded-xl bg-slate-100 hover:bg-blue-50 flex items-center justify-center text-sm transition">
+              
+            </button>
+            <input id="userInput" type="text" placeholder="Scrivi 'Ciao, come stai?' o fai una domanda..."
+                   onkeydown="if(event.key==='Enter') sendUserMessage()"
+                   class="flex-1 bg-transparent px-1.5 text-xs text-[#1D2347] placeholder-slate-400 focus:outline-none font-medium" />
+            <button onclick="sendUserMessage()"
+                    class="bg-[#1D2347] hover:bg-[#283163] text-white px-3.5 py-1.5 rounded-xl text-xs font-semibold transition">
+              Chiedi
+            </button>
+          </div>
+
+          <div id="caseyConfirm" class="casey-confirm text-[#1D2347] shadow-lg" hidden>
+            <span class="font-semibold text-[11px] flex-1" id="caseyConfirmLabel">Confermi?</span>
+            <button onclick="CaseyBridge.confirmBooking(true)" class="casey-bridge-action" id="caseyYes">Confermo</button>
+            <button onclick="CaseyBridge.confirmBooking(false)" class="rounded-full px-3 py-2 bg-slate-100 text-slate-700 text-[11px] font-bold" id="caseyNo">Non confermo</button>
+          </div>
+          <div id="caseyEscalate" class="bg-white rounded-xl text-[#1D2347] text-xs p-2 shadow-lg" hidden>
+            <p class="mb-2">Posso inoltrare questa richiesta allo Student Office, senza inviare email esterne.</p>
+            <div class="flex gap-2"><button class="casey-bridge-action" onclick="CaseyBridge.submitOfficeRequest()">Invia richiesta</button><button onclick="CaseyBridge.dismissOfficeRequest()" class="border border-slate-300 rounded-full px-3 font-semibold">Annulla</button></div>
+          </div>
+          <!-- Handoff entry point; the secure QR is generated only after matricola input. -->
+          <div id="handoffCard" role="button" tabindex="0" onclick="CaseyHandoff.open()" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();CaseyHandoff.open()}"
+               title="Genera un QR sicuro per continuare sul telefono"
+               class="bg-white rounded-2xl px-3.5 py-2.5 shadow-lg border border-slate-100 cursor-pointer hover:border-[#1D2347]/40 transition flex items-center gap-3.5">
+            <div class="flex items-center gap-3.5 w-full">
+              <span aria-hidden="true" style="font-size:32px;line-height:1">↗</span>
+              <div class="text-[13px] leading-snug text-[#1D2347] tracking-tight">
+                <div class="font-normal">Personal question?</div>
+                <div class="font-normal">Continue on your phone</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Piedistallo -->
+      <div class="w-4 h-6 bg-[#11152C]"></div>
+      <div class="w-28 h-2.5 bg-[#11152C] rounded-full shadow-lg"></div>
+    </section>
+
+    <!-- COLONNA DESTRA (8 col): AMBIENTE SIMULATO CON FILTRO STUDENTE / STUDENT OFFICE -->
+    <section class="lg:col-span-8 flex flex-col">
+
+      <!-- Barra Pulsanti Demo Rapidi -->
+      <div class="mb-2.5">
+        <div class="flex items-center justify-between mb-1.5">
+          <span id="quickPromptsLabel" class="text-[11px] font-bold uppercase tracking-wider text-blue-200">
+             Passo-passo Demo — Caso 1: Matricola (Emma):
+          </span>
+          <span id="perspectiveHint" class="text-[11px] text-blue-200/80">
+            Prospettiva attiva: <strong class="text-white"> Vista Student Office</strong>
+          </span>
+        </div>
+        <div id="quickPromptsContainer" class="flex flex-wrap gap-1.5"></div>
+      </div>
+
+      <!-- Card Principale Bianca & Blu -->
+      <div class="bg-white text-[#1D2347] rounded-[28px] shadow-2xl border-4 border-[#11152C] overflow-hidden flex flex-col h-[72vh] max-h-[680px]">
+
+        <!-- Barra Tab Dinamica -->
+        <div class="bg-slate-50 border-b border-slate-200 px-6 pt-3 flex items-center justify-between">
+          <div id="tabsHeaderContainer" class="flex gap-2"></div>
+          <div id="accountBadgeRight" class="text-[11px] text-slate-500 font-semibold hidden sm:flex items-center gap-2 pb-2"></div>
+        </div>
+
+        <!-- VISTA 1: CALENDARIO OTTOBRE 2026 -->
+        <div id="view-CALENDAR" class="flex-1 p-5 overflow-y-auto flex flex-col justify-between">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+            <div>
+              <h2 id="calendarTitle" class="text-lg font-extrabold text-[#1D2347]">
+                Ottobre 2026 — Calendario Student Office
+              </h2>
+              <p id="calendarSubtitle" class="text-xs text-slate-500">
+                Casey legge gli impegni già fissati in agenda e propone in automatico solo gli slot liberi.
+              </p>
+            </div>
+            <div id="calendarLegend" class="flex items-center gap-3 text-[11px] font-semibold"></div>
+          </div>
+
+          <div class="grid grid-cols-7 gap-1.5 text-center text-[11px] font-bold text-slate-400 uppercase mb-1">
+            <div>Lun</div><div>Mar</div><div>Mer</div><div>Gio</div><div>Ven</div><div>Sab</div><div>Dom</div>
+          </div>
+
+          <div class="mb-3 flex items-center justify-between gap-2 flex-wrap text-xs text-[#1D2347]" id="caseyCalendarToolbar">
+              <div class="flex items-center gap-2"><button id="caseyPrev" type="button" onclick="CaseyBridge.shiftMonth(-1)" class="casey-status-pill" aria-label="Mese precedente">←</button><strong id="caseyMonthLabel">Calendario</strong><button id="caseyNext" type="button" onclick="CaseyBridge.shiftMonth(1)" class="casey-status-pill" aria-label="Mese successivo">→</button></div>
+              <button onclick="CaseyBridge.goToday()" class="casey-status-pill">Oggi</button>
+              <button onclick="CaseyBridge.connectStudentGoogle()" id="caseyGoogleConnect" class="casey-status-pill hidden">Connetti Google</button>
+            </div>
+            <div id="caseyCalendarStatus" class="casey-notice mb-3">Verifica delle disponibilità in corso…</div>
+            <div id="caseySlotOptions" class="flex flex-wrap gap-1 mb-3"></div>
+            <div id="octoberCalendarGrid" class="grid grid-cols-7 gap-1.5 flex-1"></div>
+        </div>
+
+        <!-- VISTA 2: GMAIL SIMULATO -->
+        <div id="view-GMAIL" class="flex-1 hidden grid-cols-12 overflow-hidden">
+          <div class="col-span-5 border-r border-slate-200 overflow-y-auto bg-slate-50/60 p-3 space-y-1.5" id="gmailList"></div>
+          <div class="col-span-7 p-6 overflow-y-auto flex flex-col justify-between bg-white" id="gmailReader"></div>
+        </div>
+
+        <!-- VISTA 3: STAFF REVIEW QUEUE (MORNING BRIEFING) -->
+        <div id="view-QUEUE" class="flex-1 hidden p-6 overflow-y-auto">
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-4">
+            <div>
+              <h2 class="text-lg font-extrabold text-[#1D2347]">Morning Briefing — 08:45 (Staff Review Queue)</h2>
+              <p class="text-xs text-slate-500">
+                I casi che richiedono giudizio umano (tasse, deroghe, benessere) arrivano qui riassunti con la regola dell'Handbook.
+              </p>
+            </div>
+            <span class="bg-blue-50 text-[#1D2347] border border-blue-200 text-xs font-bold px-3 py-1 rounded-full">
+              Autonomia Guadagnata: <span id="autonomyScore">94</span>% bozze approvate
+            </span>
+          </div>
+          <div id="staffQueueList" class="space-y-4"></div>
+        </div>
+
+        <!-- VISTA 4: LA MIA PRATICA / CHECKLIST (VISTA STUDENTE) -->
+        <div id="view-CHECKLIST" class="flex-1 hidden p-6 overflow-y-auto">
+          <div class="flex items-center justify-between mb-4">
+            <div>
+              <h2 id="studentCaseTitle" class="text-lg font-extrabold text-[#1D2347]">La Mia Pratica</h2>
+              <p class="text-xs text-slate-500">
+                Ogni richiesta diventa una pratica tracciata passo dopo passo fino alla chiusura.
+              </p>
+            </div>
+            <span id="studentCaseProgress" class="bg-[#1D2347] text-white text-xs font-bold px-3.5 py-1 rounded-full">
+              2 / 5 completati
+            </span>
+          </div>
+          <div class="casey-notice mb-3">Percorso dimostrativo Emma/Sofia: i passi non rappresentano dati accademici verificati del tuo account.</div>
+            <div id="studentChecklistItems" class="space-y-2.5"></div>
+        </div>
+
+      </div>
+    </section>
+
+  </main>
+
+  <!-- MODALE ANTEPRIMA DOCUMENTO (Internship Agreement di Sofia) -->
+  <div id="docPreviewModal" class="fixed inset-0 z-50 bg-black/70 hidden items-center justify-center p-4">
+    <div class="bg-white text-[#1D2347] rounded-3xl max-w-xl w-full p-6 shadow-2xl border-4 border-[#1D2347] space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-200 pb-3">
+        <div>
+          <span class="text-[10px] font-bold uppercase tracking-wider text-blue-700 bg-blue-50 px-2 py-0.5 rounded">Template Compilato da Casey</span>
+          <h3 class="text-base font-extrabold mt-1">H-FARM College — Internship Agreement (Bozza)</h3>
+        </div>
+        <button onclick="closeDocModal()" class="text-slate-400 hover:text-[#1D2347] font-bold text-sm px-2 py-1">✕</button>
+      </div>
+      <div class="text-xs space-y-2 bg-slate-50 p-4 rounded-2xl border border-slate-200 leading-relaxed">
+        <p><strong>Corso di Laurea:</strong> Bachelor's Degree (Hons) in AI & Data Science — Level 6 (3rd Year)</p>
+        <p><strong>Studente:</strong> Sofia Rossi (<code>sofia.rossi@student.h-farm.com</code>)</p>
+        <p><strong>Azienda Ospitante:</strong> Acme Analytics S.r.l.</p>
+        <p><strong>Referente HR:</strong> Giulia Neri (<code>g.neri@acmeanalytics.example</code>)</p>
+        <p><strong>Data Inizio:</strong> 2 Marzo 2027 (Regola Handbook: min. 10 settimane full-time)</p>
+        <p><strong>Passi Successivi:</strong> Firma Training Project (Associate Dean) + Polizza Generali Italia.</p>
+      </div>
+      <div class="flex justify-end">
+        <button onclick="closeDocModal()" class="bg-[#1D2347] text-white text-xs font-bold px-4 py-2 rounded-full">
+          Chiudi Anteprima
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /*************************************************************************
+     * 1. GESTIONE INTELLIGENTE DEI 6 VIDEO (A..F)
+     * - I nuovi C.mp4 e F.mp4 sono puliti da 0:00 a 0:09!
+     * - Solo su A.mp4 salta l'intervallo 3.1s-5.2s per evitare che apra bocca in Idle
+     *************************************************************************/
+    const AVATAR_IMAGE_CANDIDATES = ['Casey_ref_9x16.png', 'Casey_ref_9x16.jpg', 'Casey_avatar_HFARM.jpg', 'casey.png', 'casey.jpg'];
+    let avatarImgTry = 0;
+
+    function handleAvatarImgError(imgEl) {
+      avatarImgTry++;
+      if (avatarImgTry < AVATAR_IMAGE_CANDIDATES.length) {
+        imgEl.src = AVATAR_IMAGE_CANDIDATES[avatarImgTry];
+      }
+    }
+
+    const VIDEO_STATE_MAP = {
+      A: ['A.mp4', 'B.mp4'],
+      B: ['B.mp4', 'A.mp4'],
+      C: ['C.mp4', 'A.mp4'],
+      D: ['D.mp4', 'B.mp4', 'A.mp4'],
+      E: ['E.mp4', 'A.mp4'],
+      F: ['F.mp4', 'D.mp4', 'A.mp4']
+    };
+
+    let currentVideoState = null;
+    let videoRevision = 0;
+    let activePlayer = document.getElementById('videoPlayerA');
+    let standbyPlayer = document.getElementById('videoPlayerB');
+    const videoBadge = document.getElementById('videoStateBadge');
+
+    function attachSmartTrim(player) {
+      player.ontimeupdate = () => {
+        const src = player.currentSrc || player.src || '';
+        if ((currentVideoState === 'A' || currentVideoState === 'LISTEN') && src.includes('A.mp4')) {
+          if (player.currentTime >= 3.1 && player.currentTime < 5.2) {
+            player.currentTime = 5.25;
+          }
+        }
+      };
+    }
+    attachSmartTrim(activePlayer);
+    attachSmartTrim(standbyPlayer);
+
+    function playVideoCandidates(candidates, loopVideo, stateLabel) {
+      const generation = ++videoRevision;
+      let idx = 0;
+      function tryNext() {
+        if (idx >= candidates.length) {
+          videoBadge.textContent = ` Foto: Casey_ref_9x16.png`;
+          return;
+        }
+        const file = candidates[idx];
+        idx++;
+        standbyPlayer.muted = true;
+        standbyPlayer.loop = loopVideo;
+        standbyPlayer.src = file;
+
+        standbyPlayer.onloadeddata = () => {
+          if (generation !== videoRevision) return;
+          standbyPlayer.muted = true;
+
+          // Su A.mp4 parte dal secondo 5.25 (calmo a labbra chiuse); i nuovi C.mp4 e F.mp4 partono da 0:00!
+          if ((stateLabel === 'A' || stateLabel === 'LISTEN') && file === 'A.mp4' && standbyPlayer.duration > 6) {
+            standbyPlayer.currentTime = 5.25;
+          } else {
+            standbyPlayer.currentTime = 0;
+          }
+
+          standbyPlayer.playbackRate = (stateLabel === 'C' && file === 'C.mp4') ? 1.12 : 1.0;
+
+          standbyPlayer.classList.remove('hidden');
+          activePlayer.classList.add('hidden');
+          activePlayer.pause();
+          standbyPlayer.play().catch(() => {});
+          videoBadge.textContent = ` Stato ${stateLabel} (${file})`;
+          const tmp = activePlayer;
+          activePlayer = standbyPlayer;
+          standbyPlayer = tmp;
+        };
+
+        standbyPlayer.onerror = () => tryNext();
+        standbyPlayer.onended = () => {
+          if (!loopVideo) setAvatarState('A');
+        };
+      }
+      tryNext();
+    }
+
+    function setAvatarState(state) {
+      if (currentVideoState === state) return;
+      currentVideoState = state;
+      const badge = document.getElementById('kioskBadgeText');
+      const dot = document.getElementById('statusDot');
+
+      if (state === 'LISTEN') {
+        badge.textContent = 'In ascolto...';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-rose-400 animate-ping';
+      } else if (state === 'E') {
+        badge.textContent = 'Elaborazione...';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping';
+      } else {
+        badge.textContent = 'AI assistant';
+        dot.className = 'w-2.5 h-2.5 rounded-full bg-emerald-400';
+      }
+
+      const key = state === 'LISTEN' ? 'A' : state;
+      const loopStates = ['A', 'LISTEN', 'C', 'E'];
+      const candidates = VIDEO_STATE_MAP[key] || VIDEO_STATE_MAP.A;
+      playVideoCandidates(candidates, loopStates.includes(state), state);
+    }
+
+    /*************************************************************************
+     * 2. STATO GLOBALE: SCENARIO (EMMA / SOFIA) & PROSPETTIVA (STUDENT / OFFICE)
+     *************************************************************************/
+    let currentScenario = 'EMMA';
+    let currentPerspective = new URLSearchParams(location.search).get('mobile')==='1'?'STUDENT':'OFFICE';
+    let currentTab = 'CALENDAR';
+    let autonomyPercentage = 94;
+    const WORKING_HOURS = ['10:00', '11:00', '14:00', '15:00'];
+
+    let officeCalendar = [];
+    let studentCalendar = [];
+    let officeEmails = [];
+    let studentEmails = [];
+    let staffQueue = [];
+    let checklistSteps = [];
+    let suggestedSlots = [];
+    let selectedMailIdx = 0;
+    let slotAlreadyMoved = false;
+
+    function initScenarioData() {
+      slotAlreadyMoved = false;
+      suggestedSlots = [];
+      selectedMailIdx = 0;
+
+      if (currentScenario === 'EMMA') {
+        checklistSteps = [
+          { done: true,  title: 'Attivazione H-Account (emma.smith@student.h-farm.com) e Wi-Fi', meta: 'Completato' },
+          { done: true,  title: 'Accesso a Canvas e Career Passport (ChiView attivo da Novembre)', meta: 'Completato' },
+          { done: false, title: 'Configurazione H-FARM App (Check-in entro 10 min / Check-out ultimi 15 min)', meta: 'Da verificare' },
+          { done: false, title: 'Ritiro Student ID Badge fisico allo Student Office', meta: 'Mer 14 Ott, 10:00 (Conflitto!)' },
+          { done: false, title: 'Pagamento 1ª Rata Tuition Fee L4 (Scadenza: 11 Ottobre)', meta: 'In attesa Student Admin' }
+        ];
+
+        officeCalendar = [
+          { day: 2,  time: '09:00', title: 'Tuition Fee Info L4', type: 'BUSY' },
+          { day: 8,  time: '14:00', title: 'Academic Board', type: 'BUSY' },
+          { day: 11, time: '23:59', title: 'Scadenza 1ª Rata L4', type: 'DEADLINE' },
+          { day: 13, time: '10:00', title: 'H-ACK Kickoff', type: 'BUSY' },
+          { day: 14, time: '10:00', title: 'Ritiro Badge — Emma', type: 'APPOINTMENT', id: 'main-appt' },
+          { day: 14, time: '11:00', title: 'Colloquio Ammissioni', type: 'BUSY' },
+          { day: 14, time: '14:00', title: 'Riunione H-MATES', type: 'BUSY' },
+          { day: 14, time: '15:00', title: 'Allineamento IT', type: 'BUSY' },
+          { day: 15, time: '10:00', title: 'Sessione Career Service', type: 'BUSY' },
+          { day: 15, time: '11:00', title: 'Board Chichester', type: 'BUSY' },
+          { day: 15, time: '15:00', title: 'Sportello Inclusion', type: 'BUSY' },
+          { day: 16, time: '10:00', title: 'Briefing Settimanale', type: 'BUSY' },
+          { day: 16, time: '14:00', title: 'Revisione Regolamenti', type: 'BUSY' },
+          { day: 16, time: '15:00', title: 'Chiusura Ufficio', type: 'BUSY' },
+          { day: 27, time: '09:00', title: 'Inizio Reading Week', type: 'DEADLINE' },
+          { day: 28, time: '10:00', title: 'Pitch Finale Casey', type: 'APPOINTMENT' }
+        ];
+
+        studentCalendar = [
+          { day: 11, time: '23:59', title: 'Scadenza 1ª Rata L4', type: 'DEADLINE' },
+          { day: 14, time: '10:00', title: ' Lezione Programming + Badge', type: 'CONFLICT', id: 'main-appt' },
+          { day: 15, time: '09:00', title: 'Lezione Linear Algebra', type: 'CLASS' },
+          { day: 16, time: '14:00', title: 'Lezione Probability', type: 'CLASS' },
+          { day: 27, time: '09:00', title: 'Reading Week', type: 'DEADLINE' }
+        ];
+
+        studentEmails = [
+          {
+            from: 'Student Office <student.office@h-farm.com>',
+            to: 'Emma Smith <emma.smith@student.h-farm.com>',
+            time: '14 Ott, 09:00',
+            subject: 'Promemoria: Ritiro Student Badge — Mercoledì 14 Ottobre ore 10:00',
+            body: `Ciao Emma,\n\nTi aspettiamo allo Student Office mercoledì 14 ottobre alle 10:00 per ritirare il tuo Student ID Badge.\n\nNel frattempo puoi accedere al Campus con il QR code temporaneo sull'H-FARM App.`,
+            hasIcs: false
+          },
+          {
+            from: 'IT Support <support@h-farm.com>',
+            to: 'Emma Smith <emma.smith@student.h-farm.com>',
+            time: '10 Ott, 11:30',
+            subject: 'Benvenuta in H-FARM College — Attivazione H-Account e Piattaforme',
+            body: `Ciao Emma,\n\nIl tuo H-Account (emma.smith@student.h-farm.com) è attivo. Ricorda di usare l'H-FARM App per registrare le presenze in aula (check-in entro i primi 10 minuti e check-out negli ultimi 15 minuti).`,
+            hasIcs: false
+          }
+        ];
+
+        officeEmails = [
+          {
+            from: 'Casey System <student.office@h-farm.com>',
+            to: 'Student Office <student.office@h-farm.com>',
+            time: '14 Ott, 08:45',
+            subject: 'Briefing Mattutino — Onboarding Matricole Level 4 (BSc AI & Data Science)',
+            body: `Stato Onboarding Coorte Level 4:\n• Pratiche attive: 142 matricole\n• Ritiri badge programmati oggi: 18\n• Richieste in coda di approvazione umana: 0`,
+            hasIcs: false
+          }
+        ];
+
+        staffQueue = [];
+      } else {
+        checklistSteps = [
+          { done: true,  title: 'Verifica requisiti Third Year Experiential Term (min. 10 settimane full-time)', meta: 'Verificato da Handbook' },
+          { done: false, title: 'Bozza Internship Agreement con Acme Analytics (HR: Giulia Neri)', meta: 'Da generare' },
+          { done: false, title: 'Check-in call con il Career Service (careerservice.edu@h-farm.com)', meta: 'Da prenotare' },
+          { done: false, title: 'Firma Training Project (Associate Dean) + Polizza Generali Italia', meta: 'Dopo il check-in' }
+        ];
+
+        officeCalendar = [
+          { day: 8,  time: '14:00', title: 'Career Day Prep', type: 'BUSY' },
+          { day: 14, time: '10:00', title: 'Colloqui Aziende', type: 'BUSY' },
+          { day: 14, time: '11:00', title: 'Review CV L6', type: 'BUSY' },
+          { day: 14, time: '14:00', title: 'Allineamento Partner', type: 'BUSY' },
+          { day: 14, time: '15:00', title: 'Workshop LinkedIn', type: 'BUSY' },
+          { day: 15, time: '11:00', title: 'Call Aziende Partner', type: 'BUSY' },
+          { day: 15, time: '14:00', title: 'Validazione Tesi L6', type: 'BUSY' },
+          { day: 15, time: '15:00', title: 'Briefing Startup Center', type: 'BUSY' },
+          { day: 16, time: '10:00', title: 'Board Career Service', type: 'BUSY' },
+          { day: 16, time: '14:00', title: 'Archivio Convenzioni', type: 'BUSY' },
+          { day: 16, time: '15:00', title: 'Chiusura Settimanale', type: 'BUSY' },
+          { day: 28, time: '10:00', title: 'Pitch Finale Casey', type: 'APPOINTMENT' }
+        ];
+
+        studentCalendar = [
+          { day: 14, time: '09:00', title: 'Lezione Neural Networks', type: 'CLASS' },
+          { day: 15, time: '14:00', title: 'Lezione Big Data', type: 'CLASS' },
+          { day: 20, time: '10:00', title: 'Business Project Lab', type: 'CLASS' }
+        ];
+
+        studentEmails = [
+          {
+            from: 'Giulia Neri — HR Acme Analytics <g.neri@acmeanalytics.example>',
+            to: 'Sofia Rossi <sofia.rossi@student.h-farm.com>',
+            time: '14 Ott, 18:20',
+            subject: 'Offerta di Stage Curriculare — Data Science Intern (Inizio 2 Marzo)',
+            body: `Ciao Sofia,\n\nSiamo felici di confermarti la nostra proposta di stage presso Acme Analytics con inizio previsto il 2 Marzo.\nFammi sapere quali documenti servono al Career Service di H-FARM College per attivare la convenzione e l'assicurazione.\n\nUn caro saluto,\nGiulia Neri — HR Manager, Acme Analytics`,
+            hasIcs: false
+          }
+        ];
+
+        officeEmails = [
+          {
+            from: 'Career Service System <careerservice.edu@h-farm.com>',
+            to: 'Career Service Team <careerservice.edu@h-farm.com>',
+            time: '14 Ott, 08:45',
+            subject: 'Stato Pratiche Third Year Experiential Term — Level 6',
+            body: `Riepilogo 3° Anno BSc AI & Data Science:\n• Opzione 1 (Internship min. 10w full-time): 34 studenti\n• Opzione 2 (Pre-Accelerator min. 12w): 8 studenti\n• Opzione 3 (Dissertation): 12 studenti`,
+            hasIcs: false
+          }
+        ];
+
+        staffQueue = [];
+      }
+
+      renderAll();
+    }
+
+    function computeFreeSlots() {
+      const dayLabels = { 15: 'Giovedì 15 Ott', 16: 'Venerdì 16 Ott' };
+      const results = [];
+      for (const d of [15, 16]) {
+        const busy = officeCalendar.filter(e => e.day === d).map(e => e.time);
+        for (const h of WORKING_HOURS) {
+          if (!busy.includes(h)) {
+            results.push({ day: d, dayLabel: dayLabels[d], time: h });
+          }
+        }
+      }
+      return results;
+    }
+
+    function setScenario(scen) {
+      currentScenario = scen;
+      document.getElementById('scenBtn-EMMA').className = scen === 'EMMA'
+        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow'
+        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white';
+      document.getElementById('scenBtn-SOFIA').className = scen === 'SOFIA'
+        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow'
+        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white';
+      resetDemo();
+    }
+
+    function setPerspective(persp) {
+      currentPerspective = persp;
+      document.getElementById('perspBtn-STUDENT').className = persp === 'STUDENT'
+        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow'
+        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white';
+      document.getElementById('perspBtn-OFFICE').className = persp === 'OFFICE'
+        ? 'px-3.5 py-1.5 rounded-full font-bold transition bg-white text-[#1D2347] shadow flex items-center gap-1.5'
+        : 'px-3.5 py-1.5 rounded-full font-semibold transition text-blue-200 hover:text-white flex items-center gap-1.5';
+
+      document.getElementById('perspectiveHint').innerHTML = persp === 'STUDENT'
+        ? `Prospettiva attiva: <strong class="text-white"> Vista Studente (${currentScenario === 'EMMA' ? 'Emma' : 'Sofia'})</strong>`
+        : `Prospettiva attiva: <strong class="text-white"> Vista Student Office (Back-Office)</strong>`;
+
+      if (persp === 'STUDENT' && currentTab === 'QUEUE') currentTab = 'CHECKLIST';
+      if (persp === 'OFFICE' && currentTab === 'CHECKLIST') currentTab = 'QUEUE';
+
+      selectedMailIdx = 0;
+      renderAll();
+    }
+
+    function switchTab(tab) {
+      currentTab = tab;
+      renderAll();
+    }
+
+    function simulateQrContinueOnPhone() {
+      setPerspective('STUDENT');
+      switchTab('CHECKLIST');
+      streamSubtitles(
+        currentScenario === 'EMMA'
+          ? "Hai inquadrato il QR code! Ora sei nella tua Vista Studente personale, Emma: qui vedi la tua checklist di onboarding, il tuo calendario lezioni e le tue mail."
+          : "Hai inquadrato il QR code! Ora sei nella tua Vista Studente, Sofia: qui puoi seguire tutti gli step della tua pratica di tirocinio.",
+        "H-FARM Privacy Handover • Sessione Personale Attiva",
+        'D'
+      );
+    }
+
+    /*************************************************************************
+     * 3. CONVERSAZIONE GENERALE + CONOSCENZA HANDBOOK (Testi 100% puliti)
+     *************************************************************************/
+    const SMALL_TALK_QA = [
+      {
+        keys: ['come stai', 'come va', 'tutto bene', 'how are you'],
+        reply: "Tutto benissimo, grazie! Sono operativo 24 ore su 24 per aiutare gli studenti e lo Student Office di H-FARM College. Tu come stai? Come posso esserti utile?"
+      },
+      {
+        keys: ['chi sei', 'cosa fai', 'cosa sai fare', 'presentati', 'who are you'],
+        reply: "Sono Casey, il nuovo collega digitale dello Student Office di H-FARM College. Rispondo citando l'Handbook ufficiale, prenoto o sposto appuntamenti in calendario, apro pratiche e passo le eccezioni allo staff umano."
+      },
+      {
+        keys: ['grazie', 'perfetto', 'ottimo', 'gentilissimo', 'thank you', 'thanks'],
+        reply: "Di nulla, figurati! Se hai altre domande su corsi, app o appuntamenti sono sempre qui. Buona giornata in campus!"
+      },
+      {
+        keys: ['ciao', 'buongiorno', 'buonasera', 'salve', 'hey', 'ehi', 'hello', 'hi'],
+        reply: "Ciao! Benvenuto allo Student Office di H-FARM College. Dimmi pure: vuoi controllare una regola dell'Handbook o gestire un appuntamento?"
+      }
+    ];
+
+    const HANDBOOK_QA = [
+      {
+        keys: ['check-in', 'check in', 'check-out', 'errore', 'bluetooth', '10 minuti'],
+        cite: 'BSc Handbook 2025-26 • Attendance Monitoring System',
+        reply: "Per fare il check-in sull'H-FARM App devi trovarti fisicamente in aula, connesso al Wi-Fi H-FARM, con Bluetooth e localizzazione attivi. Il Check-in va fatto entro i primi 10 minuti e il Check-out negli ultimi 15 minuti della lezione.",
+        markEmmaStep: 2
+      },
+      {
+        keys: ['80%', 'frequenza', 'presenza', 'presenze', 'attendance', 'assenza'],
+        cite: 'BSc Handbook 2025-26 • Attendance Policy',
+        reply: "La frequenza minima obbligatoria è dell'80% per ogni corso. Se scendi sotto l'80%, il voto d'esame viene bloccato al punteggio minimo di superamento, cioè 40%."
+      },
+      {
+        keys: ['provisional pass', '35%', '39%', 'resit', 'bocciato'],
+        cite: 'BSc Handbook 2025-26 • Provisional Pass & Resit',
+        reply: "Al primo anno Level 4, un voto tra 35% e 39% in massimo tre moduli passa come Provisional Pass se la tua media annuale è almeno 40%. Sotto il 35% devi invece svolgere il Resit, dove il voto massimo ottenibile è 40%."
+      },
+      {
+        keys: ['direttore', 'director', 'l.s.'],
+        cite: 'BSc Handbook 2025-26 • Program Director',
+        reply: "Il Program Director del Bachelor's Degree in AI & Data Science è il Dottor L.S."
+      },
+      {
+        keys: ['mensa', 'pranzo', 'serra', 'amor', 'basta al sugo', '12:00'],
+        cite: 'BSc Handbook 2025-26 • Dining & H-FARM App',
+        reply: "Puoi pranzare a La Serra, Basta al Sugo o Amor Bistrot: il pranzo va prenotato sull'H-FARM App entro le ore 12:00 mostrando poi il QR code alla cassa."
+      },
+      {
+        keys: ['biblioteca', 'library', 'halliday', 'orari'],
+        cite: 'BSc Handbook 2025-26 • Library Services',
+        reply: "Da settembre a giugno la Biblioteca è aperta dal lunedì al venerdì dalle 8:30 alle 22:00, e sabato e domenica dalle 10:00 alle 19:30. Puoi prenotare anche le sale studio Halliday Labs."
+      }
+    ];
+
+    function sendUserMessage(customText = null) {
+      const input = document.getElementById('userInput');
+      const text = (customText || input.value || '').trim();
+      if (!text) return;
+      input.value = '';
+
+      setAvatarState('E');
+
+      setTimeout(() => {
+        const q = text.toLowerCase();
+
+        if (currentScenario === 'SOFIA') {
+          if (q.includes('stage') || q.includes('acme') || q.includes('documenti') || q.includes('2 marzo')) {
+            suggestedSlots = computeFreeSlots();
+            switchTab('CALENDAR');
+            renderAll();
+            streamSubtitles(
+              "Congratulazioni Sofia! Prima di iniziare il 2 marzo servono l'Agreement tra università e azienda, il Training Project firmato dall'Associate Dean e l'assicurazione Generali. Ho aperto la tua pratica e visto che giovedì 15 alle 10:00 c'è uno slot libero col Career Service: chi è il tuo referente HR in Acme?",
+              "BSc Handbook 2025-26 • Third Year Experiential Term",
+              'D'
+            );
+            return;
+          }
+
+          if (q.includes('giulia neri') || q.includes('10:00') || q.includes('giovedì') || q.includes('prenota')) {
+            if (!slotAlreadyMoved) {
+              slotAlreadyMoved = true;
+              suggestedSlots = [];
+              checklistSteps[1].done = true;
+              checklistSteps[1].meta = 'Bozza pronta (Giulia Neri)';
+              checklistSteps[2].done = true;
+              checklistSteps[2].meta = 'Prenotato Gio 15 Ott, 10:00';
+
+              officeCalendar.push({ day: 15, time: '10:00', title: 'Check-in Stage — Sofia ✓', type: 'APPOINTMENT', id: 'sofia-checkin' });
+              studentCalendar.push({ day: 15, time: '10:00', title: 'Check-in Career Service ✓', type: 'APPOINTMENT', id: 'sofia-checkin' });
+
+              studentEmails.unshift({
+                from: 'Casey • Career Service <careerservice.edu@h-farm.com>',
+                to: 'Sofia Rossi <sofia.rossi@student.h-farm.com>',
+                time: 'Adesso',
+                subject: 'Conferma Check-in Tirocinio (Giovedì 15 Ott ore 10:00) + Bozza Agreement Acme',
+                body: `Ciao Sofia,\n\nHo aggiornato la tua pratica per il tirocinio presso Acme Analytics (inizio: 2 Marzo):\n\n1. Bozza Internship Agreement compilata per Giulia Neri (HR)\n2. Check-in prenotato con il Career Service: Giovedì 15 Ottobre alle ore 10:00\n\nQui sotto puoi scaricare l'invito (.ics) o vedere l'anteprima del contratto.`,
+                hasIcs: true,
+                icsTitle: 'Check-in Tirocinio Career Service — Sofia',
+                icsDay: 15,
+                icsTime: '10:00',
+                hasDocPreview: true
+              });
+
+              officeEmails.unshift({
+                from: 'Casey AI Colleague <careerservice.edu@h-farm.com>',
+                to: 'Career Service <careerservice.edu@h-farm.com>',
+                time: 'Adesso',
+                subject: 'Nuova Pratica Stage: Sofia Rossi — Acme Analytics (Check-in Gio 15 ore 10:00)',
+                body: `Pratica aperta automaticamente da Casey:\n• Studente: Sofia Rossi (Level 6)\n• Azienda: Acme Analytics (HR: Giulia Neri)\n• Bozza Agreement pronta.`,
+                hasIcs: false,
+                hasDocPreview: true
+              });
+              selectedMailIdx = 0;
+            }
+            renderAll();
+            streamSubtitles(
+              "Perfetto! Ho preparato la bozza di Agreement per Giulia Neri, prenotato il check-in con il Career Service per giovedì 15 ottobre alle 10:00 e inviato l'invito sulla tua mail.",
+              "Career Service Tools • Agreement Drafted & Slot Booked",
+              'D'
+            );
+            return;
+          }
+
+          if (q.includes('part-time') || q.includes('20 settimane') || q.includes('eccezione')) {
+            if (!staffQueue.some(item => item.id === 'CASE-SOFIA-309')) {
+              staffQueue.unshift({
+                id: 'CASE-SOFIA-309',
+                student: 'Sofia Rossi • BSc AI & Data Science, Year 3 (Level 6)',
+                office: 'Career Service (careerservice.edu@h-farm.com)',
+                question: 'Acme Analytics chiede se posso svolgere lo stage part-time su 20 settimane invece di 10 full-time.',
+                rule: 'BSc Handbook 2025-26 (Third Year Experiential Term): durata minima obbligatoria 10 settimane full-time.',
+                doneByCasey: 'Pratica aperta • Bozza Agreement compilata • Check-in fissato Gio 15 ore 10:00',
+                draftReply: 'Ciao Sofia, abbiamo ricevuto la tua pratica e la bozza di Agreement preparata da Casey. Poiché il regolamento prevede almeno 10 settimane full-time, sottoponiamo la deroga part-time su 20 settimane all\'Associate Dean e ti confermiamo entro martedì.',
+                status: 'PENDING',
+                targetStudentEmail: 'Sofia Rossi <sofia.rossi@student.h-farm.com>'
+              });
+            }
+            setPerspective('OFFICE');
+            switchTab('QUEUE');
+            renderAll();
+            streamSubtitles(
+              "Questa è un'eccezione, quindi decide una persona: la regola dell'Handbook richiede almeno 10 settimane a tempo pieno. Ho passato la pratica al Career Service con tutto il riepilogo: avrai risposta entro martedì.",
+              "BSc Handbook 2025-26 • Handed to Career Service",
+              'F'
+            );
+            return;
+          }
+        }
+
+        if ((q.includes('spost') || q.includes('slot') || q.includes('liberi') || q.includes('badge')) && !q.includes('14:00') && !q.includes('11:00') && !q.includes('conferma')) {
+          suggestedSlots = computeFreeSlots();
+          switchTab('CALENDAR');
+          renderAll();
+          const slotsStr = suggestedSlots.map(s => `${s.dayLabel} alle ${s.time}`).join(' oppure ');
+          streamSubtitles(
+            `Ho controllato il calendario di Ottobre dello Student Office: mercoledì 14 è tutto pieno, ma ho trovato liberi ${slotsStr}. Quale dei due preferisci prenotare?`,
+            "Google Calendar • Ricerca Slot Liberi in Tempo Reale",
+            'A'
+          );
+          return;
+        }
+
+        if (q.includes('14:00') || q.includes('giovedì') || q.includes('11:00') || q.includes('venerdì') || q.includes('prenota')) {
+          const chosenDay = (q.includes('venerdì') || q.includes('16')) ? 16 : 15;
+          const chosenTime = chosenDay === 16 ? '11:00' : '14:00';
+          const dayName = chosenDay === 16 ? 'Venerdì 16 Ottobre' : 'Giovedì 15 Ottobre';
+
+          if (!slotAlreadyMoved) {
+            slotAlreadyMoved = true;
+            suggestedSlots = [];
+
+            officeCalendar = officeCalendar.filter(e => e.id !== 'main-appt');
+            officeCalendar.push({ day: chosenDay, time: chosenTime, title: 'Ritiro Badge — Emma ✓', type: 'APPOINTMENT', id: 'main-appt' });
+
+            studentCalendar = studentCalendar.filter(e => e.id !== 'main-appt');
+            studentCalendar.push({ day: 14, time: '10:00', title: 'Lezione Programming', type: 'CLASS' });
+            studentCalendar.push({ day: chosenDay, time: chosenTime, title: 'Ritiro Badge ✓', type: 'APPOINTMENT', id: 'main-appt' });
+
+            checklistSteps[3].done = true;
+            checklistSteps[3].meta = `Spostato a ${dayName}, ${chosenTime}`;
+
+            studentEmails.unshift({
+              from: 'Casey • Student Office <student.office@h-farm.com>',
+              to: 'Emma Smith <emma.smith@student.h-farm.com>',
+              time: 'Adesso',
+              subject: `Conferma Spostamento: Ritiro Badge — ${dayName} ore ${chosenTime}`,
+              body: `Ciao Emma,\n\nIl tuo appuntamento per il ritiro dello Student Badge è stato aggiornato:\n\n• Vecchio slot annullato: Mercoledì 14 Ottobre, ore 10:00\n• Nuovo slot confermato: ${dayName} 2026, ore ${chosenTime}\n\nQui sotto puoi scaricare il file .ICS per il tuo calendario.`,
+              hasIcs: true,
+              icsTitle: 'Ritiro Student Badge — H-FARM Student Office',
+              icsDay: chosenDay,
+              icsTime: chosenTime
+            });
+
+            officeEmails.unshift({
+              from: 'Casey AI Colleague <student.office@h-farm.com>',
+              to: 'Student Office <student.office@h-farm.com>',
+              time: 'Adesso',
+              subject: `Slot Aggiornato Automaticamente: Emma Smith → ${dayName} ore ${chosenTime}`,
+              body: `Azione eseguita da Casey:\n• Cancellato slot Mercoledì 14 Ott ore 10:00 (conflitto lezione L4)\n• Prenotato slot ${dayName} ore ${chosenTime}.`,
+              hasIcs: false
+            });
+            selectedMailIdx = 0;
+          }
+
+          renderAll();
+          streamSubtitles(
+            `Fatto in 30 secondi! Ho spostato il ritiro del badge a ${dayName} alle ${chosenTime}, liberato lo slot di mercoledì mattina e inviato la conferma con l'invito calendario sulla tua Gmail.`,
+            "Google Calendar + Gmail • Azione Completata",
+            'D'
+          );
+          return;
+        }
+
+        if (q.includes('rata') || q.includes('pagare') || q.includes('11 ottobre') || q.includes('tasse')) {
+          if (!staffQueue.some(item => item.id === 'CASE-EMMA-104')) {
+            staffQueue.unshift({
+              id: 'CASE-EMMA-104',
+              student: 'Emma Smith • BSc AI & Data Science, Year 1 (Level 4)',
+              office: 'Student Administration (student.admin@h-farm.com)',
+              question: 'Posso posticipare il pagamento della 1ª rata oltre la scadenza dell\'11 ottobre?',
+              rule: 'BSc Handbook 2025-26 (Academic Timeline): 1ª rata L4 entro l\'11 ottobre. Eventuali proroghe sui pagamenti richiedono sempre decisione umana (GDPR Art. 22).',
+              doneByCasey: 'Caso aperto • Scadenza verificata • Inoltrato a Student Administration',
+              draftReply: 'Ciao Emma, abbiamo ricevuto la tua richiesta tramite Casey. L\'ufficio Student Administration (student.admin@h-farm.com) ha preso in carico la pratica e ti confermerà il piano aggiornato entro domani alle 10:00.',
+              status: 'PENDING',
+              targetStudentEmail: 'Emma Smith <emma.smith@student.h-farm.com>'
+            });
+          }
+          setPerspective('OFFICE');
+          switchTab('QUEUE');
+          renderAll();
+          streamSubtitles(
+            "Le decisioni su tasse, rate e scadenze spettano sempre a una persona. Ho riassunto la tua richiesta con la regola dell'Handbook e l'ho passata nella coda dello Student Office: ti risponderanno entro domani alle 10:00.",
+            "BSc Handbook 2025-26 • Handover to Student Administration",
+            'F'
+          );
+          return;
+        }
+
+        for (const rule of HANDBOOK_QA) {
+          if (rule.keys.some(k => q.includes(k))) {
+            if (typeof rule.markEmmaStep === 'number' && currentScenario === 'EMMA') {
+              checklistSteps[rule.markEmmaStep].done = true;
+              checklistSteps[rule.markEmmaStep].meta = 'Verificato con Casey';
+              renderAll();
+            }
+            streamSubtitles(rule.reply, rule.cite, 'D');
+            return;
+          }
+        }
+
+        for (const st of SMALL_TALK_QA) {
+          if (st.keys.some(k => q.includes(k))) {
+            streamSubtitles(st.reply, null, 'B');
+            return;
+          }
+        }
+
+        streamSubtitles(
+          "Non ho trovato una sezione specifica su questo punto nel BSc AI & Data Science Handbook 2025-26. Per non inventare informazioni, passo la tua richiesta allo Student Office.",
+          "Guardrail: Niente fonte, niente risposta",
+          'F'
+        );
+      }, 650);
+    }
+
+    /*************************************************************************
+     * 4. APPROVAZIONE / MODIFICA BOZZA STAFF & DOWNLOAD .ICS
+     *************************************************************************/
+    function approveQueueItem(idx) {
+      const item = staffQueue[idx];
+      if (!item || item.status === 'APPROVED') return;
+      const editedText = document.getElementById(`draftInput-${idx}`)
+        ? document.getElementById(`draftInput-${idx}`).value
+        : item.draftReply;
+      item.draftReply = editedText;
+      item.status = 'APPROVED';
+      autonomyPercentage = Math.min(99, autonomyPercentage + 1);
+      document.getElementById('autonomyScore').textContent = autonomyPercentage;
+
+      const replyMail = {
+        from: item.office,
+        to: item.targetStudentEmail,
+        time: 'Adesso (Approvata dallo Staff)',
+        subject: `Risposta Ufficiale H-FARM College — Pratica ${item.id}`,
+        body: `${editedText}\n\n---\nRiferimento Handbook: ${item.rule}`,
+        hasIcs: false
+      };
+
+      studentEmails.unshift(replyMail);
+      officeEmails.unshift(replyMail);
+      selectedMailIdx = 0;
+
+      switchTab('GMAIL');
+      renderAll();
+    }
+
+    function rejectQueueItem(idx) {
+      if (!staffQueue[idx]) return;
+      staffQueue[idx].status = 'REJECTED';
+      renderAll();
+    }
+
+    function downloadIcsFile(title, day, timeHourMin) {
+      const cleanTime = timeHourMin.replace(':', '') + '00';
+      const endHour = String(Number(timeHourMin.split(':')[0]) + 1).padStart(2, '0') + timeHourMin.split(':')[1] + '00';
+      const dayStr = String(day).padStart(2, '0');
+      const ics = [
+        'BEGIN:VCALENDAR',
+        'VERSION:2.0',
+        'PRODID:-//H-FARM College//Casey Digital Colleague//IT',
+        'BEGIN:VEVENT',
+        `DTSTART:202610${dayStr}T${cleanTime}`,
+        `DTEND:202610${dayStr}T${endHour}`,
+        `SUMMARY:${title}`,
+        'LOCATION:H-FARM Campus, Via Adriano Olivetti 1, Roncade (TV)',
+        'DESCRIPTION:Appuntamento confermato da Casey — H-FARM College.',
+        'END:VEVENT',
+        'END:VCALENDAR'
+      ].join('\r\n');
+
+      const blob = new Blob([ics], { type: 'text/calendar;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `H-FARM_Appuntamento_${day}_Ottobre.ics`;
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function openDocModal() {
+      const m = document.getElementById('docPreviewModal');
+      m.classList.remove('hidden');
+      m.classList.add('flex');
+    }
+
+    function closeDocModal() {
+      const m = document.getElementById('docPreviewModal');
+      m.classList.add('hidden');
+      m.classList.remove('flex');
+    }
+
+    /*************************************************************************
+     * 5. RENDERING INTERFACCIA COMPLETA
+     *************************************************************************/
+    function renderAll() {
+      const promptsLabel = document.getElementById('quickPromptsLabel');
+      const promptsBox = document.getElementById('quickPromptsContainer');
+
+      const prompts = currentScenario === 'EMMA'
+        ? [
+            { label: ' 1. Chiedi slot liberi per spostare il Badge', msg: 'Devo spostare il ritiro del badge di domani alle 10, che slot liberi ci sono questa settimana?' },
+            { label: ' 2. Conferma Giovedì 15 alle 14:00', msg: 'Perfetto, prenota pure giovedì 15 ottobre alle 14:00' },
+            { label: ' 3. Errore Check-in App (Regola Handbook)', msg: 'Il check-in in aula sull\'app mi dà errore, come funziona?' },
+            { label: ' 4. Chiedi proroga Rata (Passa a Staff Queue)', msg: 'Posso pagare la prima rata dopo la scadenza dell\'11 ottobre?' }
+          ]
+        : [
+            { label: ' 1. "Ho trovato stage da Acme dal 2 marzo! Cosa faccio?"', msg: 'Ho trovato uno stage da Acme Analytics dal 2 marzo! Cosa devo fare?' },
+            { label: ' 2. "Il contatto HR è Giulia Neri, prenota Gio 15 ore 10"', msg: 'Il contatto HR è Giulia Neri. Prenotiamo il check-in giovedì 15 alle 10:00?' },
+            { label: ' 3. "Acme chiede part-time su 20 settimane" (Eccezione)', msg: 'Acme chiede se posso farlo part-time su 20 settimane. Va bene?' },
+            { label: ' 4. "Come funziona il Provisional Pass?"', msg: 'Cos\'è il Provisional Pass (35-39%) e quando si fa il Resit?' }
+          ];
+
+      promptsLabel.textContent = currentScenario === 'EMMA'
+        ? ' Passo-passo Demo — Caso 1: Matricola (Emma):'
+        : ' Passo-passo Demo — Caso 2: Tirocinio 3° Anno (Sofia):';
+
+      promptsBox.innerHTML = prompts.map(p => `
+        <button onclick="sendUserMessage('${p.msg.replace(/'/g, "\\'")}')"
+                class="bg-white/10 hover:bg-white/20 border border-white/15 text-white text-xs px-3 py-1.5 rounded-full transition font-medium">
+          ${p.label}
+        </button>
+      `).join('');
+
+      const pendingCount = staffQueue.filter(q => q.status === 'PENDING').length;
+      const dotAlert = document.getElementById('officeAlertDot');
+      if (pendingCount > 0) dotAlert.classList.remove('hidden');
+      else dotAlert.classList.add('hidden');
+
+      const activeEmails = currentPerspective === 'STUDENT' ? studentEmails : officeEmails;
+      const tabsHeader = document.getElementById('tabsHeaderContainer');
+      const accountRight = document.getElementById('accountBadgeRight');
+
+      if (currentPerspective === 'STUDENT') {
+        const studentMailAddr = currentScenario === 'EMMA' ? 'emma.smith@student.h-farm.com' : 'sofia.rossi@student.h-farm.com';
+        accountRight.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-500"></span> ${studentMailAddr}`;
+
+        const studentTabs = [
+          { id: 'CHECKLIST', label: ` La Mia Pratica (${checklistSteps.filter(s => s.done).length}/${checklistSteps.length})` },
+          { id: 'CALENDAR',  label: ' Il Mio Calendario (Ottobre 2026)' },
+          { id: 'GMAIL',     label: ` La Mia Mail (${activeEmails.length})` }
+        ];
+        tabsHeader.innerHTML = studentTabs.map(t => `
+          <button onclick="switchTab('${t.id}')"
+                  class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 transition flex items-center gap-2 ${currentTab === t.id ? 'border-[#1D2347] text-[#1D2347] bg-white' : 'border-transparent text-slate-500 hover:text-[#1D2347]'}">
+            ${t.label}
+          </button>
+        `).join('');
+      } else {
+        const officeMailAddr = currentScenario === 'EMMA' ? 'student.office@h-farm.com' : 'careerservice.edu@h-farm.com';
+        accountRight.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#1D2347]"></span> ${officeMailAddr}`;
+
+        const officeTabs = [
+          { id: 'CALENDAR', label: ' Calendario Ufficio (Ottobre 2026)' },
+          { id: 'GMAIL',    label: ` Gmail Ufficio (${activeEmails.length})` },
+          { id: 'QUEUE',    label: ` Staff Review Queue ${pendingCount > 0 ? `<span class="bg-rose-600 text-white text-[10px] px-1.5 py-0.2 rounded-full">${pendingCount}</span>` : ''}` }
+        ];
+        tabsHeader.innerHTML = officeTabs.map(t => `
+          <button onclick="switchTab('${t.id}')"
+                  class="px-4 py-2.5 text-xs font-bold rounded-t-xl border-b-2 transition flex items-center gap-2 ${currentTab === t.id ? 'border-[#1D2347] text-[#1D2347] bg-white' : 'border-transparent text-slate-500 hover:text-[#1D2347]'}">
+            ${t.label}
+          </button>
+        `).join('');
+      }
+
+      ['CALENDAR', 'GMAIL', 'QUEUE', 'CHECKLIST'].forEach(v => {
+        const el = document.getElementById(`view-${v}`);
+        if (v === currentTab) {
+          el.classList.remove('hidden');
+          if (v === 'GMAIL') el.classList.add('grid');
+        } else {
+          el.classList.add('hidden');
+          el.classList.remove('grid');
+        }
+      });
+
+      const calTitle = document.getElementById('calendarTitle');
+      const calSub = document.getElementById('calendarSubtitle');
+      const calLegend = document.getElementById('calendarLegend');
+      const eventsToRender = currentPerspective === 'STUDENT' ? studentCalendar : officeCalendar;
+
+      if (currentPerspective === 'STUDENT') {
+        calTitle.textContent = currentScenario === 'EMMA'
+          ? 'Ottobre 2026 — Calendario Personale di Emma (Level 4)'
+          : 'Ottobre 2026 — Calendario Personale di Sofia (Level 6)';
+        calSub.textContent = 'Mostra le tue lezioni, le scadenze e i tuoi appuntamenti con gli uffici.';
+        calLegend.innerHTML = `
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-blue-100 border border-blue-300"></span> Lezione</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#1D2347]"></span> Appuntamento Ufficio</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Slot Proposto</span>
+        `;
+      } else {
+        calTitle.textContent = currentScenario === 'EMMA'
+          ? 'Ottobre 2026 — Calendario Student Office'
+          : 'Ottobre 2026 — Calendario Career Service';
+        calSub.textContent = 'Casey legge gli impegni già fissati in agenda e propone allo studente solo gli slot liberi.';
+        calLegend.innerHTML = `
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-slate-300"></span> Occupato Ufficio</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-[#1D2347]"></span> Prenotato da Casey</span>
+          <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Slot Libero Proposto</span>
+        `;
+      }
+
+      const calGrid = document.getElementById('octoberCalendarGrid');
+      let gridHtml = '';
+      for (let empty = 0; empty < 3; empty++) {
+        gridHtml += `<div class="bg-slate-50/60 rounded-xl border border-slate-100 p-1.5"></div>`;
+      }
+      for (let day = 1; day <= 31; day++) {
+        const dayEvs = eventsToRender.filter(e => e.day === day);
+        const dayFree = suggestedSlots.filter(s => s.day === day);
+        const isToday = day === 14;
+
+        gridHtml += `
+          <div class="rounded-xl border ${isToday ? 'border-[#1D2347] bg-blue-50/30' : 'border-slate-200 bg-white'} p-1.5 flex flex-col justify-between min-h-[62px]">
+            <div class="flex items-center justify-between">
+              <span class="text-[11px] font-bold ${isToday ? 'bg-[#1D2347] text-white px-1.5 rounded-full' : 'text-slate-600'}">${day}</span>
+              ${isToday ? '<span class="text-[9px] font-bold text-[#1D2347]">OGGI</span>' : ''}
+            </div>
+            <div class="space-y-1 mt-1">
+              ${dayEvs.map(ev => {
+                let badgeClass = 'bg-slate-100 text-slate-600';
+                if (ev.type === 'APPOINTMENT') badgeClass = 'bg-[#1D2347] text-white font-semibold shadow-sm';
+                else if (ev.type === 'CONFLICT') badgeClass = 'bg-rose-600 text-white font-bold';
+                else if (ev.type === 'CLASS') badgeClass = 'bg-blue-50 text-[#1D2347] border border-blue-200 font-medium';
+                else if (ev.type === 'DEADLINE') badgeClass = 'bg-amber-100 text-amber-900 border border-amber-300 font-semibold';
+                return `<div class="text-[9px] px-1.5 py-0.5 rounded truncate ${badgeClass}" title="${ev.time} ${ev.title}">
+                  ${ev.time} ${ev.title}
+                </div>`;
+              }).join('')}
+              ${dayFree.map(fs => `
+                <button onclick="sendUserMessage('Prenota ${fs.dayLabel} alle ${fs.time}')"
+                        class="w-full text-left text-[9px] px-1.5 py-0.5 rounded bg-emerald-500 hover:bg-emerald-600 text-white font-bold animate-pulse transition">
+                   LIBERO ${fs.time} (Clicca)
+                </button>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }
+      calGrid.innerHTML = gridHtml;
+
+      document.getElementById('gmailList').innerHTML = activeEmails.map((m, idx) => `
+        <div onclick="selectedMailIdx=${idx}; renderAll();"
+             class="p-3 rounded-xl cursor-pointer border transition ${idx === selectedMailIdx ? 'bg-[#1D2347] text-white border-[#1D2347] shadow' : 'bg-white hover:bg-slate-100 border-slate-200 text-[#1D2347]'}">
+          <div class="flex items-center justify-between text-[10px] ${idx === selectedMailIdx ? 'text-blue-200' : 'text-slate-400'}">
+            <span class="font-bold truncate">${m.from.split('<')[0]}</span>
+            <span>${m.time}</span>
+          </div>
+          <div class="text-xs font-bold mt-1 truncate">${m.subject}</div>
+        </div>
+      `).join('');
+
+      const mail = activeEmails[selectedMailIdx] || activeEmails[0];
+      document.getElementById('gmailReader').innerHTML = mail ? `
+        <div>
+          <div class="border-b border-slate-200 pb-3 mb-4">
+            <h3 class="text-base font-extrabold text-[#1D2347]">${mail.subject}</h3>
+            <div class="text-xs text-slate-500 mt-1">
+              <strong>Da:</strong> ${mail.from}<br/>
+              <strong>A:</strong> ${mail.to}
+            </div>
+          </div>
+          <pre class="whitespace-pre-wrap font-sans text-xs text-slate-700 leading-relaxed">${mail.body}</pre>
+          <div class="mt-5 flex flex-wrap gap-2">
+            ${mail.hasIcs ? `
+              <button onclick="downloadIcsFile('${mail.icsTitle}', ${mail.icsDay}, '${mail.icsTime}')"
+                      class="bg-[#1D2347] hover:bg-[#283163] text-white text-xs font-bold px-4 py-2 rounded-full shadow flex items-center gap-1.5 transition">
+                 Scarica Invito Calendario (.ICS)
+              </button>
+            ` : ''}
+            ${mail.hasDocPreview ? `
+              <button onclick="openDocModal()"
+                      class="bg-blue-50 hover:bg-blue-100 text-[#1D2347] border border-blue-200 text-xs font-bold px-4 py-2 rounded-full flex items-center gap-1.5 transition">
+                 Visualizza Bozza Internship Agreement
+              </button>
+            ` : ''}
+          </div>
+        </div>
+        <div class="pt-4 border-t border-slate-100 flex items-center justify-between text-[11px] text-slate-400">
+          <span> Verificato da Casey Digital Colleague</span>
+          <span>H-FARM College Mail</span>
+        </div>
+      ` : '';
+
+      const qList = document.getElementById('staffQueueList');
+      if (staffQueue.length === 0) {
+        qList.innerHTML = `
+          <div class="border-2 border-dashed border-slate-200 rounded-2xl p-8 text-center text-slate-400 text-xs">
+            Nessun caso umano in attesa di approvazione.<br/>
+            Clicca sull'ultimo pulsante rapido in alto (<strong>Proroga Rata</strong> o <strong>Part-time 20 settimane</strong>) per vedere il passaggio allo staff.
+          </div>
+        `;
+      } else {
+        qList.innerHTML = staffQueue.map((item, idx) => `
+          <div class="border-2 border-[#1D2347]/15 rounded-2xl p-5 bg-slate-50/70 space-y-3">
+            <div class="flex items-center justify-between">
+              <div class="font-extrabold text-sm text-[#1D2347]">${item.student}</div>
+              <span class="text-[11px] font-bold px-2.5 py-0.5 rounded-full ${item.status === 'APPROVED' ? 'bg-emerald-100 text-emerald-800' : item.status === 'REJECTED' ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'}">
+                ${item.status}
+              </span>
+            </div>
+            <div class="grid grid-cols-12 gap-2 text-xs border-t border-slate-200 pt-3">
+              <div class="col-span-3 font-bold text-slate-400">Question</div>
+              <div class="col-span-9 font-semibold text-[#1D2347]">${item.question}</div>
+
+              <div class="col-span-3 font-bold text-slate-400">Rule quoted</div>
+              <div class="col-span-9 text-slate-700">${item.rule}</div>
+
+              <div class="col-span-3 font-bold text-slate-400">Done by Casey</div>
+              <div class="col-span-9 text-slate-600">${item.doneByCasey}</div>
+
+              <div class="col-span-3 font-bold text-slate-400">Suggested reply</div>
+              <div class="col-span-9">
+                <textarea id="draftInput-${idx}" rows="3"
+                          class="w-full bg-white p-2.5 rounded-xl border border-slate-300 text-slate-700 text-xs focus:outline-none focus:border-[#1D2347]">${item.draftReply}</textarea>
+              </div>
+            </div>
+            ${item.status === 'PENDING' ? `
+              <div class="flex items-center gap-2.5 pt-2">
+                <button onclick="approveQueueItem(${idx})"
+                        class="bg-[#B91C1C] hover:bg-red-800 text-white text-xs font-bold px-5 py-2 rounded-full shadow transition">
+                  Approve & Send Email
+                </button>
+                <button onclick="document.getElementById('draftInput-${idx}').focus()"
+                        class="bg-[#1D2347] hover:bg-slate-800 text-white text-xs font-semibold px-4 py-2 rounded-full transition">
+                  Edit Draft
+                </button>
+                <button onclick="rejectQueueItem(${idx})"
+                        class="bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-semibold px-4 py-2 rounded-full transition">
+                  Reject
+                </button>
+              </div>
+            ` : ''}
+          </div>
+        `).join('');
+      }
+
+      document.getElementById('studentCaseTitle').textContent = currentScenario === 'EMMA'
+        ? 'Pratica Onboarding — Emma Smith (1° Anno BSc AI & Data Science)'
+        : 'Pratica Third Year Experiential Term — Sofia Rossi (3° Anno BSc AI)';
+      const doneCount = checklistSteps.filter(s => s.done).length;
+      document.getElementById('studentCaseProgress').textContent = `${doneCount} / ${checklistSteps.length} completati`;
+
+      document.getElementById('studentChecklistItems').innerHTML = checklistSteps.map(st => `
+        <div class="p-3.5 rounded-2xl border flex items-center justify-between gap-3 ${st.done ? 'bg-blue-50/50 border-[#1D2347]/20 text-[#1D2347]' : 'bg-white border-slate-200 text-slate-700'}">
+          <div class="flex items-center gap-3">
+            <span class="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${st.done ? 'bg-[#1D2347] text-white' : 'bg-slate-100 text-slate-400'}">
+              ${st.done ? '✓' : '•'}
+            </span>
+            <span class="text-xs font-bold">${st.title}</span>
+          </div>
+          <span class="text-[11px] font-semibold px-2.5 py-1 rounded-full ${st.done ? 'bg-[#1D2347]/10 text-[#1D2347]' : 'bg-slate-100 text-slate-500'} shrink-0">
+            ${st.meta}
+          </span>
+        </div>
+      `).join('');
+    }
+
+    /*************************************************************************
+     * 6. VOCE CASEY 5.1: Google Cloud Chirp 3 HD / fallback browser
+     * Il motore vive in casey-voice.js. Nessuna credenziale nel frontend.
+     *************************************************************************/
+    let voiceMuted = false;
+    let subtitleTimer = null;
+    let speechSequence = 0;
+    window.cancelStandardSpeech = () => {
+      speechSequence++;
+      if (subtitleTimer) clearInterval(subtitleTimer);
+      window.CaseyVoice.stop();
+    };
+
+    function onLanguageChange() {
+      const value = document.getElementById('languageSelect').value;
+      window.CaseyVoice.setLanguage(value);
+      if (window.CaseyLive?.active) void window.CaseyLive.changeLanguage();
+    }
+
+    function speakWithCaseyVoice(text, onFinishCallback) {
+      if (voiceMuted) { onFinishCallback(); return; }
+      window.CaseyVoice.speak(text, onFinishCallback);
+    }
+
+    function streamSubtitles(text, citation, endState = 'A') {
+      if (subtitleTimer) clearInterval(subtitleTimer);
+      window.CaseyVoice.stop();
+      const currentSequence = ++speechSequence;
+      const subBox = document.getElementById('subtitleBox');
+      const citBox = document.getElementById('citationBox');
+      const citText = document.getElementById('citationText');
+
+      const cleanText = text.trim();
+
+      subBox.textContent = '';
+      if (citation) {
+        citText.textContent = ' ' + citation.trim();
+        citBox.classList.remove('hidden');
+      } else {
+        citBox.classList.add('hidden');
+      }
+
+      // Passa a C.mp4 mentre Casey parla
+      setAvatarState('C');
+
+      const finishTalking = () => {
+        if (currentSequence !== speechSequence) return;
+        subBox.textContent = cleanText;
+        subBox.scrollTop = subBox.scrollHeight;
+        setAvatarState(endState);
+      };
+      if (voiceMuted) { finishTalking(); return; }
+      window.CaseyVoice.speak(cleanText, finishTalking, (spoken) => {
+        if (currentSequence !== speechSequence) return;
+        subBox.textContent = spoken;
+        subBox.scrollTop = subBox.scrollHeight;
+      });
+    }
+
+    function triggerPresence() {
+      if (window.CaseyLive?.active) {
+        window.CaseyLive.sendText('Saluta brevemente e chiedi come puoi aiutarmi.');
+        return;
+      }
+      setAvatarState('B');
+      setTimeout(() => {
+        const greetings = {
+          'it-IT': [
+            'Ciao Emma! Benvenuta allo Student Office di H-FARM College. Come posso aiutarti nella tua prima settimana?',
+            'Ciao Sofia! Pronta per attivare il tuo tirocinio del terzo anno? Dimmi pure come posso aiutarti.'
+          ],
+          'en-US': [
+            'Hi Emma! Welcome to the H-FARM College Student Office. How can I help you in your first week?',
+            'Hi Sofia! Ready to arrange your third-year internship? How can I help?'
+          ],
+          'es-ES': [
+            '¡Hola, Emma! Bienvenida a la oficina de estudiantes de H-FARM College. ¿Cómo puedo ayudarte en tu primera semana?',
+            '¡Hola, Sofia! ¿Lista para organizar tus prácticas del tercer año? ¿En qué puedo ayudarte?'
+          ]
+        };
+        const phrases = greetings[window.CaseyVoice.getLanguage()] || greetings['it-IT'];
+        streamSubtitles(currentScenario === 'EMMA' ? phrases[0] : phrases[1],
+          'BSc AI & Data Science Handbook 2025-26', 'A');
+      }, 0);
+    }
+
+    function toggleVoiceMute() {
+      voiceMuted = !voiceMuted;
+      window.CaseyLive?.setMuted?.(voiceMuted);
+      if (voiceMuted) {
+        window.CaseyVoice.stop();
+        speechSequence++;
+        setAvatarState('A');
+      }
+      document.getElementById('muteBtn').textContent = voiceMuted ? ' OFF' : ' ON';
+    }
+
+    let standardRecognition = null;
+    window.stopStandardListening = () => { if (standardRecognition) { standardRecognition.abort(); standardRecognition = null; } };
+    function toggleListening() {
+      if (window.CaseyLive?.active) { window.CaseyLive.pause(); return; }
+      window.CaseyVoice.stop();
+      window.stopStandardListening();
+      const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SpeechRec) return alert("Usa Chrome, Edge o Safari per parlare col microfono.");
+      const rec = new SpeechRec();
+      standardRecognition = rec;
+      rec.onend = () => { if (standardRecognition === rec) standardRecognition = null; };
+      rec.lang = window.CaseyVoice.getLanguage();
+      setAvatarState('LISTEN');
+      rec.onresult = (e) => sendUserMessage(e.results[0][0].transcript);
+      rec.onerror = () => setAvatarState('A');
+      rec.start();
+    }
+
+    function resetDemo() {
+      void window.CaseyLive?.stop?.();
+      window.CaseyDialogue?.clear();
+      window.stopStandardListening();
+      window.CaseyVoice.stop();
+      speechSequence++;
+      if (subtitleTimer) clearInterval(subtitleTimer);
+      document.getElementById('citationBox').classList.add('hidden');
+      document.getElementById('subtitleBox').innerHTML =
+        `<strong class="font-bold">Hi, I'm Casey, the Student</strong><br/>Office's AI assistant.<br/>How can I help?`;
+      currentTab = 'CALENDAR';
+      initScenarioData();
+      setAvatarState('A');
+    }
+
+    document.getElementById('languageSelect').value = window.CaseyVoice.getLanguage();
+    initScenarioData();
+    setAvatarState('A');
+  </script>
+
+  <div id="caseyAuthOverlay" class="casey-auth-overlay" hidden role="dialog" aria-modal="true" aria-labelledby="caseyAuthTitle">
+   <div class="casey-auth-dialog">
+    <div class="flex justify-between items-center mb-3"><h2 id="caseyAuthTitle" class="text-xl font-extrabold">Account studente</h2><button aria-label="Chiudi" onclick="CaseyBridge.hideLogin()" class="text-sm text-slate-500">Chiudi</button></div>
+    <p class="text-xs text-slate-600 mb-4">Accedi con un codice temporaneo via email. La matricola non è una password: per prenotare devi essere nel registro studenti verificato.</p>
+    <form id="caseyOtpStart"><label class="text-xs font-bold" for="caseyEmail">Email universitaria</label><input type="email" id="caseyEmail" autocomplete="email" required placeholder="nome@universita.it"/><button class="casey-bridge-action" type="submit">Invia codice</button></form>
+    <form id="caseyOtpVerify" hidden><label class="text-xs font-bold" for="caseyOtp">Codice ricevuto</label><input id="caseyOtp" inputmode="numeric" autocomplete="one-time-code" pattern="[0-9]{6,8}" required/><button type="submit" class="casey-bridge-action">Verifica e accedi</button></form>
+    <p id="caseyAuthFeedback" class="mt-3 text-xs text-slate-600" role="status"></p>
+    <button type="button" id="caseyLogout" onclick="CaseyBridge.logout()" class="text-xs font-bold underline mt-4" hidden>Disconnetti account</button>
+   </div>
+  </div>
+  <script src="config.js"></script>
+  <script src="handoff-client.js"></script>
+  <script src="vendor/qrcode.js"></script>
+  <script src="casey-handoff.js"></script>
+  <link rel="stylesheet" href="handoff.css">
+  <script src="auth.0916809e.js"></script>
+  <script src="casey-tools.js"></script>
+  <script src="casey-live.js"></script>
+  <script src="casey-bridge.js"></script>
+</body>
+</html>

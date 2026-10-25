@@ -3,7 +3,7 @@ import {test} from 'node:test';
 import {readFileSync} from 'node:fs';
 const file = p=>readFileSync(new URL(p,import.meta.url),'utf8');
 test('Emma/Sofia scenarios, presence buttons and demo controls remain',()=>{
- const html=file('../index.html');
+ const html=file('../legacy.html');
  for(const s of ['EMMA','SOFIA','triggerPresence()', 'caseyLiveBtn','caseyYes','caseyNo','casey-tools.js'])assert.ok(html.includes(s),'missing '+s);
 });
 test('Gemini token setup includes only safe tools, shares Gemini API key, and keeps Gemini Live model',()=>{
