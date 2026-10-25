@@ -45,7 +45,7 @@
    CaseyLive.setMuted(!voiceMode);
    await window.CaseyVoiceSession?.stopForText?.();
    CaseyDialogue.append('user',lastRequest);$('chatInput').value='';await persist();notice('Casey sta rispondendo…');
-   const result=await A.call('chat_turn',{language:window.CaseyLanguage?.get()||'it-IT'});CaseyDialogue.append('assistant',result.answer);window.CaseyChatSources?.set(CaseyDialogue.snapshot().length-1,result.citations||[]);await persist();notice('');return result.answer;
+   const result=await A.call('chat_turn',{language:window.CaseyLanguage?.get()||'it-IT'});CaseyDialogue.append('assistant',result.answer);window.CaseyChatSources?.set(CaseyDialogue.snapshot().length-1,result.citations||[]);await persist();await refreshOperation();notice('');return result.answer;
   }catch(err){notice(/timeout|timed out/i.test(err.message)?'Casey sta impiegando più tempo del previsto. La conversazione è salvata: puoi riprovare.':err.message);$('retryButton').hidden=false;}finally{busy=false;$('sendButton').disabled=false;}}
  window.CaseySendText=send;
  $('chatForm').onsubmit=e=>{e.preventDefault();void send($('chatInput').value);};$('chatInput').onkeydown=e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();void send($('chatInput').value);}};
