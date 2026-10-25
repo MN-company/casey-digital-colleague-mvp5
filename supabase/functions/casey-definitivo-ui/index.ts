@@ -13,7 +13,7 @@ Deno.serve(async req=>{
  if(req.method!=='POST')return json({error:'Metodo non consentito'},405);
  try{
  const raw=await req.text();if(raw.length>15000)return json({error:'Richiesta troppo lunga'},413);const b=JSON.parse(raw);
- if(b.action==='public_config')return json({preview:true,knowledge:'candidate_corpus',calendar_enabled:false});
+ if(b.action==='public_config')return json({preview:true,knowledge:'original_pdf_demo_library',calendar_enabled:false});
  const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0];
  if(!await db('rpc/hf7_take_rate',{p_bucket:'definitivo-ui:'+await hash(ip),p_limit:45,p_window_seconds:60}))return json({error:'Riprova tra un minuto'},429);
  if(b.action==='session'){const token=crypto.randomUUID()+crypto.randomUUID();await db('hf6_sessions',{token_hash:await hash(token),expires_at:new Date(Date.now()+86400000).toISOString()});return json({token});}

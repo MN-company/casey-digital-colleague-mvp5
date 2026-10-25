@@ -10,3 +10,5 @@ tests/
 work/
 outputs/
 *.sql
+
+graphify-out/

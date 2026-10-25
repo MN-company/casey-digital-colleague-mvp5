@@ -33,11 +33,21 @@ No real Calendar event or email was created. External prepare/commit/cancel oper
 
 - The configured Preview Gemini key returns HTTP 402: prepaid credits depleted. Free-form generation remains unavailable until its project is funded or its key replaced by the owner. Greetings and document excerpts work independently of model credits.
 - Live voice is explicitly disabled here and needs reconnection and testing after the provider key works. Physical microphone/audio remains separate acceptance.
-- The existing hf8 index currently contains only two non-authoritative QA smoke records, with no approved documents. The complete original RAG package/corpus still needs to be identified. No ZIP corpus is substituted.
+- The original regolamenti_hfarm_casey_rag.zip has now been identified and ingested in Preview: 22 PDFs, 262 pages, 777 readable cards. User approval is explicitly for the demo; it is not institutional certification. The two QA smoke records remain candidates.
 - Calendar, email and administrative dashboard integration are pending. The office dashboard and Campus/Farm app remain labelled demonstrations. No production OAuth/calendar connection was copied.
 - The College shell is a prototype. Password authentication is real Supabase Auth, not H-FARM SSO.
 - Before production: environment-specific configuration, current approved documents, provider funding, real calendar/account acceptance, microphone/device checks and explicit release authorization.
 
 ## RAG source
 
-The adapter uses only the existing hf8_search_hybrid RPC and server-verified dc_v4_student_roster scope. It does not create a replacement search index, ingest the ZIP, or alter the existing RAG schema. Provider credits are required for fresh embeddings; absence of embeddings is explicitly a lexical fallback. Pending identification of the complete original project, do not claim full corpus ingestion or approved institutional coverage.
+The source is the original `regolamenti_hfarm_casey_rag.zip`, provided explicitly by the user, not the unrelated MVP demo corpus. Original PDF bytes and extracted contents are not published in this repository or on Vercel.
+
+The existing hf8 document/chunk tables hold the evidence once. `hf8_library_entry_details` adds literal requirement/action snippets, contacts, reference dates and deadline mentions. Readable views expose Italian column names: `casey_biblioteca_documenti`, `casey_biblioteca_schede`, `casey_biblioteca_scadenze`. The search adapter uses the existing hybrid RPC, then reads the matching structured card. It retains lexical fallback with explicit keyword expansion while Gemini credits are unavailable. No fabricated embeddings or generated policy summaries.
+
+There are 5 Ca’ Foscari, 5 Chichester and 12 originally common-folder PDFs. Two common-folder documents are conservatively restricted to CICC (withdrawal and student athletes). Mixed sections of the College statute remain available for inspection but are excluded from answers until scope can be verified. Staff material and sensitive internal procedures are kept out of student retrieval. Original academic years are retained with a historical-year warning.
+
+A card is an original article or section on a PDF page; long sections continue on adjacent cards. Extracted dates are not automatically current deadlines. Approval, institution, audience, filename, SHA-256 and page accompany the evidence. All library access is service-only, with RLS and security-invoker views.
+
+## Demo access
+
+Preview accepts the aliases `demo` and `casey` for the dedicated synthetic demo user. Passwords are distributed privately, not embedded in public code. Personal users can request an email link or enter an email OTP; callbacks return to the exact Preview URL. Paolo’s requested email has an active demo roster in Preview and production, with mailbox confirmation required and no password reset or admin privileges. The existing Casey account is preserved. Actual personal mailbox delivery remains user acceptance.

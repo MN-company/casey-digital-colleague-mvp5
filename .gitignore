@@ -110,3 +110,6 @@ logs/
 supabase/functions/_shared/definitivo-corpus.js
 conoscenza.js
 conoscenza/documenti/
+
+# Local architecture graph, not a published application asset.
+graphify-out/

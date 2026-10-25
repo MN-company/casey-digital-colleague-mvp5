@@ -1,0 +1,4 @@
+ALTER TABLE public.hf8_library_entry_details ADD COLUMN deadline_mentions jsonb NOT NULL DEFAULT '[]' CHECK(jsonb_typeof(deadline_mentions)='array');
+CREATE VIEW public.casey_biblioteca_scadenze WITH (security_invoker=true) AS SELECT c.id,d.title AS documento,c.section_hint AS sezione,c.pdf_page AS pagina_pdf,d.academic_year AS anno_accademico,x.deadline_mentions AS scadenze_estratte,x.reference_dates AS date_citate,d.verified_by AS approvazione FROM public.hf8_source_chunks c JOIN public.hf8_source_documents d ON d.id=c.doc_id JOIN public.hf8_library_entry_details x ON x.chunk_id=c.id WHERE jsonb_array_length(x.deadline_mentions)>0;
+REVOKE ALL ON public.casey_biblioteca_scadenze FROM anon,authenticated; GRANT SELECT ON public.casey_biblioteca_scadenze TO service_role;
+COMMENT ON VIEW public.casey_biblioteca_scadenze IS 'Literal deadline mentions, not current verified deadlines. Consult full source and academic year.';
