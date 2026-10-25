@@ -167,9 +167,19 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvet
 .chatbar input{flex:1;min-width:0;border:1px solid var(--bor);border-radius:999px;padding:11px 15px;font-size:13.4px;background:#F6F7F9}
 .chatbar input:focus{outline:2px solid var(--red);outline-offset:-1px;background:#fff}
 .chatbar button{flex:none;width:42px;height:42px;border-radius:50%;background:var(--red);color:#fff;display:flex;align-items:center;justify-content:center}
+/* microfono: si puo' parlare a Casey anche dall'app, non solo al totem */
+.chatbar{position:relative}
+.chatbar .mic{flex:none;width:42px;height:42px;border-radius:50%;background:#fff;
+ border:1px solid var(--bor);color:var(--red);display:flex;align-items:center;justify-content:center}
+.chatbar .mic.on{background:var(--red);color:#fff;border-color:var(--red)}
+.chatbar .mic.on::after{content:'';position:absolute;width:42px;height:42px;border-radius:50%;
+ border:2px solid var(--red);animation:pulsa 1.3s ease-out infinite;pointer-events:none}
+.chatbar .mic:disabled{opacity:.4}
+@keyframes pulsa{0%{transform:scale(1);opacity:.7}100%{transform:scale(1.5);opacity:0}}
+
 </style>
-</head>
-<body><div style="text-align:center;background:#fff3db;padding:8px;font:13px system-ui">Demo Campus · dati e operazioni simulati</div>
+<link rel="stylesheet" href="app-auth-shell.css"></head>
+<body>
 <div class="phone" id="phone">
   <div class="splash" id="splash">
     <img src="hfarm-logo.png" alt="H-FARM">
@@ -194,7 +204,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvet
   <div class="body" id="body"></div>
 
   <button class="caseyb" onclick="openSheet()" aria-label="Chiedi a Casey">
-    <span class="ph"><img src="casey-face.png" alt=""></span><span class="bd" id="cbd">1</span>
+    <span class="ph"><img src="Casey - H-FARM/casey-face.png" alt=""></span><span class="bd" id="cbd">1</span>
   </button>
 
   <div class="drawer off" id="drawer"><div class="scrim" onclick="closeDrawer()"></div><div class="panel" id="drawerPanel"></div></div>
@@ -204,7 +214,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvet
     <div class="inner">
       <div class="sh">
         <div class="r">
-          <div class="cav"><img src="casey-face.png" alt=""></div>
+          <div class="cav"><img src="Casey - H-FARM/casey-face.png" alt=""></div>
           <div><h2>Casey</h2><div class="st" id="shSt"></div></div>
           <button class="x" onclick="closeSheet()" aria-label="Chiudi">×</button>
         </div>
@@ -213,7 +223,8 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvet
       <div class="msgs" id="msgs"></div>
       <div class="acts" id="acts" style="padding:0 18px"></div>
       <div class="chatbar">
-        <input id="chatIn" type="text" placeholder="Scrivi a Casey…" autocomplete="off" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="mic" id="micApp" onclick="toggleMicApp()" aria-label="Parla con Casey"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11" rx="3"/><path d="M5.5 11a6.5 6.5 0 0 0 13 0M12 17.5V21M8.5 21h7"/></svg></button>
+        <input id="chatIn" type="text" placeholder="Scrivi o parla a Casey…" autocomplete="off" onkeydown="if(event.key==='Enter')sendChat()">
         <button onclick="sendChat()" aria-label="Invia">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12h14M13 6l6 6-6 6"/></svg>
         </button>
@@ -475,55 +486,9 @@ function paintMsgs(){
   }).join('');
   const b=document.getElementById('msgs'); b.scrollTop=b.scrollHeight;
 }
-function openSheet(){
-  document.getElementById('cbd').style.display='none';
-  document.getElementById('shSt').textContent = CID ? 'conversazione arrivata dal totem' : 'sempre disponibile qui dentro';
-  document.getElementById('shOk').textContent = 'Profilo letto dall\'app: '+U.name+' · '+U.code+'.'+(CID?' Sessione '+CID+'.':'' );
-  if(!msgs.length){
-    msgs=[{r:'ca',t:'Ciao '+FIRST+". Posso dirti orari, spazi, tessere e servizi del campus. E se serve apro io la pratica, perché so chi sei.",c:'Profilo verificato dall\'app'}];
-  }
-  paintMsgs();
-  document.getElementById('sheet').classList.remove('off');
-}
-function closeSheet(){ document.getElementById('sheet').classList.add('off'); }
-function showTyping(){
-  const b=document.getElementById('msgs'), d=document.createElement('div');
-  d.className='typing'; d.id='tp'; d.innerHTML='<i></i><i></i><i></i>';
-  b.appendChild(d); b.scrollTop=b.scrollHeight;
-}
-function hideTyping(){ const d=document.getElementById('tp'); if(d) d.remove(); }
-function sendChat(){
-  const el=document.getElementById('chatIn'), t=(el.value||'').trim();
-  if(!t) return;
-  el.value=''; msgs.push({r:'me',t:t}); paintMsgs(); showTyping();
-  setTimeout(function(){ hideTyping(); reply(t.toLowerCase()); }, 560);
-}
-function reply(q){
-  if(ESCAL.some(function(k){return q.indexOf(k)>=0;})){
-    msgs.push({r:'ca',t:"Su rimborsi ed eccezioni non decido io. Preparo la richiesta con il riferimento alla policy e la mando all'amministrazione del campus, che ti risponde direttamente.",
-               c:'Smistata a una persona · bozza già pronta'});
-    paintMsgs(); return;
-  }
-  for(var i=0;i<KB.length;i++){
-    if(KB[i].k.some(function(k){return q.indexOf(k)>=0;})){
-      msgs.push({r:'ca',t:KB[i].a,c:KB[i].c}); paintMsgs(); return;
-    }
-  }
-  if(['ciao','buongiorno','salve','buonasera','come stai','come va','grazie'].some(function(k){return q.indexOf(k)>=0;})){
-    msgs.push({r:'ca',t: q.indexOf('grazie')>=0 ? "Di niente, "+FIRST+"." : "Ciao "+FIRST+". Dimmi pure."});
-    paintMsgs(); return;
-  }
-  msgs.push({r:'ca',t:"Su questo non ho una fonte verificata, quindi non rispondo a caso. Posso girare la domanda al servizio competente allegando il tuo profilo: la mando?",
-             c:'Nessuna fonte verificata · non invento'});
-  paintMsgs();
-}
 
-/* ---------------- avvio ---------------- */
-document.getElementById('greet').textContent=saluto()+' '+FIRST;
-(function(){const d=new Date();document.getElementById('clock').textContent=d.getHours()+':'+String(d.getMinutes()).padStart(2,'0');})();
 home();
-if(P.get('casey')==='1') setTimeout(openSheet,1100);
-setTimeout(function(){var e=document.getElementById('splash'); if(e) e.classList.add('go');},900);
+setTimeout(()=>document.getElementById('splash')?.classList.add('go'),900);
 </script>
-</body>
+<script src="app-auth-shell.js"></script></body>
 </html>

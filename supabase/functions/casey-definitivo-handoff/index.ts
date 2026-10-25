@@ -2,9 +2,9 @@ import {operation,answer} from '../_shared/definitivo-preview.ts';
 import {classifyHandoff} from '../_shared/handoff-policy.js';
 /** Full-chat transfer: account ownership and operations are verified server-side. */
 const URL_BASE=Deno.env.get('SUPABASE_URL')||'';
-if(!URL_BASE.includes('sneaxpqnmlhnrhoautjx'))throw new Error('Unexpected project');
+if(!['https://sneaxpqnmlhnrhoautjx.supabase.co','https://oxzraaadxqsruibinlxn.supabase.co'].includes(URL_BASE))throw new Error('Unexpected project');
 const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default;
-const origins=new Set(['http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','https://casey-digital-colleague-live-1wog89efb-mnbrain.vercel.app']);
+const origins=new Set(['https://casey-digital-colleague-live.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','https://casey-digital-colleague-live-1wog89efb-mnbrain.vercel.app']);
 const hash=async(s:string)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 const token=()=>[...crypto.getRandomValues(new Uint8Array(32))].map(x=>x.toString(16).padStart(2,'0')).join('');
 const headers={apikey:KEY,Authorization:`Bearer ${KEY}`,'Content-Type':'application/json'};
@@ -81,7 +81,7 @@ Deno.serve(async req=>{
    const rows=await db('hf7_links?'+qs({select:'consumed_at,expires_at',id:'eq.'+b.id,source_session:'eq.'+s}));return reply({consumed:!!rows[0]?.consumed_at,expired:!rows[0]||Date.parse(rows[0].expires_at)<=Date.now()});
   }
   if(['chat_turn','load','save','clear','operation'].includes(b.action)){const u=await user(req),sid=await session(req);const owned=await db('hf7_chats?'+qs({select:'id',id:'eq.'+b.chat_id,user_id:'eq.'+u.id,expires_at:'gt.'+new Date().toISOString()}));const linked=await db('hf7_chat_sessions?'+qs({select:'chat_id',chat_id:'eq.'+b.chat_id,session_id:'eq.'+sid}));if(!owned[0]||!linked[0])return reply({error:'Conversazione non disponibile'},404);}
-  if(b.action==='operation'){const u=await user(req),sid=await session(req);await rate('operation:'+u.id,40);return reply(await operation(b,u,sid,req));}
+  if(b.action==='operation'){const u=await user(req),sid=await session(req);await rate('operation:'+u.id,40);return reply(await operation(b,u,sid,req,db,hash,URL_BASE,KEY));}
   if(b.action==='chat_turn'){
    const u=await user(req),s=await session(req);await rate('text:'+s,30);
    const rows=await db('hf7_chats?'+qs({id:'eq.'+b.chat_id,user_id:'eq.'+u.id,expires_at:'gt.'+new Date().toISOString()}));

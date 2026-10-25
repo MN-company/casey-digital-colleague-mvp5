@@ -10,5 +10,5 @@ export function classifyHandoff(message) {
  const negated=/^(non (?:voglio|devi)|do not|don't)\b/.test(t);
  if(sensitive||(own&&record)||(access&&record)||(booking&&!procedural&&!negated))return {personal:true,route:'mobile',reason:'personal_request'};
  const general=negated||procedural||/^(ciao|salve|hello|hi|grazie|thanks|hola|gracias|buongiorno|buonasera)\b/.test(t)||(!own&&/^(quali|dove|quando|what|how|where|when|como|donde)\b|\b(in generale|informazioni generali|general information|orari|opening hours)\b/.test(t))||/^(si|no|ok|va bene|yes|no thanks|perfetto|solo informazioni generali)[!.\s]*$/.test(t);
- return general?{personal:false,route:'public',reason:'general_question'}:{personal:true,route:'clarify',reason:'needs_clarification'};
+ return {personal:false,route:'public',reason:general?'general_question':'public_clarification'};
 }

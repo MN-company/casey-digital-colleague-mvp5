@@ -1,8 +1,8 @@
 import {answer} from '../_shared/definitivo-preview.ts';
 const BASE=Deno.env.get('SUPABASE_URL')||'';
-if(!BASE.includes('sneaxpqnmlhnrhoautjx'))throw Error('Preview only');
+if(!['https://sneaxpqnmlhnrhoautjx.supabase.co','https://oxzraaadxqsruibinlxn.supabase.co'].includes(BASE))throw Error('Unexpected project');
 const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default;
-const origins=new Set(['http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','https://casey-digital-colleague-live-1wog89efb-mnbrain.vercel.app']);
+const origins=new Set(['https://casey-digital-colleague-live.vercel.app','http://localhost:8000','http://127.0.0.1:8000','http://localhost:4173','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','https://casey-digital-colleague-live-1wog89efb-mnbrain.vercel.app']);
 const hash=async(s:string)=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s)))].map(x=>x.toString(16).padStart(2,'0')).join('');
 async function db(path:string,body?:unknown){const r=await fetch(BASE+'/rest/v1/'+path,{method:body?'POST':'GET',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json',Prefer:'return=representation'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(8000)});if(!r.ok)throw Error('Servizio non disponibile');return r.json();}
 Deno.serve(async req=>{
@@ -13,7 +13,7 @@ Deno.serve(async req=>{
  if(req.method!=='POST')return json({error:'Metodo non consentito'},405);
  try{
  const raw=await req.text();if(raw.length>15000)return json({error:'Richiesta troppo lunga'},413);const b=JSON.parse(raw);
- if(b.action==='public_config')return json({preview:true,knowledge:'original_pdf_demo_library',calendar_enabled:false});
+ if(b.action==='public_config')return json({preview:BASE.includes('sneaxpqnmlhnrhoautjx'),knowledge:'approved_demo_library',calendar_enabled:BASE.includes('oxzraaadxqsruibinlxn')});
  const ip=(req.headers.get('x-forwarded-for')||'unknown').split(',')[0];
  if(!await db('rpc/hf7_take_rate',{p_bucket:'definitivo-ui:'+await hash(ip),p_limit:45,p_window_seconds:60}))return json({error:'Riprova tra un minuto'},429);
  if(b.action==='session'){const token=crypto.randomUUID()+crypto.randomUUID();await db('hf6_sessions',{token_hash:await hash(token),expires_at:new Date(Date.now()+86400000).toISOString()});return json({token});}

@@ -2,7 +2,7 @@
 (() => {
  'use strict';
  const url=new URL(location.href);
- let mode=['casey','calendar'].includes(url.searchParams.get('view'))?url.searchParams.get('view'):'overview';
+ const vista=url.searchParams.get('vista');let mode=vista==='totem'?'casey':vista==='lim'?'calendar':['casey','calendar'].includes(url.searchParams.get('view'))?url.searchParams.get('view'):'overview';
  let hadFullscreen=false;
  const tools=document.createElement('nav');tools.className='presentation-tools';tools.setAttribute('aria-label','Controlli presentazione');
  tools.innerHTML='<button type="button" id="presentationFullscreen">Schermo intero</button><a href="index.html?view=calendar" target="casey-calendar" rel="noopener" id="presentationCalendar">Calendario</a><a href="settings.html" target="casey-settings" rel="noopener">Impostazioni</a>';

@@ -1,9 +1,9 @@
-# Casey 6.0 — Definitivo Preview
+# Casey 6.0
 
-New totem and College app frontend, integrated with authenticated conversations and single-use QR handoff in a separate Supabase Preview project.
+Pietro’s updated College and Campus frontends, with real authenticated chats, saved history and secure QR continuity. The chat separates conversation, document questions and personal operations before retrieval, and uses Gemini to write short answers with separate citations.
 
-Serve the static files over HTTP on port 8000; open index.html or app-blu.html. Document retrieval connects to the existing Supabase hybrid RAG; the simulated MVP ZIP retrieval engine and corpus are excluded. The original regulations ZIP is ingested separately into a readable source library.
+The frontend targets versioned production adapters: `casey-definitivo-ui`, `casey-definitivo-handoff`, and `casey-definitivo-live`. Secrets stay on Supabase. Gemini Live is attempted first for voice, with a speech/AI/speech fallback and one Stop control.
 
-See [integration, verification and outstanding work](docs/CASEY_6_DEFINITIVO_PREVIEW.md). This branch uses Preview configuration: do not merge or promote it directly to production.
+The library uses the original user-approved regulations archive: 22 PDFs and 777 source cards. Source contents and demo passwords are private and are not shipped with the static frontend. Legacy booking authorization, explicit confirmation and Google availability checks remain enforced on the backend.
 
-Production remains on main. Calendar/email writes are disabled here. Dashboard and Campus shell remain demonstrations. Gemini generation is currently blocked by the configured provider project's depleted prepaid credits. The original regulations library now has 22 PDFs, 262 pages and 777 structured cards, approved by the user for this demo. Source files and credentials remain private; the two QA fixtures remain excluded candidates.
+See [release details and validation](docs/CASEY_6_RELEASE_20261025.md). Office/Campus shell records remain visual demonstrations; actual chat, document search, authentication and protected appointment operations use the backend.

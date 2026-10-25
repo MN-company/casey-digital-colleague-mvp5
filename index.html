@@ -18,7 +18,7 @@ body{font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvet
  background:var(--navy-x);color:var(--ink);font-size:15px;line-height:1.45;-webkit-font-smoothing:antialiased}
 button,input{font:inherit;color:inherit}
 button{cursor:pointer;border:0;background:none}
-.wrap{max-width:1600px;margin:0 auto;padding:0 20px 28px}
+.wrap{max-width:1600px;margin:0 auto;padding:20px;min-height:calc(100vh - 78px);display:flex;flex-direction:column;justify-content:center}
 
 /* ---------------- barra ---------------- */
 .top{background:var(--navy);color:#fff}
@@ -49,7 +49,7 @@ button{cursor:pointer;border:0;background:none}
 .kpi .v{font-size:19px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums}
 .kpi .l{font-size:11.4px;color:#A9B6D8;margin-top:1px}
 
-.grid{display:grid;grid-template-columns:392px 1fr;gap:20px;align-items:start}
+.grid{display:grid;grid-template-columns:392px 1fr;gap:20px;align-items:center}
 @media(max-width:1200px){.grid{grid-template-columns:1fr}}
 
 /* ---------------- totem fisico ---------------- */
@@ -268,7 +268,7 @@ body.show .exit{display:block}
     <section class="kiosk" aria-label="Totem all'ingresso">
       <div class="bezel">
         <div class="screen">
-          <img class="av" id="avatar" src="casey-avatar.png" alt="Casey">
+          <img class="av" id="avatar" src="Casey - H-FARM College/casey-avatar.png" alt="Casey">
           <video id="vA" class="hide" playsinline muted autoplay></video>
           <video id="vB" class="hide" playsinline muted autoplay></video>
           <div class="scrtop">
@@ -598,23 +598,20 @@ function stopMic(){
 }
 
 /* ---------------- video ---------------- */
-const VID={idle:['A.mp4','B.mp4'],talk:['C.mp4','A.mp4'],think:['E.mp4','A.mp4'],
-           point:['D.mp4','B.mp4','A.mp4'],hand:['F.mp4','D.mp4','A.mp4']};
-let liveV='vA';
+const CASEY={COLLEGE:'Casey - H-FARM College/',FARM:'Casey - H-FARM/'};
+function caseyDir(){return CASEY[S]||CASEY.COLLEGE;}
+const VID={idle:['A.mp4','B.mp4'],talk:['C.mp4','A.mp4'],think:['E.mp4','A.mp4'],point:['D.mp4','B.mp4','A.mp4'],hand:['F.mp4','D.mp4','A.mp4']};
+let liveV='vA',videoState='',videoRevision=0;
 function playState(st){
-  const c=VID[st]||VID.idle;
-  const cur=document.getElementById(liveV), nxt=document.getElementById(liveV==='vA'?'vB':'vA');
-  let i=0;
-  const go=()=>{
-    if(i>=c.length)return;
-    const f=c[i++];
-    nxt.onloadeddata=()=>{nxt.classList.remove('hide');cur.classList.add('hide');
-      document.getElementById('avatar').style.opacity=0;
-      liveV=(liveV==='vA'?'vB':'vA');nxt.play().catch(()=>{});};
-    nxt.onerror=go; nxt.loop=(st==='idle'||st==='think'); nxt.src=f; nxt.load();
-  };
-  go();
+ const signature=S+':'+st;if(signature===videoState)return;videoState=signature;
+ const revision=++videoRevision,c=VID[st]||VID.idle;
+ const cur=document.getElementById(liveV),nxt=document.getElementById(liveV==='vA'?'vB':'vA');let i=0;
+ const restore=()=>{if(revision!==videoRevision)return;document.getElementById('avatar').style.opacity=1;cur.classList.add('hide');nxt.classList.add('hide');};
+ const go=()=>{if(revision!==videoRevision)return;if(i>=c.length){restore();return;}const f=caseyDir()+c[i++];
+ nxt.onloadeddata=()=>{if(revision!==videoRevision)return;nxt.classList.remove('hide');cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;nxt.play().catch(restore);};
+ nxt.onerror=go;nxt.loop=(st==='idle'||st==='think');nxt.src=f;nxt.load();};go();
 }
+
 function setState(st,label,cls){
   document.getElementById('state').textContent=label;
   const d=document.getElementById('dot');
@@ -1037,7 +1034,7 @@ function renderAll(){renderTabs();renderCal();renderMail();renderQueue();renderO
 
 function setScenario(s){
   S=s;document.body.classList.toggle('farm',s==='FARM');
-  syncLogo();
+  videoState="";syncLogo();
   document.getElementById('sc-COLLEGE').setAttribute('aria-selected',s==='COLLEGE');
   document.getElementById('sc-FARM').setAttribute('aria-selected',s==='FARM');
   loadScenario();
@@ -1046,6 +1043,7 @@ function setScenario(s){
    College -> H-FARM College, Farm -> H-FARM */
 function syncLogo(){
   var f=(S==='FARM'), src=f?'hfarm-logo.png':'hfarm-college-logo.png', alt=f?'H-FARM':'H-FARM College';
+  const av=document.getElementById('avatar');av.src=caseyDir()+'casey-avatar.png';av.style.opacity=1;['vA','vB'].forEach(id=>{const v=document.getElementById(id);v.pause();v.classList.add('hide');});
   ['brandLogo','scrLogo'].forEach(function(id){
     var e=document.getElementById(id);
     if(e){e.setAttribute('src',src);e.setAttribute('alt',alt);}
@@ -1088,7 +1086,7 @@ function loadScenario(){
   document.getElementById('ctxLine').textContent=D.ctx;
   const al=document.getElementById('appLink');
   if(al){ al.href=appFile(); al.textContent = S==='FARM' ? "Apri l'app Campus" : "Apri l'app College"; }
-  offCount=D.offices.map(o=>o[2]);
+  offCount=D.offices.map(()=>0);
   const C=[{d:21,t:'10:00',title:D.apptTitle,k:'appt',id:'appt'},{d:21,t:'11:00',title:'Colloquio',k:''},
     {d:21,t:'14:00',title:'Riunione interna',k:''},{d:21,t:'15:00',title:'Allineamento',k:''},
     {d:22,t:'10:00',title:'Sessione',k:''},{d:22,t:'15:00',title:'Sportello',k:''},
@@ -1128,5 +1126,5 @@ function loadScenario(){
 document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
 </script>
 <script src="qr.js"></script>
-<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script></body>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script></body>
 </html>

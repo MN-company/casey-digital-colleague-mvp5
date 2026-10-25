@@ -20,12 +20,13 @@
  // The back-office dashboard remains an explicitly labelled visual demonstration.
  const banner=document.createElement('div');banner.className='definitivo-notice';banner.textContent='Preview · chat e trasferimento collegati · dashboard ufficio dimostrativa · nessun invio o prenotazione reale';document.querySelector('header').after(banner);
  async function handover(){
+  await window.CaseyVoiceSession?.stop();
   const rev=revision;await clearLink();if(rev!==revision)return;
   const card=document.getElementById('qrCard');card.classList.remove('expired');card.classList.add('on');document.getElementById('qrMeta').textContent=t().thinking;
   try{
    const r=await A.call('issue',{context:messages.snapshot()});
    if(rev!==revision){await A.call('cancel',{id:r.id}).catch(()=>{});return;}
-   link=r.id;const url=new URL('app-blu.html?casey=1',location.href);url.hash='handoff='+r.token;phoneUrl=url.href;
+   link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',location.href);url.hash='handoff='+r.token;phoneUrl=url.href;
    const code=qrcode(0,'M');code.addData(url.href);code.make();const n=code.getModuleCount(),svg=document.getElementById('qrCode');svg.setAttribute('viewBox','-4 -4 '+(n+8)+' '+(n+8));let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(code.isDark(y,x))path+='M'+x+' '+y+'h1v1h-1z';svg.innerHTML='<rect x="-4" y="-4" width="'+(n+8)+'" height="'+(n+8)+'" fill="white"/><path d="'+path+'" fill="#101828" shape-rendering="crispEdges"/>';
 
    document.getElementById('qrTitle').textContent='Casey · College';document.getElementById('qrSub').textContent=t().transfer;
@@ -41,12 +42,11 @@
   const input=document.getElementById('q'),value=String(custom||input.value||'').trim().slice(0,1000);if(!value||busy)return;
   input.value='';busy=true;const rev=revision;shutUp();
   try{
-   if(S==='FARM'){say(t().scope);return;}
    messages.append('user',value);setState('think',t().thinking,'think');
    const route=await A.call('classify',{message:value});if(rev!==revision)return;
    if(route.route!=='public'){await handover();return;}
    await session();const history=messages.snapshot().slice(0,-1);const r=await call('turn',{message:value,history,language:CaseyLanguage.get()});if(rev!==revision)return;
-   messages.append('assistant',r.answer);say(r.answer,r.citations?.map(x=>x.title).join(' · ')||null,r.source_status==='candidate'?'nc':'tra',r.source_status==='candidate'?t().candidate:t().verified,'point');status(t().ready);
+   messages.append('assistant',r.answer);say(r.answer,r.citations?.map(x=>x.title+(x.page?' · p. '+x.page:'')).join(' · ')||null,r.source_status==='candidate'?'nc':'tra',r.source_status==='candidate'?t().candidate:t().verified,'point');status(t().ready);return r.answer;
   }catch(e){if(rev===revision){say(e.message||t().error);status(t().error);}}
   finally{busy=false;}
  };
@@ -56,5 +56,6 @@
  const scenario=window.setScenario;window.setScenario=s=>{revision++;messages.clear();engine='';void clearLink();scenario(s);};
  window.addEventListener('casey:language',()=>{revision++;shutUp();document.getElementById('q').placeholder=t().placeholder;status(t().ready);say(t().welcome);});
  // Back-office action controls are demonstrations; label them persistently.
+ window.CaseyBridge={liveMobileHandoff:handover,liveSearchKnowledge:async query=>{await session();const r=await call('turn',{message:query,history:[],language:CaseyLanguage.get()});return {verified:!!r.citations?.length,matches:r.citations?.map(x=>({title:x.title,excerpt:r.answer}))||[]};}};
  status(t().ready);document.getElementById('q').placeholder=t().placeholder;
 })();

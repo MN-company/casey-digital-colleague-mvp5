@@ -1,11 +1,2 @@
-// Dedicated Preview project. Production connections and records are never used here.
-window.CASEY_CONFIG=Object.freeze({
- supabaseUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co',
- publishableKey:'sb_publishable_ihmctxeXcVW3N_kMHo0Myg_Em5AIqVa',
- apiUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co/functions/v1/casey-definitivo-ui',
- settingsApiUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co/functions/v1/casey-handoff-ui',
- handoffUrl:'https://sneaxpqnmlhnrhoautjx.supabase.co/functions/v1/casey-definitivo-handoff',
- liveTokenUrl:'',liveEnabled:false,
- sessionStorageKey:'casey-definitivo-kiosk-session',authStorageKey:'casey-handoff-v2-phone-auth',
- timezone:'Europe/Rome',organization:'H-FARM College',environment:'preview'
-});
+// Casey 6 production adapters. Credentials remain server-side.
+window.CASEY_CONFIG=Object.freeze({supabaseUrl:'https://oxzraaadxqsruibinlxn.supabase.co',publishableKey:'sb_publishable_bqoLyLZhYPQRDK8gl9lKiA_fKur8z6r',apiUrl:'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-definitivo-ui',settingsApiUrl:'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-original-ui',handoffUrl:'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-definitivo-handoff',liveTokenUrl:'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-definitivo-live',liveEnabled:true,sessionStorageKey:'casey-definitivo-kiosk-session',authStorageKey:'casey-handoff-v2-phone-auth',timezone:'Europe/Rome',organization:'H-FARM College',environment:'production'});

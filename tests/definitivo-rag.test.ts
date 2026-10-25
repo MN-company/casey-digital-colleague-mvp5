@@ -44,3 +44,13 @@ Deno.test('Anonymous answers exclude shared rows scoped to a single university',
  const original=globalThis.fetch;globalThis.fetch=async()=>Response.json([{...fixture,explicit_applicability:['CICC']}]);
  try{assertEquals(await retrieve('test policy',new Request('https://example.invalid')),null);}finally{globalThis.fetch=original;}
 });
+const {answer}=await import('../supabase/functions/_shared/definitivo-preview.ts');
+Deno.test('Come stai never touches a document or profile database',async()=>{
+ const original=globalThis.fetch;let dbCalls=0;globalThis.fetch=async input=>{if(String(input).includes('/rest/')||String(input).includes('/auth/'))dbCalls++;throw Error('Network unavailable');};
+ try{const d=await answer([{role:'user',text:'Come stai?'}],new Request('https://example.invalid'));assertEquals(d.pool,'conversazione');assertEquals(d.citations.length,0);assertEquals(dbCalls,0);assertEquals(d.answer.split(/\s+/).length<40,true);}finally{globalThis.fetch=original;}
+});
+Deno.test('A sourced policy answer is synthesized by AI, never the raw excerpt',async()=>{
+ const original=globalThis.fetch;Deno.env.set('GEMINI_API_KEY','test-only');let modelCalls=0;
+ globalThis.fetch=async input=>{if(String(input).includes('generativelanguage.googleapis.com')){modelCalls++;return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({answer:'Risposta breve basata sulla fonte.',supported:true,source_ids:[fixture.chunk_id]})}]}}]});}return Response.json([fixture]);};
+ try{const d=await answer([{role:'user',text:'Quale regolamento si applica al campus?'}],new Request('https://example.invalid'));assertEquals(d.mode,'llm');assertEquals(d.answer,'Risposta breve basata sulla fonte.');assertEquals(d.citations[0].id,fixture.chunk_id);assertEquals(modelCalls,1);}finally{globalThis.fetch=original;Deno.env.set('GEMINI_API_KEY','');}
+});
