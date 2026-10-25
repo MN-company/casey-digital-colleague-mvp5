@@ -950,19 +950,9 @@ function renderTabs(){
   ['CAL','MAIL','QUEUE','ROUTE','CHECK','FEED'].forEach(v=>document.getElementById('v-'+v).classList.toggle('on',v===TAB));
 }
 function renderCal(){
-  const isO=VIEW==='OFFICE', ev=isO?calOffice:calPerson;
-  document.getElementById('calTitle').textContent=isO?D.calTitle:'Il mio calendario — ottobre 2026';
-  document.getElementById('calSub').textContent=isO?D.calSub:'Casey non ci scrive dentro senza una conferma esplicita.';
-  const free=isO&&!moved?freeSlots():[];
-  let h=DAYNAMES.map(d=>'<div class="dn">'+d+'</div>').join('');
-  for(let i=0;i<PAD;i++)h+='<div class="day pad"></div>';
-  for(let d=1;d<=31;d++){
-    const mine=ev.filter(e=>e.d===d).sort((a,b)=>a.t.localeCompare(b.t)), fr=free.filter(f=>f.d===d);
-    h+='<div class="day'+(d===TODAY?' today':'')+'"><div class="n"><span>'+d+'</span>'+(d===TODAY?'<em>OGGI</em>':'')+'</div>'+
-      mine.map(e=>'<div class="ev '+(e.k||'')+'">'+esc(e.t+' '+e.title)+'</div>').join('')+
-      fr.map(f=>'<div class="ev free">'+esc(f.t)+' libero</div>').join('')+'</div>';
-  }
-  document.getElementById('cal').innerHTML=h;
+ document.getElementById('calTitle').textContent='Student Office';
+ document.getElementById('calSub').textContent='';
+ document.getElementById('cal').replaceChildren();
 }
 function renderMail(){
   const l=VIEW==='OFFICE'?mailOffice:mailPerson;
