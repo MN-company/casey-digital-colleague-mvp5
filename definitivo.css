@@ -23,3 +23,14 @@ body.calendar-only .ev{font-size:clamp(10px,.85vw,13px);padding:4px 6px}
 body.calendar-only .grid{align-items:stretch}
 body.calendar-only .wrap{justify-content:flex-start}
 body.calendar-only .tabs,body.calendar-only .top .language-control,body.calendar-only #bePill,body.calendar-only #appLink,body.calendar-only .top .ic{display:none}
+/* Dedicated agenda has one viewport-sized layout and no nested scroll areas. */
+body.calendar-only .wrap{height:0;min-height:0;flex:1 1 0;margin:0;width:100%;max-width:none}
+body.calendar-only .grid{height:100%;flex:1 1 0;min-height:0;gap:0}
+body.calendar-only .panel{height:100%;min-height:0;overflow:hidden}
+body.calendar-only #v-CAL.on{flex:1 1 0;min-height:0;overflow:hidden}
+body.calendar-only .cal{min-height:0;overflow:hidden;grid-template-rows:20px repeat(var(--calendar-weeks,5),minmax(0,1fr))}
+body.calendar-only .day{overflow:hidden;min-height:0;min-width:0}
+body.calendar-only .vh{margin-bottom:8px}
+body.calendar-only .day .n{margin-bottom:2px}
+body.calendar-only .ev{margin-bottom:2px;padding:2px 4px}
+@media(max-height:600px){body.calendar-only .wrap{padding:6px}body.calendar-only #v-CAL.on{padding:8px}body.calendar-only .vh{margin-bottom:5px}body.calendar-only .day{padding:3px}body.calendar-only .ev{font-size:10px}}
