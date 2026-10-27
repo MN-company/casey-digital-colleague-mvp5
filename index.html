@@ -610,7 +610,7 @@ function playState(st){
  const cur=document.getElementById(liveV),nxt=document.getElementById(liveV==='vA'?'vB':'vA');let i=0;
  const restore=()=>{if(revision!==videoRevision)return;document.getElementById('avatar').style.opacity=1;cur.classList.add('hide');nxt.classList.add('hide');};
  const go=()=>{if(revision!==videoRevision)return;if(i>=c.length){restore();return;}const f=caseyDir()+c[i++];
- nxt.onloadeddata=()=>{if(revision!==videoRevision)return;nxt.classList.remove('hide');cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;nxt.play().catch(restore);};
+ nxt.onloadeddata=()=>{if(revision!==videoRevision)return;nxt.classList.remove('hide');cur.pause?.();cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;nxt.play().catch(restore);};
  nxt.onerror=go;nxt.onended=()=>{if(revision===videoRevision&&!nxt.loop)playState('idle');};nxt.loop=(st==='idle'||st==='think'||st==='talk');nxt.muted=true;nxt.src=f;nxt.load();};go();
 }
 

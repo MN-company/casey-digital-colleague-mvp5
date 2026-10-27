@@ -16,7 +16,7 @@
  function stopPoll(){clearInterval(poll);clearTimeout(expiry);poll=expiry=null;}
  async function clearLink(){stopPoll();const old=link;link=null;phoneUrl='';if(old){await A.call('cancel',{id:old}).catch(()=>{});}document.getElementById('qrCard').classList.remove('on');}
  const visualSay=window.say;
- window.say=(value,source,kind,label,end)=>{const live=window.CaseyLive?.active,previous=muted;if(live)muted=true;try{visualSay(value,source,kind,label,end);}finally{muted=previous;}clearInterval(capTimer);document.getElementById('capText').textContent=value;};
+ window.say=(value,source,kind,label,end)=>{if(window.CaseyLive?.active){showSilent(value,source);return;}visualSay(value,source,kind,label,end);clearInterval(capTimer);document.getElementById('capText').textContent=value;};
  async function handover(){
   // Showing a QR is a visual tool result, not a voice-session teardown.
   const rev=revision;await clearLink();if(rev!==revision)return;
