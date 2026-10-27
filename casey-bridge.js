@@ -6,7 +6,8 @@
 (() => {
  'use strict';
  const API=window.CASEY_CONFIG.apiUrl;
- const TZ='Europe/Rome';
+ const TZ='Europe/Rome';let identityGeneration=0,calendarGeneration=0,requestGeneration=0,profileGeneration=0;
+ const identityStamp=()=>[currentPerspective,authToken(),adminToken(),state.month].join('|');
  const $=id=>document.getElementById(id);
  const state={session:null,student:window.CaseyAuth.get(),profile:null,month:new Date().getUTCFullYear()+'-'+String(new Date().getUTCMonth()+1).padStart(2,'0'),
   officeSlots:[],events:[],bookings:[],calendarStatus:'',googleConnected:false,studentGoogleConnected:false,
@@ -18,7 +19,7 @@
  // Shared-public-terminal protection: sign out authenticated students and staff after inactivity.
  const KIOSK_IDLE_MS=180000;
  let kioskIdleTimer=null;
- async function expireKioskIdentity(){
+ async function expireKioskIdentity(){identityGeneration++;
    const hadPrivate=!!window.CaseyAuth.get()||!!sessionStorage.getItem('casey-v3-admin');
    if(!hadPrivate)return;
    window.CaseyAuth.clear();
@@ -145,21 +146,22 @@
   }
  }
  async function refreshCalendar(){
+  const revision=++calendarGeneration,identity=identityGeneration,stamp=identityStamp();const current=()=>revision===calendarGeneration&&identity===identityGeneration&&stamp===identityStamp();
   state.events=[];state.bookings=[];state.officeSlots=[];state.googleConnected=false;state.studentGoogleConnected=false;
   notice('Caricamento calendario e disponibilità in corso…');calendarEvents();
   const month=isoMonth();
   try{
-   const availability=await api('availability_month',{month});state.officeSlots=availability.slots||[];state.googleConnected=!!availability.connected;
+   const availability=await api('availability_month',{month});if(!current())return;state.officeSlots=availability.slots||[];state.googleConnected=!!availability.connected;
    if(currentPerspective==='OFFICE'){
     if(adminToken()){
-     const r=await api('admin_live_calendar',{month},{admin:true});state.events=r.events||[];
+     const r=await api('admin_live_calendar',{month},{admin:true});if(!current())return;state.events=r.events||[];
      notice(r.connected?`Student Office: Google Calendar collegato. ${state.events.length} eventi nel mese, ${state.officeSlots.length} slot prenotabili.`:r.reason||'Collega Google Calendar dalle Impostazioni.');
     }else notice('Vista Student Office riservata: entra nelle Impostazioni e collega un account staff autorizzato. Nessun evento privato mostrato.');
    }else if(authToken()){
-    const r=await api('student_live_calendar',{month});state.events=r.events||[];state.bookings=r.bookings||[];state.studentGoogleConnected=!!r.google_connected;
+    const r=await api('student_live_calendar',{month});if(!current())return;state.events=r.events||[];state.bookings=r.bookings||[];state.studentGoogleConnected=!!r.google_connected;
     notice(r.google_connected?`Calendario Google ${r.google_email}: ${state.events.length} eventi. ${state.bookings.length} prenotazioni Casey.`:`Il tuo Google Calendar non è collegato. ${state.bookings.length} prenotazioni Casey; per vedere il resto collega il tuo account Google.`);
    }else notice('Per visualizzare il tuo Google Calendar accedi con email verificata. La disponibilità pubblica dipende dal calendario Student Office.');
-  }catch(e){notice('Calendario non disponibile: '+errorMessage(e));}
+  }catch(e){if(!current())return;notice('Calendario non disponibile: '+errorMessage(e));}
   calendarEvents();
  }
  function requestReader(){
@@ -179,13 +181,12 @@
   else{const content=document.createElement('p');content.className='text-xs text-slate-800 mt-2 whitespace-pre-wrap';content.textContent=r.staff_reply||'Lo Student Office non ha ancora risposto.';reader.append(content);}
  }
  async function refreshRequests(){
+  const revision=++requestGeneration,identity=identityGeneration,stamp=identityStamp();const current=()=>revision===requestGeneration&&identity===identityGeneration&&stamp===identityStamp();
   state.requests=[];state.requestIndex=0;
-  try{if(currentPerspective==='OFFICE'&&adminToken())state.requests=(await api('admin_requests',{}, {admin:true})).requests||[];
-   else if(currentPerspective==='STUDENT'&&authToken())state.requests=(await api('student_requests')).requests||[];
-  }catch(e){state.requests=[];}
-  requestReader();
-  const dot=$('officeAlertDot');if(dot)dot.classList.toggle('hidden',currentPerspective!=='OFFICE'||!state.requests.some(r=>r.status==='open'));
+  try{let result={requests:[]};if(currentPerspective==='OFFICE'&&adminToken())result=await api('admin_requests',{}, {admin:true});else if(currentPerspective==='STUDENT'&&authToken())result=await api('student_requests');if(!current())return;state.requests=result.requests||[];}catch(e){if(!current())return;state.requests=[];}
+  requestReader();const dot=$('officeAlertDot');if(dot)dot.classList.toggle('hidden',currentPerspective!=='OFFICE'||!state.requests.some(r=>r.status==='open'));
  }
+
  function renderAll(){
   if(currentTab==='QUEUE')currentTab='GMAIL';old.render();
   quickPrompts();cleanTabs();accountUi();calendarEvents();requestReader();
@@ -209,10 +210,11 @@
  }
  function hideLogin(){$('caseyAuthOverlay').hidden=true;}
  async function refreshProfile(){
+  const revision=++profileGeneration,identity=identityGeneration,stamp=identityStamp();const current=()=>revision===profileGeneration&&identity===identityGeneration&&stamp===identityStamp();
   state.student=window.CaseyAuth.get();if(!state.student){state.profile={authenticated:false,registered:false};accountUi();return;}
-  try{state.profile=(await api('auth_profile')).profile;}catch{state.profile={authenticated:false,registered:false};}
-  accountUi();
+  try{const result=await api('auth_profile');if(!current())return;state.profile=result.profile;}catch{if(!current())return;state.profile={authenticated:false,registered:false};}accountUi();
  }
+
  async function prepareBooking(slot){
   if(state.processing)return;
   if(!profileReady()){caption('Per prenotare devi prima verificare l’email ed essere presente nel registro studenti autorizzato. Apri Account studente.',null,'F');showLogin();return;}
@@ -330,7 +332,7 @@
  }
  function goToday(){state.month=dateRome(new Date().toISOString()).slice(0,7);refreshCalendar();}
  function shiftMonth(offset){const [y,m]=state.month.split('-').map(Number);const date=new Date(Date.UTC(y,m-1+offset,1));state.month=date.toISOString().slice(0,7);refreshCalendar();}
- async function logout(){window.CaseyDialogue?.clear();try{await window.CaseyLive?.stop?.('Account disconnesso');}catch{}window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
+ async function logout(){identityGeneration++;window.CaseyDialogue?.clear();try{await window.CaseyLive?.stop?.('Account disconnesso');}catch{}window.CaseyAuth.clear();state.student=null;state.profile={authenticated:false,registered:false};state.requests=[];state.bookings=[];hideLogin();accountUi();await refreshCalendar();await refreshRequests();}
  async function init(){
   await window.CaseyHandoff?.ready;
   startKioskIdle();

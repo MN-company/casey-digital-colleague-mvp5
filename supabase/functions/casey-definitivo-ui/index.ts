@@ -1,3 +1,4 @@
+import {withPaidText} from '../_shared/paid-capacity.ts';
 import {answer,lookupKnowledge} from '../_shared/definitivo-preview.ts';
 const BASE=Deno.env.get('SUPABASE_URL')||'';
 if(!['https://sneaxpqnmlhnrhoautjx.supabase.co','https://oxzraaadxqsruibinlxn.supabase.co'].includes(BASE))throw Error('Unexpected project');
@@ -24,14 +25,14 @@ Deno.serve(async req=>{
  const query=String(b.query||'').trim();if(query.length<2||query.length>360)return json({error:'Domanda non valida'},400);
  const history=(Array.isArray(b.history)?b.history:[]).filter((t:any)=>['user','assistant'].includes(t?.role)&&typeof t.text==='string').slice(-10);
  // Public topic selection is not identity. Do not forward client student tokens.
- return json(await lookupKnowledge(query,new Request(req.url),history,b.language||'it-IT'));
+ return json(await withPaidText('session:'+token,()=>lookupKnowledge(query,new Request(req.url),history,b.language||'it-IT')));
  }
  if(b.action==='turn'){
  const message=String(b.message||'').trim();if(!message||message.length>1000)return json({error:'Messaggio non valido'},400);
  // Kiosk never forwards a student token. Scope remains SHARED.
  const publicReq=new Request(req.url);
  const history=(Array.isArray(b.history)?b.history:[]).filter((t:any)=>['user','assistant'].includes(t?.role)&&typeof t.text==='string').slice(-8);
- return json(await answer([...history,{role:'user',text:message}],publicReq,b.language));
+ return json(await withPaidText('session:'+token,()=>answer([...history,{role:'user',text:message}],publicReq,b.language)));
  }
  return json({error:'Azione disabilitata in Preview'},403);
  }catch(e){return json({error:(e as Error).message||'Servizio non disponibile'},(e as any).status||500);}

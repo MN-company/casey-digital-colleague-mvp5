@@ -415,7 +415,7 @@ body{--brand:var(--college);--navy:#1D2A5B;--navy2:#2B3A74;--tint:#EEF1F8;--tint
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"></head>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"></head>
 <body>
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-college-logo.png" alt="H-FARM College"><div class="spin"></div></div>
@@ -1313,6 +1313,7 @@ function focusInput() { if (TOUCH) return; const i = $('#cInput'); if (i) try { 
 async function userSays(text) {
   text = String(text || '').trim();
   if (!text || C.busy) return;
+  if(window.CaseyLive?.active){window.CaseyLive.sendText(text);return;}
   C.busy = true;
   let chat = curChat();
   if (!chat) {
@@ -1379,8 +1380,8 @@ const ACT = {
   info(k) { infoSheet(k); },
   row(t) { toast(`“${t}”: nel prototipo questa voce dell’app non si apre`); },
   toast(t) { toast(t); },
-  fab() { go('CASEY'); openCaseyView(true); focusInput(); },
-  ask(q) { bsClose(); go('CASEY'); C.cur = null; renderCasey(); return userSays(q); },
+  fab() { go('CASEY'); openCaseyView(false); focusInput(); },
+  ask(q) { bsClose(); go('CASEY'); renderCasey(); return userSays(q); },
   'new-chat'() { STT.cancel(); C.cur = null; renderCasey('top'); focusInput(); },
   open(id) { if (!C.chats.some((c) => c.id === id)) return; STT.cancel(); C.cur = id; renderCasey('bottom'); },
   hist() { C.hist = !C.hist; setHistUi(); },
@@ -1412,16 +1413,19 @@ function init() {
   $('#sbIcons').innerHTML = statusIcons();
   $('#avBtn').textContent = U.ini; $('#avBtn').setAttribute('aria-label', 'Profilo di ' + U.name);
   tick(); setInterval(tick, 10000);
-  C.chats = loadChats() || []; saveChats();
+  C.chats = []; saveChats();
   if (window.innerWidth < 340) C.hist = false;
   go('HOME');
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#bsheet').classList.contains('open')) bsClose(); });
   setTimeout(() => { const s = $('#splash'); if (s) s.classList.add('go'); }, 900);
-  window.__casey = { T, C, ACT, answer, classify, now, go, userSays };
+  function restoreConversation(context, id) {const t=Date.now();C.chats=context.length?[{id:id||'cloud',title:context.find(m=>m.role==='user')?.text.slice(0,44)||'Conversazione',created:t,updated:t,msgs:context.map(m=>mkMsg(m.role==='user'?'me':'casey',{text:String(m.text||'')},new Date()))}]:[];C.cur=C.chats[0]?.id||null;if(C.built)renderCasey('bottom');}
+  function appendVoiceTurn(role,text){if(!text)return;let chat=curChat();if(!chat){const t=Date.now();chat={id:uid('c'),title:String(text).slice(0,44),created:t,updated:t,msgs:[]};C.chats=[chat];C.cur=chat.id;}const from=role==='user'?'me':'casey';chat.msgs.push(mkMsg(from,{text},new Date()));chat.updated=Date.now();if(C.built)renderCasey('bottom');}
+  function clearConversations(){C.chats=[];C.cur=null;localStorage.removeItem(KEY);if(C.built)renderCasey('top');}
+  window.__casey = { T, C, ACT, answer, classify, now, go, userSays, restoreConversation, appendVoiceTurn, clearConversations };
 }
 init();
 
 </script>
-<script src="app-auth-shell.js"></script></body>
+<script src="app-auth-shell.js"></script><script src="student-access.js"></script></body>
 </html>

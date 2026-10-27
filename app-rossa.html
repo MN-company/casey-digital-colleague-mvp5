@@ -446,7 +446,7 @@ body{--brand:var(--red)}
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"></head>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"></head>
 <body>
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-logo.png" alt="H-FARM"><div class="spin"></div></div>
@@ -1151,6 +1151,7 @@ async function casey(m, o = {}) {
 const quietly = (p) => { if (p && p.catch) p.catch((e) => console.error(e)); return p; };
 function userSays(text) {
   if (!text || !text.trim() || S.busy) return;
+  if(window.CaseyLive?.active)return window.CaseyLive.sendText(text);
   S.busy = true;
   if (S.screen !== 'casey') { openCasey('chip', true); S.opened = true; }
   if (S.tab !== 'chat') { S.tab = 'chat'; renderCasey(); }
@@ -1716,10 +1717,10 @@ function init() {
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if ($('#bsheet').classList.contains('open')) bsClose(); else if (S.menuOpen) closeMenu(); else if (S.screen === 'place') closePlace(); });
   setTimeout(() => { const s = $('#splash'); if (s) s.classList.add('go'); }, 900);
-  window.__casey = { S, ACT, route, userSays, classify, now, AV };
+  window.__casey = { S, ACT, route, userSays, classify, now, AV, restoreConversation(context){S.thread=context.map(t=>({from:t.role==='user'?'me':'casey',text:String(t.text||''),id:'m'+(++MID),t:hhmm()}));if(S.screen==='casey')renderCasey();},appendVoiceTurn(role,text){pushMsg({from:role==='user'?'me':'casey',text});},clearConversations(){S.thread=[];if(S.screen==='casey')renderCasey();} };
 }
 init();
 
 </script>
-<script src="app-auth-shell.js"></script></body>
+<script src="app-auth-shell.js"></script><script src="student-access.js"></script></body>
 </html>

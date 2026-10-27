@@ -3,7 +3,8 @@ on:
   pull_request:
     branches: [main, feature/casey-live-5-2]
   push:
-    branches: [feature/casey-6-gemini-tools, feature/casey-6-handoff]
+    branches: [feature/casey-6-gemini-tools, feature/casey-6-handoff, "fix/**"]
+  workflow_dispatch:
 permissions:
   contents: read
 jobs:
@@ -19,7 +20,7 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno check supabase/functions/casey-handoff/index.ts supabase/functions/casey-handoff-live/index.ts supabase/functions/casey-beta/index.ts supabase/functions/casey-beta-live/index.ts
-      - run: deno test --allow-env tests/handoff-operations.test.ts tests/definitivo-rag.test.ts tests/semantic-rag.test.ts tests/beta-mail.test.ts tests/beta-live.test.ts
+      - run: deno test --allow-env tests/handoff-operations.test.ts tests/definitivo-rag.test.ts tests/semantic-rag.test.ts tests/beta-mail.test.ts tests/beta-live.test.ts tests/paid-capacity.test.ts
       - run: git diff --check
   handbook-import-safety:
     runs-on: ubuntu-latest

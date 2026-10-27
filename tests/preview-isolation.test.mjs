@@ -5,7 +5,7 @@ import {readFileSync} from 'node:fs';
 const source=readFileSync(new URL('../supabase/functions/casey6-original-ui/index.js',import.meta.url),'utf8');
 function backend(env={}){
  let handle;const calls=[];
- const context=vm.createContext({Request,Response,URL,URLSearchParams,TextEncoder,TextDecoder,crypto,AbortSignal,console,Intl,Date,
+ const context=vm.createContext({withPaidText:async(_s,f)=>f(),Request,Response,URL,URLSearchParams,TextEncoder,TextDecoder,crypto,AbortSignal,console,Intl,Date,
  Deno:{env:{get:k=>({SUPABASE_URL:'https://test.supabase.co',SUPABASE_SERVICE_ROLE_KEY:'test-service',GEMINI_API_KEY:'test-gemini',...env})[k]},serve:f=>handle=f},
  fetch:async(url,options={})=>{calls.push({url,options});
  if(url.includes('dc_take_rate'))return Response.json(true);
@@ -14,7 +14,7 @@ function backend(env={}){
  if(url.includes('dc_v4_documents?'))return Response.json([]);
  return Response.json([]);
  }});
- vm.runInContext(source,context);return {handle,calls,context};
+ vm.runInContext(source.replace(/^import .*;$/gm,''),context);return {handle,calls,context};
 }
 const origin='http://localhost:4173';
 const request=(action,headers={})=>new Request('https://test.supabase.co/functions/v1/casey6-original-ui',{method:'POST',headers:{origin,'content-type':'application/json',...headers},body:JSON.stringify({action})});
