@@ -27,3 +27,5 @@ The agenda reads real selected-calendar events. No invented timetable is substit
 ## Validation
 
 Positive and negative tests cover name parsing, invalid name markup, row ownership, attempts to set registration flags, guest denial, same-office calendar blocking, independent own-calendar success, allowed OAuth return paths, shared-session reuse, logout races and both native presentation shells. Preview canaries verify real GoTrue identity, persistent profile, private/empty calendar separation and a real name-based greeting without a model call. Final production run and manual Google-consent boundaries are documented in the release report.
+
+The embedded College empty-chat greeting, authenticated greeting replies and mobile Live instructions also use the verified display name. Imported non-empty conversations continue without an unsolicited restart. The account dialog recognizes an existing shared session and hides the OTP forms rather than asking for a second login. Explicit account/calendar controls are available from the original blue Profile page; personal logout clears rendered calendar content immediately.
