@@ -1,3 +1,4 @@
+import {nameFromEmail} from '../_shared/account-profile.js';
 import {sendBetaAccessEmail,validEmail} from '../_shared/beta-mail.ts';
 import {answer,lookupKnowledge} from '../_shared/definitivo-preview.ts';
 import {classifyHandoff as classify} from '../_shared/handoff-policy.js';
@@ -48,7 +49,10 @@ Deno.serve(async req=>{
   let reply:any;
   try{
    const route=classify(message);
-   reply=route.route==='public'?await answer([...reservation.context.slice(-10),{role:'user',text:message}],new Request(req.url),'it-IT'):{answer:'Per dati personali e appuntamenti apri il tuo account College. Verificare l’email di prova non abilita i servizi riservati agli studenti.',citations:[],mode:'account_required'};
+   const profile=user?(await db('casey_account_profiles?'+new URLSearchParams({select:'display_name',user_id:'eq.'+user.id,limit:'1'})))[0]:null;
+   const first=(profile?.display_name|| (user?nameFromEmail(user.email):'')).split(' ')[0];
+   const greeting=/^\s*(ciao|salve|buongiorno|buonasera|hello|hi)[!.,\s]*$/i.test(message);
+   reply=greeting&&first?{answer:'Ciao '+first+'! Sono Casey. Come posso aiutarti?',citations:[],mode:'greeting'}:route.route==='public'?await answer([...reservation.context.slice(-10),{role:'user',text:message}],new Request(req.url),'it-IT'):{answer:'Per dati personali e appuntamenti apri il tuo account College. Verificare l’email di prova non abilita i servizi riservati agli studenti.',citations:[],mode:'account_required'};
   }catch{reply={answer:'Non riesco a consultare le fonti in questo momento. Riprova tra poco.',citations:[],mode:'unavailable'};}
   checked(await access(token,'finish',id,reply));return json(reply);
  }

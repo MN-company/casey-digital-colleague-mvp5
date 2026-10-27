@@ -9,6 +9,7 @@
  function open(){const splash=document.getElementById('splash');if(splash)splash.style.display='none';sheet.classList.remove('off');document.querySelector('.caseyb')?.setAttribute('aria-expanded','true');if(!loaded){frame.src='college.html?embedded=1'+(campus?'&theme=campus':'')+hash;loaded=true;}}
  function closeSheet(){sheet.classList.add('off');document.querySelector('.caseyb')?.setAttribute('aria-expanded','false');try{void frame.contentWindow?.CaseyVoiceSession?.stop();}catch{}}
  inner.replaceChildren(close,frame);close.onclick=closeSheet;
+ window.addEventListener('casey:account-change',e=>{if(e.detail?.signedOut||e.detail?.identityChanged){closeSheet();frame.src='about:blank';loaded=false;}});
  window.openSheet=open;window.closeSheet=closeSheet;setTimeout(()=>document.getElementById('splash')?.classList.add('go'),800);
  if(hash.includes('handoff=')||new URLSearchParams(location.search).get('casey')==='1')open();
 })();
