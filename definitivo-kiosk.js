@@ -54,6 +54,6 @@
  const scenario=window.setScenario;window.setScenario=s=>{revision++;messages.clear();engine='';void clearLink();scenario(s);};
  window.addEventListener('casey:language',()=>{revision++;shutUp();document.getElementById('q').placeholder=t().placeholder;status(t().ready);say(t().welcome);});
  // Back-office action controls are demonstrations; label them persistently.
- window.CaseyBridge={liveMobileHandoff:handover,liveSearchKnowledge:async query=>{await session();const r=await call('turn',{message:query,history:[],language:CaseyLanguage.get()});return {verified:!!r.citations?.length,matches:r.citations?.map(x=>({title:x.title,excerpt:r.answer}))||[]};}};
+ window.CaseyBridge={liveMobileHandoff:handover,liveSearchKnowledge:async query=>{await session();return call('knowledge_lookup',{query,history:messages.snapshot().slice(-10),language:CaseyLanguage.get()});}};
  status(t().ready);document.getElementById('q').placeholder=t().placeholder;
 })();

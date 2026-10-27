@@ -1,4 +1,4 @@
-import {answer} from '../_shared/definitivo-preview.ts';
+import {answer,lookupKnowledge} from '../_shared/definitivo-preview.ts';
 const BASE=Deno.env.get('SUPABASE_URL')||'';
 if(!['https://sneaxpqnmlhnrhoautjx.supabase.co','https://oxzraaadxqsruibinlxn.supabase.co'].includes(BASE))throw Error('Unexpected project');
 const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default;
@@ -20,6 +20,12 @@ Deno.serve(async req=>{
  const token=req.headers.get('x-session-token')||'';
  if(!/^[a-f0-9-]{72}$/i.test(token))return json({error:'Sessione richiesta'},401);
  const sessions=await db('hf6_sessions?'+new URLSearchParams({select:'id',token_hash:'eq.'+await hash(token),expires_at:'gt.'+new Date().toISOString()}));if(!sessions.length)return json({error:'Sessione scaduta'},401);
+ if(b.action==='knowledge_lookup'){
+ const query=String(b.query||'').trim();if(query.length<2||query.length>360)return json({error:'Domanda non valida'},400);
+ const history=(Array.isArray(b.history)?b.history:[]).filter((t:any)=>['user','assistant'].includes(t?.role)&&typeof t.text==='string').slice(-10);
+ // Public topic selection is not identity. Do not forward client student tokens.
+ return json(await lookupKnowledge(query,new Request(req.url),history,b.language||'it-IT'));
+ }
  if(b.action==='turn'){
  const message=String(b.message||'').trim();if(!message||message.length>1000)return json({error:'Messaggio non valido'},400);
  // Kiosk never forwards a student token. Scope remains SHARED.
