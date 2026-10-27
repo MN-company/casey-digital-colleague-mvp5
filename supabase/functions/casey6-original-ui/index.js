@@ -388,6 +388,7 @@ async function googleCalendarEvents(calendarId,token,begin,end){
  // Do not include attendees, emails or private notes in calendar UI responses.
  return (data.items||[]).filter(ev=>ev.status!=='cancelled').map(ev=>({id:ev.id,title:ev.summary||'Impegno',start:ev.start?.dateTime||ev.start?.date,end:ev.end?.dateTime||ev.end?.date,link:ev.htmlLink||null,source:'google'}));
 }
+async function personalCalendarRate(person){for(const [p_bucket,p_limit] of [['calendar:user:'+person.id,30],['calendar:global',1000]])if(await db('rpc/hf7_take_rate',{p_bucket,p_limit,p_window_seconds:60},'POST')!==true)throw Object.assign(Error('Troppe richieste al calendario. Riprova tra un minuto.'),{status:429});}
 async function studentGoogleConnection(person){return (await db('dc_v5_student_google?'+qs({select:'student_auth_id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',student_auth_id:'eq.'+person.id,limit:'1'})))[0]||null;}
 async function studentGoogleToken(person){
  const row=await studentGoogleConnection(person);
@@ -585,14 +586,14 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     return json({connected:!!c,google_email:c?.google_email||null,calendar_id:c?.calendar_id||null,needs_selection:!!c&&!separate,oauth_configured:studentGoogleReady()},200,origin);
   }
   if(b.action==='student_google_calendars'){
-    const person=await verifiedStudent(req,true),pair=await studentGoogleToken(person);
+    const person=await verifiedStudent(req,true);await personalCalendarRate(person);const pair=await studentGoogleToken(person);
     if(!pair.token)return json({error:'Collega prima il tuo account Google.'},409,origin);
     await takeRate('casey:calendar-list:'+person.id,30);
     const data=await google('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250&fields=items(id,summary,primary,accessRole)',pair.token),office=await connection();
     return json({calendars:(data.items||[]).filter(c=>c.accessRole!=='freeBusyReader').map(c=>({id:c.id,title:c.summary||'Calendario',primary:!!c.primary,selected:c.id===pair.row.calendar_id||(c.primary&&pair.row.calendar_id==='primary'),office:sameCalendar({...pair.row,calendar_id:c.id},office)}))},200,origin);
   }
   if(b.action==='student_google_calendar'){
-    const person=await verifiedStudent(req,true),pair=await studentGoogleToken(person),id=String(b.calendar_id||'').trim();
+    const person=await verifiedStudent(req,true);await personalCalendarRate(person);const pair=await studentGoogleToken(person),id=String(b.calendar_id||'').trim();
     if(!pair.token)return json({error:'Collega prima il tuo account Google.'},409,origin);
     if(!id||id.length>200)return json({error:'Calendario non valido'},400,origin);
     if(sameCalendar({...pair.row,calendar_id:id},await connection()))return json({error:'Questo è il calendario Student Office. Scegli il tuo calendario personale.'},409,origin);
@@ -608,9 +609,10 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     return json({disconnected:true},200,origin);
   }
   if(b.action==='student_live_calendar'){
-    const person=await verifiedStudent(req,true);const month=calendarMonth(b);
-    const pair=await studentGoogleToken(person);
-    const needsSelection=!!pair.row&&sameCalendar(pair.row,await connection());
+    const person=await verifiedStudent(req,true);const month=calendarMonth(b);await personalCalendarRate(person);
+    const selected=await studentGoogleConnection(person),office=await connection();let needsSelection=!!selected&&sameCalendar(selected,office);
+    const pair=needsSelection?{row:selected,token:null}:await studentGoogleToken(person);
+    needsSelection=needsSelection||!!pair.row&&sameCalendar(pair.row,office);
     const events=pair.token&&!needsSelection?await googleCalendarEvents(pair.row.calendar_id,pair.token,month.begin,month.end):[];
     const bookings=await studentBookingEvents(person,month);
     return json({google_connected:!!pair.token&&!needsSelection,needs_selection:needsSelection,google_email:pair.row?.google_email||null,events,bookings},200,origin);
