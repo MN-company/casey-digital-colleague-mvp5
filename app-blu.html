@@ -1061,7 +1061,7 @@ function profileView() {
     : T.st === 1 ? rows(['Canvas', 'ChiView', 'Career Passport', 'Microsoft 365'])
       : rows([['Game Changer Italy — 30 ottobre', 'ev:gci'], 'Career Day — 5 novembre'], 'cal');
   return `<div class="pcover"><button class="dl" data-act="toast" data-arg="Nel prototipo il download del profilo non è attivo">${BI.dlc}Download</button><div class="pav">${esc(U.ini)}</div></div>
-    <div class="pname">${esc(U.name)}</div><div class="prole">${esc(U.role)}</div>
+    <div class="pname">${esc(U.name)}</div><div class="prole">${esc(U.role)}</div><div class="acts"><button class="abtn pri" data-act="account">Account e accesso</button><button class="abtn" data-act="student-calendar">Il mio calendario</button></div>
     <div class="pbox">${stabs(['Info', 'Platforms', 'My Events'])}${body}</div>`;
 }
 function renderTab() {
