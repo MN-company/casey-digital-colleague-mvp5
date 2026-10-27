@@ -380,6 +380,7 @@
         throw new Error('Configurazione Gemini non valida');
       }
       if (mine !== revision) return;
+      if(credentials.request_id)window.dispatchEvent(new CustomEvent('casey:live-lease',{detail:{request_id:credentials.request_id,expires_at:credentials.expires_at}}));
       if(!audioContext)audioContext=new (window.AudioContext || window.webkitAudioContext)();
       if(microphone)await connectMicrophone(mine);
       if(mine!==revision)return;

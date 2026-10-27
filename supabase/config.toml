@@ -34,3 +34,11 @@ verify_jwt = false
 [functions.casey-rag-maintenance]
 verify_jwt = true
 entrypoint = "./functions/casey-rag-maintenance/index.ts"
+
+[functions.casey-beta]
+verify_jwt = false
+entrypoint = "./functions/casey-beta/index.ts"
+
+[functions.casey-beta-live]
+verify_jwt = false
+entrypoint = "./functions/casey-beta-live/index.ts"
