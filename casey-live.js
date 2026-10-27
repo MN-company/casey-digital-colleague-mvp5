@@ -279,7 +279,7 @@
     }
     if (turnDone && (content.outputTranscription || content.modelTurn)) { resetSubtitles(); turnDone=false; }
     if (content.outputTranscription?.text) {
-      subtitleText += String(content.outputTranscription.text);state();
+      subtitleText += String(content.outputTranscription.text);avatar('C');state();
       startSubtitleClock();
     }
     if ((content.modelTurn || content.outputTranscription) && inputText) {

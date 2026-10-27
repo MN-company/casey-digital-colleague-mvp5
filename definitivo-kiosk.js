@@ -16,9 +16,9 @@
  function stopPoll(){clearInterval(poll);clearTimeout(expiry);poll=expiry=null;}
  async function clearLink(){stopPoll();const old=link;link=null;phoneUrl='';if(old){await A.call('cancel',{id:old}).catch(()=>{});}document.getElementById('qrCard').classList.remove('on');}
  const visualSay=window.say;
- window.say=(value,source,kind,label,end)=>{visualSay(value,source,kind,label,end);clearInterval(capTimer);document.getElementById('capText').textContent=value;};
+ window.say=(value,source,kind,label,end)=>{const live=window.CaseyLive?.active,previous=muted;if(live)muted=true;try{visualSay(value,source,kind,label,end);}finally{muted=previous;}clearInterval(capTimer);document.getElementById('capText').textContent=value;};
  async function handover(){
-  await window.CaseyVoiceSession?.stop();
+  // Showing a QR is a visual tool result, not a voice-session teardown.
   const rev=revision;await clearLink();if(rev!==revision)return;
   const card=document.getElementById('qrCard');card.classList.remove('expired');card.classList.add('on');document.getElementById('qrMeta').textContent=t().thinking;
   try{
@@ -30,15 +30,16 @@
    document.getElementById('qrTitle').textContent='Casey · College';document.getElementById('qrSub').textContent=t().transfer;
    const until=Date.now()+r.expires_in*1000;const tick=()=>{document.getElementById('qrMeta').textContent=Math.max(0,Math.ceil((until-Date.now())/1000))+' s · uso singolo';};tick();
    say(t().transfer,null,'pr','Privacy','hand');
-   let checking=false;poll=setInterval(async()=>{if(checking||link!==r.id)return;checking=true;tick();try{const state=await A.call('status',{id:r.id});if(link!==r.id)return;if(state.consumed){stopPoll();link=null;messages.clear();engine='';sessionPromise=null;revision++;document.getElementById('qrCard').classList.remove('on');goIdle();}else if(state.expired){stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;}}catch{status(t().error);}finally{checking=false;}},2500);
+   let checking=false;poll=setInterval(async()=>{if(checking||link!==r.id)return;checking=true;tick();try{const state=await A.call('status',{id:r.id});if(link!==r.id)return;if(state.consumed){await window.CaseyVoiceSession?.stop();stopPoll();link=null;messages.clear();engine='';sessionPromise=null;revision++;document.getElementById('qrCard').classList.remove('on');goIdle();}else if(state.expired){stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;}}catch{status(t().error);}finally{checking=false;}},2500);
    expiry=setTimeout(()=>{if(link!==r.id)return;stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;},r.expires_in*1000);
+   return {status:'handoff_ready',expires_in:r.expires_in};
   }catch(e){card.classList.add('expired');document.getElementById('qrMeta').textContent=e.message;}
  }
  window.handover=handover;window.openSession=handover;window.openPhone=()=>{if(phoneUrl&&link)window.open(phoneUrl,'_blank','noopener');};
  // Remove simulated routing, tickets and booking outcomes from the connected path.
  window.send=async custom=>{
   const input=document.getElementById('q'),value=String(custom||input.value||'').trim().slice(0,1000);if(!value||busy)return;
-  input.value='';busy=true;const rev=revision;shutUp();
+  input.value='';if(window.CaseyLive?.active&&window.CaseyLive.ready){window.CaseyLive.sendText(value);return;}busy=true;const rev=revision;shutUp();
   try{
    messages.append('user',value);setState('think',t().thinking,'think');
    const route=await A.call('classify',{message:value});if(rev!==revision)return;
