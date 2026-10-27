@@ -602,16 +602,30 @@ function stopMic(){
 /* ---------------- video ---------------- */
 const CASEY={COLLEGE:'Casey - H-FARM College/',FARM:'Casey - H-FARM/'};
 function caseyDir(){return CASEY[S]||CASEY.COLLEGE;}
-const VID={idle:['A.mp4','B.mp4'],talk:['C.mp4','A.mp4'],think:['E.mp4','A.mp4'],point:['D.mp4','B.mp4','A.mp4'],hand:['F.mp4','D.mp4','A.mp4']};
+// These are real playlists, not fallback-only filename lists.
+const VID={idle:['A.mp4','B.mp4'],talk:['C.mp4','D.mp4'],think:['B.mp4'],point:['D.mp4'],hand:['D.mp4']};
 let liveV='vA',videoState='',videoRevision=0;
+const videoCursors=Object.create(null);
 function playState(st){
  const signature=S+':'+st;if(signature===videoState)return;videoState=signature;
- const revision=++videoRevision,c=VID[st]||VID.idle;
- const cur=document.getElementById(liveV),nxt=document.getElementById(liveV==='vA'?'vB':'vA');let i=0;
- const restore=()=>{if(revision!==videoRevision)return;document.getElementById('avatar').style.opacity=1;cur.classList.add('hide');nxt.classList.add('hide');};
- const go=()=>{if(revision!==videoRevision)return;if(i>=c.length){restore();return;}const f=caseyDir()+c[i++];
- nxt.onloadeddata=()=>{if(revision!==videoRevision)return;nxt.classList.remove('hide');cur.pause?.();cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;nxt.play().catch(restore);};
- nxt.onerror=go;nxt.onended=()=>{if(revision===videoRevision&&!nxt.loop)playState('idle');};nxt.loop=(st==='idle'||st==='think'||st==='talk');nxt.muted=true;nxt.src=f;nxt.load();};go();
+ const revision=++videoRevision,clips=VID[st]||VID.idle,cyclic=['idle','talk','think'].includes(st),failed=new Set();
+ let index=videoCursors[signature]||0;
+ const restore=()=>{if(revision!==videoRevision)return;videoState='';document.getElementById('avatar').style.opacity=1;for(const id of ['vA','vB']){const v=document.getElementById(id);v.pause?.();v.classList.add('hide');}};
+ const go=()=>{
+  if(revision!==videoRevision)return;
+  if(failed.size>=clips.length){restore();return;}
+  while(failed.has(clips[index]))index=(index+1)%clips.length;
+  const clip=clips[index],cur=document.getElementById(liveV),nxt=document.getElementById(liveV==='vA'?'vB':'vA');
+  nxt.onloadeddata=()=>{
+   if(revision!==videoRevision)return;
+   nxt.classList.remove('hide');cur.pause?.();cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;
+   index=(index+1)%clips.length;videoCursors[signature]=index;
+   nxt.play().catch(()=>{if(revision===videoRevision){failed.add(clip);go();}});
+  };
+  nxt.onerror=()=>{if(revision!==videoRevision)return;failed.add(clip);index=(index+1)%clips.length;go();};
+  nxt.onended=()=>{if(revision!==videoRevision)return;if(cyclic)go();else playState('idle');};
+  nxt.loop=false;nxt.muted=true;nxt.src=caseyDir()+clip;nxt.load();
+ };go();
 }
 
 function setState(st,label,cls){
