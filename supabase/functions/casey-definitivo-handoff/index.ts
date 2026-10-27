@@ -89,7 +89,7 @@ Deno.serve(async req=>{
    const rows=await db('hf7_chats?'+qs({id:'eq.'+b.chat_id,user_id:'eq.'+u.id,expires_at:'gt.'+new Date().toISOString()}));
    if(!rows[0])return reply({error:'Conversazione non disponibile'},404);
    const last=rows[0].context.filter((t:any)=>t.role==='user').at(-1)?.text||'';
-   if(/^\s*(ciao(?: casey)?|salve|buongiorno|buonasera|hello(?: casey)?|hi(?: casey)?)[!.,\s]*$/i.test(last)){const hello=namedGreeting(last,await verifiedFirstName(u,(path:string)=>db(path)));if(hello)return reply({answer:hello,citations:[],mode:'greeting'});}
+   if(/^\s*(ciao(?: casey)?|salve|buongiorno|buonasera|hello(?: casey)?|hi(?: casey)?)[!.,\s]*$/i.test(last)){const hello=namedGreeting(last,await verifiedFirstName(u,(path:string)=>db(path)),b.language||'it-IT');if(hello)return reply({answer:hello,citations:[],mode:'greeting'});}
    const result=await withPaidText('identity:'+u.id,()=>answer(rows[0].context,req,b.language||'it-IT'));return reply(result);
   }
   if(['load','save','clear'].includes(b.action)){
