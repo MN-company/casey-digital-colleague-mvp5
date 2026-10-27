@@ -415,7 +415,7 @@ body{--brand:var(--college);--navy:#1D2A5B;--navy2:#2B3A74;--tint:#EEF1F8;--tint
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"></head>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"></head>
 <body>
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-college-logo.png" alt="H-FARM College"><div class="spin"></div></div>
@@ -444,7 +444,7 @@ body{--brand:var(--college);--navy:#1D2A5B;--navy2:#2B3A74;--tint:#EEF1F8;--tint
   <div class="sheet off" id="sheet" role="dialog" aria-modal="true" aria-label="Casey: le conversazioni del tuo account"><div class="inner"></div></div>
 </div>
 
-<script src="config.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="app-connected.js"></script>
+<script src="config.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><script src="app-connected.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -502,7 +502,7 @@ function relDay(d) {
 function saluto() { const h = now().getHours(); return h >= 5 && h < 13 ? 'Buongiorno' : h >= 13 && h < 18 ? 'Buon pomeriggio' : 'Buonasera'; }
 
 /* ---------- lo studente: uno solo per le due app ---------- */
-const STUDENT = { name: 'Marco Bernardi', first: 'Marco', ini: 'MB' };
+const STUDENT = { name: 'Ospite', first: '', ini: '?' };
 
 /* ---------- icone ---------- */
 const sv = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${p}</svg>`;
@@ -919,7 +919,7 @@ function openAccount() { if (typeof window.openSheet === 'function') window.open
    totem) restano in college.html, aperto da app-auth-shell.js.
    ===================================================================== */
 FACE = 'Casey - H-FARM College/casey-face.png';
-const U = { name: STUDENT.name, first: STUDENT.first, ini: STUDENT.ini, deg: 'BSc in AI and Data Science', role: 'BSc AI & Data Science · Level 5', mail: 'm.bernardi@student.h-farm.com', code: 'MAT-2025-8841', exp: 'Lumina | AI & Digital Technologies' };
+const U = { name: STUDENT.name, first: STUDENT.first, ini: STUDENT.ini, deg: 'Corso non collegato', role: 'Accesso ospite', mail: '—', code: '—', exp: 'Lumina | AI & Digital Technologies' };
 
 /* ---------- icone dell'app College (le stesse dell'MVP) ---------- */
 const bi = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
@@ -1017,9 +1017,9 @@ function homeSection() {
         ${stabs(['Students', 'College', 'H-FARM'])}${cards(FEED[T.st] || FEED[0])}`;
     }
     case 1: return `<div class="bigic"><svg width="56" height="56" viewBox="0 0 24 24" fill="#F7C948" aria-hidden="true"><path d="M12 12c-1.6-3.5-5-6-7-4.5S4 14 9 14c-3 1.5-3.5 5 0 5.5S12 15 12 12z"/><path d="M12 12c1.6-3.5 5-6 7-4.5S20 14 15 14c3 1.5 3.5 5 0 5.5S12 15 12 12z"/></svg></div>
-      <div class="ctr"><div class="t">PRONOTE</div><div class="ds">View your calendar online or download a copy directly to your device</div>
-      <div class="acts"><button class="abtn pri" data-act="toast" data-arg="Pronote si apre dall’app ufficiale: nel prototipo il collegamento non è attivo">${I.cal}Apri il calendario</button>
-      <button class="abtn" data-act="toast" data-arg="Nel prototipo il download del calendario non è attivo">${BI.dlc}Scarica una copia</button></div></div>`;
+      <div class="ctr"><div class="t">Il mio calendario</div><div class="ds">La tua agenda personale, separata dal calendario Student Office</div>
+      <div class="acts"><button class="abtn pri" data-act="student-calendar">${I.cal}Apri il mio calendario</button>
+      <button class="abtn" data-act="student-calendar">${BI.dlc}Collega Google</button></div></div>`;
     case 2: return stabs(['Students', 'Staff', 'Alumni'], 'first') + (T.st === 1 ? rows(STAFF.map(([n, k]) => [n, 'off:' + k]), 'ppl')
       : T.st === 2 ? '<div class="note">Nessun contenuto per gli Alumni al momento.</div>'
         : rows(['Student Council', 'Buddy Programme', ['H-Mates', 'mates'], ['Segnala un problema', 'issue']]));
@@ -1067,7 +1067,7 @@ function profileView() {
 function renderTab() {
   const el = $('#tabScroll'); if (!el) return;
   let html = '';
-  if (T.tab === 'HOME') html = `<div class="greet">${saluto()}, <b>${esc(U.first)}</b><small>${esc(U.role)}</small></div>${qtile(HOME_T, 'HOME')}${homeSection()}`;
+  if (T.tab === 'HOME') html = `<div class="greet">${saluto()}${U.first?', <b>'+esc(U.first)+'</b>':''}<small>${esc(U.role)}</small></div>${qtile(HOME_T, 'HOME')}${homeSection()}`;
   else if (T.tab === 'ACAD') html = `${qtile(ACAD_T, 'ACAD')}<div style="height:16px"></div>${acadSection()}`;
   else if (T.tab === 'MAP') html = mapView();
   else if (T.tab === 'PROF') html = profileView();
@@ -1231,7 +1231,7 @@ function answer(text) {
     case 'medical': return SHARED.medical(c.q);
     case 'checkin': case 'mitig': case 'ai': case 'printer': case 'room': case 'study': case 'enh': case 'grades': case 'lib': return SHARED[c.k]();
     case 'office': return SHARED.office(a.k);
-    case 'hello': return { text: `Ciao ${U.first}! Chiedimi delle regole del college o dei servizi del campus: rispondo sempre con la fonte.` };
+    case 'hello': return { text: `Ciao${U.first?' '+U.first:''}! Chiedimi delle regole del college o dei servizi del campus: rispondo sempre con la fonte.` };
     case 'thanks': return { text: 'Figurati! Se ti serve altro, sono qui.' };
     default: return { text: 'Su questo qui non ho una fonte ufficiale, e non tiro a indovinare. Nel tuo account cerco in tutta la biblioteca dei regolamenti; oppure puoi chiederlo allo Student Office.', acts: [{ l: 'Cerca nel tuo account', a: 'account', c: 'pri', i: 'user' }, mailAct('so', 'Domanda per lo Student Office', text, 'Chiedi allo Student Office')], keep: true };
   }
@@ -1285,7 +1285,7 @@ function renderChat(scroll = 'bottom') {
     <button class="hbtn icon" data-act="new-chat" aria-label="Nuova chat">${BI.edit}</button>`;
   const th = $('#thread');
   if (!chat) {
-    th.innerHTML = `<div class="welcome"><div class="wf"><img src="${FACE}" alt=""></div><h4>Ciao ${esc(U.first)}, come posso aiutarti?</h4>
+    th.innerHTML = `<div class="welcome"><div class="wf"><img src="${FACE}" alt=""></div><h4>Ciao${U.first?' '+esc(U.first):''}, come posso aiutarti?</h4>
       <p>Chiedimi delle regole del college e dei servizi del campus: rispondo sempre con la fonte.</p>
       <div class="sugg">${SUGG.map((s) => `<button data-act="chip" data-arg="${esc(s)}">${esc(s)}</button>`).join('')}</div>
       <p class="hint">Casey è un’intelligenza artificiale: per le decisioni su di te risponde sempre una persona.</p></div>`;
@@ -1373,6 +1373,7 @@ function setMicUi() { const m = $('#micBtn'); if (m) { m.classList.toggle('on', 
    AZIONI
    ===================================================================== */
 const ACT = {
+  'student-calendar'() { return window.CaseyPersonalCalendar?.open(); },
   tab(t) { go(t); },
   sec(g) { const [k, i] = g.split(':'); T.sub[k] = +i; T.st = 0; renderTab(); },
   st(i) { T.st = +i; renderTab(); },
@@ -1422,10 +1423,11 @@ function init() {
   function restoreConversation(context, id) {const t=Date.now();C.chats=context.length?[{id:id||'cloud',title:context.find(m=>m.role==='user')?.text.slice(0,44)||'Conversazione',created:t,updated:t,msgs:context.map(m=>mkMsg(m.role==='user'?'me':'casey',{text:String(m.text||'')},new Date()))}]:[];C.cur=C.chats[0]?.id||null;if(C.built)renderCasey('bottom');}
   function appendVoiceTurn(role,text){if(!text)return;let chat=curChat();if(!chat){const t=Date.now();chat={id:uid('c'),title:String(text).slice(0,44),created:t,updated:t,msgs:[]};C.chats=[chat];C.cur=chat.id;}const from=role==='user'?'me':'casey';chat.msgs.push(mkMsg(from,{text},new Date()));chat.updated=Date.now();if(C.built)renderCasey('bottom');}
   function clearConversations(){C.chats=[];C.cur=null;localStorage.removeItem(KEY);if(C.built)renderCasey('top');}
-  window.__casey = { T, C, ACT, answer, classify, now, go, userSays, restoreConversation, appendVoiceTurn, clearConversations };
+  function applyProfile(p){Object.assign(STUDENT,{name:p?.display_name|| (p?'Il tuo account':'Ospite'),first:p?.first_name||'',ini:p?.display_name?p.display_name.split(' ').filter(Boolean).map(x=>x[0]).slice(0,2).join(''):'?'});Object.assign(U,STUDENT,{mail:p?.email||'—',code:p?.student_number||'—',deg:p?.program||'Corso non collegato',role:p?.registered?(p.program||'Profilo universitario verificato'):p?'Email verificata':'Accesso ospite'});$('#avBtn').textContent=U.ini;$('#avBtn').setAttribute('aria-label','Profilo di '+U.name);if(T.tab!=='CASEY')renderTab();if(C.built)renderChat();}
+  window.__casey = { T, C, ACT, applyProfile, answer, classify, now, go, userSays, restoreConversation, appendVoiceTurn, clearConversations };
 }
 init();
 
 </script>
-<script src="app-auth-shell.js"></script><script src="student-access.js"></script></body>
+<script src="app-auth-shell.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
 </html>

@@ -446,7 +446,7 @@ body{--brand:var(--red)}
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"></head>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"></head>
 <body>
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-logo.png" alt="H-FARM"><div class="spin"></div></div>
@@ -470,7 +470,7 @@ body{--brand:var(--red)}
   <div class="sheet off" id="sheet" role="dialog" aria-modal="true" aria-label="Casey: le tue conversazioni"><div class="inner"></div></div>
 </div>
 
-<script src="config.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="app-connected.js"></script>
+<script src="config.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><script src="app-connected.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -528,7 +528,7 @@ function relDay(d) {
 function saluto() { const h = now().getHours(); return h >= 5 && h < 13 ? 'Buongiorno' : h >= 13 && h < 18 ? 'Buon pomeriggio' : 'Buonasera'; }
 
 /* ---------- lo studente: uno solo per le due app ---------- */
-const STUDENT = { name: 'Marco Bernardi', first: 'Marco', ini: 'MB' };
+const STUDENT = { name: 'Ospite', first: '', ini: '?' };
 
 /* ---------- icone ---------- */
 const sv = (p, extra = '') => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" ${extra}>${p}</svg>`;
@@ -941,7 +941,7 @@ function openAccount() { if (typeof window.openSheet === 'function') window.open
    le conversazioni vere con l'account e il QR del totem restano nel foglio
    #sheet, gestito da app-auth-shell.js (college.html?embedded=1&theme=campus).
    ===================================================================== */
-const U = Object.assign({}, STUDENT, { mail: 'm.bernardi@h-farm.com', code: 'HF-2026-4417', role: 'Campus pass · edificio College' });
+const U = Object.assign({}, STUDENT, { mail: '—', code: '—', role: 'Accesso ospite' });
 FACE = 'Casey - H-FARM/casey-face.png';
 const BUST = 'Casey - H-FARM/casey-busto.png';
 const VIDEO_DIR = 'Casey - H-FARM/';
@@ -1205,7 +1205,7 @@ function route(text) {
     case 'medical': return casey(SHARED.medical(c.q), { think: 800 });
     case 'checkin': case 'mitig': case 'ai': case 'printer': case 'room': case 'study': case 'enh': case 'grades': case 'lib': return casey(SHARED[c.k](), { think: 800 });
     case 'office': return casey(SHARED.office(a.k), { think: 700 });
-    case 'hello': return casey({ text: `Ciao ${U.first}! Posso iscriverti a un evento, prenotarti il pranzo, dirti come arrivare o rispondere con le fonti ufficiali. Dimmi pure.` }, { think: 400, end: 'B' });
+    case 'hello': return casey({ text: `Ciao${U.first?' '+U.first:''}! Posso iscriverti a un evento, prenotarti il pranzo, dirti come arrivare o rispondere con le fonti ufficiali. Dimmi pure.` }, { think: 400, end: 'B' });
     case 'thanks': return casey({ text: 'Figurati! Se ti serve altro, sono qui.' }, { think: 350, end: 'B' });
     default: return iUnknown(text);
   }
@@ -1411,7 +1411,7 @@ function caseyCard() {
   const lt = lunchToday();
   if (lt) return card(`Pranzo prenotato da ${esc(RESTOS[lt.r].n)}.`, 'Alla cassa mostri il QR della prenotazione.', btn(1, 'lunch-qr', 'today', 'Mostra il QR'), btn(0, 'way-to', RESTOS[lt.r].wf, 'Portami lì'));
   if (S.ev.gci.reg && !evPast(EVENTS.gci)) return card('Sei iscritto a Game Changer Italy.', `${cap1(relDay(evStart(EVENTS.gci)) || 'venerdì')}, 10:00 · Big Hall. Ti ricordo l’evento il giorno prima.`, btn(1, 'ev-open', 'gci', 'Dettagli'), btn(0, 'open-casey', 'agenda', 'La mia agenda'));
-  return card(`Ciao ${esc(U.first)}, cosa ti serve oggi in campus?`, 'Eventi, pranzo, pacchi, come arrivare. E lo Student Office.', btn(1, 'chip', 'Che eventi ci sono questa settimana?', 'Eventi della settimana'), btn(0, 'chip', 'Prenotami il pranzo', 'Prenota il pranzo'));
+  return card(`Ciao${U.first?' '+esc(U.first):''}, cosa ti serve oggi in campus?`, 'Eventi, pranzo, pacchi, come arrivare. E lo Student Office.', btn(1, 'chip', 'Che eventi ci sono questa settimana?', 'Eventi della settimana'), btn(0, 'chip', 'Prenotami il pranzo', 'Prenota il pranzo'));
 }
 function renderHome() {
   const el = $('#homeScroll'); if (!el) return;
@@ -1424,7 +1424,7 @@ function renderHome() {
     <div class="hbtns"><button class="qrbtn" data-act="qr" aria-label="Il tuo QR per entrare in campus">${I.qr}</button>
     <button class="avbtn" data-act="menu" aria-label="Profilo di ${esc(U.name)}">${esc(U.ini)}</button></div>
   </div>
-  <div class="greet">${saluto()}, <b>${esc(U.first)}</b></div>
+  <div class="greet">${saluto()}${U.first?', <b>'+esc(U.first)+'</b>':''}</div>
   ${caseyCard()}
   <div class="shead"><h3>Vivi il Campus</h3><button data-act="place" data-arg="explore">Esplora tutto ›</button></div>
   <div class="grid">
@@ -1648,6 +1648,7 @@ async function openCasey(arg, silent) {
 
 /* ---------- azioni ---------- */
 const ACT = {
+  'student-calendar'() { return window.CaseyPersonalCalendar?.open(); },
   menu() { renderMenu(); S.menuOpen = true; $('#menu').classList.add('open'); setFab(); },
   'menu-close'() { closeMenu(); },
   qr() { qrSheet(); },
@@ -1717,10 +1718,11 @@ function init() {
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', (e) => { if (e.key !== 'Escape') return; if ($('#bsheet').classList.contains('open')) bsClose(); else if (S.menuOpen) closeMenu(); else if (S.screen === 'place') closePlace(); });
   setTimeout(() => { const s = $('#splash'); if (s) s.classList.add('go'); }, 900);
-  window.__casey = { S, ACT, route, userSays, classify, now, AV, restoreConversation(context){S.thread=context.map(t=>({from:t.role==='user'?'me':'casey',text:String(t.text||''),id:'m'+(++MID),t:hhmm()}));if(S.screen==='casey')renderCasey();},appendVoiceTurn(role,text){pushMsg({from:role==='user'?'me':'casey',text});},clearConversations(){S.thread=[];if(S.screen==='casey')renderCasey();} };
+  function applyProfile(p){Object.assign(STUDENT,{name:p?.display_name||(p?'Il tuo account':'Ospite'),first:p?.first_name||'',ini:p?.display_name?p.display_name.split(' ').filter(Boolean).map(x=>x[0]).slice(0,2).join(''):'?'});Object.assign(U,STUDENT,{mail:p?.email||'—',code:p?.student_number||'—',role:p?.registered?(p.program||'Profilo universitario verificato'):p?'Email verificata':'Accesso ospite'});renderHome();renderMenu();if(S.screen==='casey')renderCasey();}
+  window.__casey = { S, ACT, applyProfile, route, userSays, classify, now, AV, restoreConversation(context){S.thread=context.map(t=>({from:t.role==='user'?'me':'casey',text:String(t.text||''),id:'m'+(++MID),t:hhmm()}));if(S.screen==='casey')renderCasey();},appendVoiceTurn(role,text){pushMsg({from:role==='user'?'me':'casey',text});},clearConversations(){S.thread=[];if(S.screen==='casey')renderCasey();} };
 }
 init();
 
 </script>
-<script src="app-auth-shell.js"></script><script src="student-access.js"></script></body>
+<script src="app-auth-shell.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
 </html>

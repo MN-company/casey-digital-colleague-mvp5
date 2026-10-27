@@ -1,3 +1,4 @@
+import {cleanDisplayName,nameFromEmail,sameCalendar,allowedStudentReturn} from '../_shared/account-profile.js';
 import {withPaidText} from '../_shared/paid-capacity.ts';
 import {classifyHandoff} from '../_shared/handoff-policy.js';
 /* Casey ORIGINAL UI v5: preserved original frontend — verified identity, explicit UI confirmation, contextual routing; preserves Google integration.
@@ -394,6 +395,7 @@ async function googleCalendarEvents(calendarId,token,begin,end){
  // Do not include attendees, emails or private notes in calendar UI responses.
  return (data.items||[]).filter(ev=>ev.status!=='cancelled').map(ev=>({id:ev.id,title:ev.summary||'Impegno',start:ev.start?.dateTime||ev.start?.date,end:ev.end?.dateTime||ev.end?.date,link:ev.htmlLink||null,source:'google'}));
 }
+async function personalCalendarRate(person){for(const [p_bucket,p_limit] of [['calendar:user:'+person.id,30],['calendar:global',1000]])if(await db('rpc/hf7_take_rate',{p_bucket,p_limit,p_window_seconds:60},'POST')!==true)throw Object.assign(Error('Troppe richieste al calendario. Riprova tra un minuto.'),{status:429});}
 async function studentGoogleConnection(person){return (await db('hf6_v5_student_google?'+qs({select:'student_auth_id,google_email,refresh_token_ciphertext,refresh_token_iv,granted_scopes,calendar_id,updated_at',student_auth_id:'eq.'+person.id,limit:'1'})))[0]||null;}
 async function studentGoogleToken(person){
  const row=await studentGoogleConnection(person);
@@ -405,7 +407,7 @@ async function studentGoogleToken(person){
  tokenCache.set(cacheKey,{value:data.access_token,expires:Date.now()+Math.min(Number(data.expires_in)||3600,3600)*1000,updated_at:row.updated_at});
  return {row,token:data.access_token};
 }
-function validReturn(s){try{let u=new URL(s);return ORIGINS.has(u.origin)&&u.pathname.endsWith('/index.html')||ORIGINS.has(u.origin)&&u.pathname==='/'?u.origin+u.pathname:null;}catch{return null;}}
+function validReturn(s){return allowedStudentReturn(s,ORIGINS);}
 async function studentOauthCallback(req){
  const u=new URL(req.url),state=u.searchParams.get('state')||'',code=u.searchParams.get('code')||'';
  const fromCookie=/(?:^|;\s*)casey_student_state=([^;]+)/.exec(req.headers.get('cookie')||'')?.[1]||'';
@@ -574,7 +576,6 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
   if(b.action==='availability_month')return json(await monthlyAvailability(b,session),200,origin);
   if(b.action==='student_google_start'){
     const person=await verifiedStudent(req,true);
-    if(!person.student)return json({error:'Verifica il profilo universitario prima di collegare Google.'},403,origin);
     if(!studentGoogleReady())return json({error:'OAuth Google non ancora configurato sul server.'},503,origin);
     const destination=validReturn(b.return_to||'');if(!destination)return json({error:'Destinazione non consentita'},400,origin);
     await takeRate('caseyv5:student-oauth:'+person.id,10);
@@ -585,7 +586,26 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
   }
   if(b.action==='student_google_status'){
     const person=await verifiedStudent(req,true);const c=await studentGoogleConnection(person);
-    return json({connected:!!c,google_email:c?.google_email||null,oauth_configured:studentGoogleReady()},200,origin);
+    const office=await connection(),separate=c&&!sameCalendar(c,office);
+    return json({connected:!!c,google_email:c?.google_email||null,calendar_id:c?.calendar_id||null,needs_selection:!!c&&!separate,oauth_configured:studentGoogleReady()},200,origin);
+  }
+  if(b.action==='student_google_calendars'){
+    const person=await verifiedStudent(req,true);await personalCalendarRate(person);const pair=await studentGoogleToken(person);
+    if(!pair.token)return json({error:'Collega prima il tuo account Google.'},409,origin);
+    await takeRate('casey:calendar-list:'+person.id,30);
+    const data=await google('https://www.googleapis.com/calendar/v3/users/me/calendarList?maxResults=250&fields=items(id,summary,primary,accessRole)',pair.token),office=await connection();
+    return json({calendars:(data.items||[]).filter(c=>c.accessRole!=='freeBusyReader').map(c=>({id:c.id,title:c.summary||'Calendario',primary:!!c.primary,selected:c.id===pair.row.calendar_id||(c.primary&&pair.row.calendar_id==='primary'),office:sameCalendar({...pair.row,calendar_id:c.id},office)}))},200,origin);
+  }
+  if(b.action==='student_google_calendar'){
+    const person=await verifiedStudent(req,true);await personalCalendarRate(person);const pair=await studentGoogleToken(person),id=String(b.calendar_id||'').trim();
+    if(!pair.token)return json({error:'Collega prima il tuo account Google.'},409,origin);
+    if(!id||id.length>200)return json({error:'Calendario non valido'},400,origin);
+    if(sameCalendar({...pair.row,calendar_id:id},await connection()))return json({error:'Questo è il calendario Student Office. Scegli il tuo calendario personale.'},409,origin);
+    const data=await google('https://www.googleapis.com/calendar/v3/users/me/calendarList/'+encodeURIComponent(id),pair.token);
+    if(sameCalendar({...pair.row,calendar_id:data.id},await connection()))return json({error:'Il calendario Student Office non può essere usato come calendario personale.'},409,origin);
+    if(!data.id||data.accessRole==='freeBusyReader')return json({error:'Calendario personale non leggibile'},403,origin);
+    await db('dc_v5_student_google?'+qs({student_auth_id:'eq.'+person.id}),{calendar_id:data.id,updated_at:new Date().toISOString()},'PATCH');tokenCache.delete('student:'+person.id);
+    return json({saved:true},200,origin);
   }
   if(b.action==='student_google_disconnect'){
     const person=await verifiedStudent(req,true);
@@ -593,11 +613,13 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
     return json({disconnected:true},200,origin);
   }
   if(b.action==='student_live_calendar'){
-    const person=await verifiedStudent(req,true);const month=calendarMonth(b);
-    const pair=await studentGoogleToken(person);
-    const events=pair.token?await googleCalendarEvents(pair.row.calendar_id,pair.token,month.begin,month.end):[];
+    const person=await verifiedStudent(req,true);const month=calendarMonth(b);await personalCalendarRate(person);
+    const selected=await studentGoogleConnection(person),office=await connection();let needsSelection=!!selected&&sameCalendar(selected,office);
+    const pair=needsSelection?{row:selected,token:null}:await studentGoogleToken(person);
+    needsSelection=needsSelection||!!pair.row&&sameCalendar(pair.row,office);
+    const events=pair.token&&!needsSelection?await googleCalendarEvents(pair.row.calendar_id,pair.token,month.begin,month.end):[];
     const bookings=await studentBookingEvents(person,month);
-    return json({google_connected:!!pair.token,google_email:pair.row?.google_email||null,events,bookings},200,origin);
+    return json({google_connected:!!pair.token&&!needsSelection,needs_selection:needsSelection,google_email:pair.row?.google_email||null,events,bookings},200,origin);
   }
   if(b.action==='student_requests'){
     const person=await verifiedStudent(req,true);if(!person.student)return json({requests:[],registered:false},200,origin);
