@@ -12,3 +12,4 @@ outputs/
 *.sql
 
 graphify-out/
+tools/
