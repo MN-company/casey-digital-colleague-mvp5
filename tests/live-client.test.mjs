@@ -6,13 +6,13 @@ import test from 'node:test';
 const client = readFileSync(new URL('../casey-live.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true } = {}) {
+function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true, pathname='/index.html', identity=null } = {}) {
   const elems = new Map();
   function el(id) {
     if (!elems.has(id)) elems.set(id, {textContent: '', title: '', hidden: false, disabled: false});
     return elems.get(id);
   }
-  const instances = [];
+  const instances = [], requests=[];
   const frames = [];
   const tracks = [{enabled: true, stop() {this.stopped = true;}}];
   let microphoneCalls=0;
@@ -35,17 +35,19 @@ function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true }
   }
   const listeners={};
   const window = {dispatchEvent(e){events.push(e);},CaseyDialogue:{append:(role,text)=>dialogue.push({role,text}),snapshot:()=>[]},setAvatarState:s=>avatars.push(s),WebSocket, AudioContext: class {constructor(){return context;}}, CaseyVoice:{getLanguage:()=> 'it-IT'}, CaseyTools:{execute:async(name,args)=>({status:'ok',tool:name,args})}, addEventListener(name,handler) {listeners[name]=handler;}};
+  if(identity)window.HandoffAPI={auth:()=>({access_token:identity}),session:()=> 'session-token'};
   const globals = {
+    location:{pathname},
     window, WebSocket, navigator:{mediaDevices:{getUserMedia: async () => {microphoneCalls++;return {getTracks:()=>tracks, getAudioTracks:()=>tracks};}}},
     sessionStorage:{getItem:()=>JSON.stringify({token:'session-token', exp:Date.now()+90000})},
     document:{getElementById:el, addEventListener() {}},
-    fetch:async()=>({ok:httpStatus===200, status:httpStatus, json:async()=>httpStatus===200?{token:serverToken, model:'gemini-3.8-live', config:{generationConfig:{responseModalities:['AUDIO']}}}:{error:'Forbidden'}}),
+    fetch:async(url,options)=>{requests.push({url,options});return ({ok:httpStatus===200, status:httpStatus, json:async()=>httpStatus===200?{token:serverToken, model:'gemini-3.8-live', config:{generationConfig:{responseModalities:['AUDIO']}}}:{error:'Forbidden'}});},
     CustomEvent:class {constructor(type,options){this.type=type;this.detail=options?.detail;}},
     AbortSignal, Blob, ArrayBuffer, DataView, Float32Array, Uint8Array, TextDecoder, console, performance,
     btoa, atob, setTimeout, clearTimeout
   };
   vm.runInNewContext(client, globals, {filename:'casey-live.js'});
-  return {get microphoneCalls(){return microphoneCalls;},window, context, sources, avatars, dialogue, events, listeners, elems, el, frames, tracks, instances, get processor(){return processor;}};
+  return {requests,get microphoneCalls(){return microphoneCalls;},window, context, sources, avatars, dialogue, events, listeners, elems, el, frames, tracks, instances, get processor(){return processor;}};
 }
 
 test('WebSocket binary ArrayBuffer setupComplete enables 16kHz PCM microphone streaming', async() => {
@@ -184,3 +186,5 @@ test('language change keeps microphone off in a text-only session',async()=>{
 test('Interrupt closes the response and microphone, and reports idle state',async()=>{
  const env=setup();await env.window.CaseyLive.start();const ws=env.instances[0];ws.onopen();ws.onmessage({data:JSON.stringify({setupComplete:{}})});await tick();env.window.CaseyLive.sendText('Rispondi');await env.window.CaseyLive.interrupt();assert.equal(env.window.CaseyLive.active,false);assert.equal(env.tracks[0].stopped,true);const state=env.events.filter(e=>e.type==='casey:live-state').at(-1).detail;assert.equal(state.state,'idle');assert.equal(state.microphone,false);
 });
+test('College Live sends the verified shared account even when the old auth store is empty',async()=>{const e=setup({pathname:'/college.html',identity:'verified-owner'});const ready=e.window.CaseyLive.startText();await tick();e.instances[0].onopen();e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});await ready;assert.equal(e.requests[0].options.headers['x-student-token'],'verified-owner');assert.equal(e.microphoneCalls,0);await e.window.CaseyLive.stop();});
+test('Public kiosk Live never forwards a phone identity kept in the same tab',async()=>{const e=setup({pathname:'/index.html',identity:'phone-owner'});const ready=e.window.CaseyLive.startText();await tick();e.instances[0].onopen();e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});await ready;assert.equal(e.requests[0].options.headers['x-student-token'],'');assert.equal(e.window.HandoffAPI.auth().access_token,'phone-owner');await e.window.CaseyLive.stop();});
