@@ -15,20 +15,20 @@ Deno.serve(async req=>{
  if(!await db('rpc/hf7_take_rate',{p_bucket:'beta:requests:'+await hash(token),p_limit:120,p_window_seconds:60}))return json({error:'Attendi un minuto prima di continuare'},429);
  const state=checked(await access(token,'state'));
  if(b.action==='email'){
-  const email=String(b.email||'').trim().toLowerCase();if(!validEmail(email))return json({error:'Inserisci una email valida'},400);
+  const email=String(b.email||'').trim().toLowerCase();const flow=requestId(b.state);if(!validEmail(email))return json({error:'Inserisci una email valida'},400);
   await rate(req,'email',50,3600);
   if(!await db('rpc/hf7_take_rate',{p_bucket:'beta:email:'+await hash(email),p_limit:1,p_window_seconds:60}))return json({error:'Attendi un minuto prima di richiedere un altro link'},429);
   if(!await db('rpc/hf7_take_rate',{p_bucket:'beta:email-global',p_limit:100,p_window_seconds:86400}))return json({error:'Il limite di invio email di oggi è stato raggiunto. Puoi continuare come ospite.'},429);
-  try{return json(await sendBetaAccessEmail(email));}catch{return json({error:'Accesso email temporaneamente non disponibile. Puoi continuare come ospite.'},503);}
+  checked(await access(token,'email_intent',null,{email_hash:await hash(email),state_hash:await hash(flow)},null));
+  try{return json(await sendBetaAccessEmail(email,flow));}catch{return json({error:'Accesso email temporaneamente non disponibile. Puoi continuare come ospite.'},503);}
  }
  // A verified-linked capability is insufficient on its own: require the matching Auth identity.
  let user:any=null;
- if(state.verified||['link','list','restore'].includes(b.action))user=await verifiedUser(req);
- if(state.verified)checked(await access(token,'link',null,{},user.id));
+ if(state.verified||['link'].includes(b.action))user=await verifiedUser(req);
+ if(state.verified)checked(await access(token,'link',null,{email_hash:await hash(user.email.toLowerCase()),state_hash:await hash(String(b.state||''))},user.id));
  if(b.action==='state')return json(state);
- if(b.action==='link')return json(checked(await access(token,'link',null,{},user.id)));
- if(b.action==='list')return json(checked(await access(token,'list',null,{},user.id)));
- if(b.action==='restore')return json(checked(await access(token,'restore',null,{conversation_id:requestId(b.conversation_id)},user.id)));
+ if(b.action==='link')return json(checked(await access(token,'link',null,{email_hash:await hash(user.email.toLowerCase()),state_hash:await hash(String(b.state||''))},user.id)));
+ if(['list','restore','new_chat'].includes(b.action))return json(checked(await db('rpc/casey_beta_chats',{p_hash:await hash(token),p_action:b.action==='new_chat'?'new':b.action,p_chat:b.action==='restore'?requestId(b.conversation_id):null,p_user:user?.id||null})));
  if(b.action==='voice_save'){
  const context=Array.isArray(b.context)?b.context.slice(-100):[];
  if(context.some((t:any)=>!['user','assistant'].includes(t?.role)||typeof t.text!=='string'||t.text.length>6000))return json({error:'Conversazione non valida'},400);

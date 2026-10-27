@@ -4,7 +4,7 @@ Deno.test('Auth email accepts normal addresses and rejects header injection/mult
  assert(validEmail('test+beta@example.com'));for(const s of ['a@example.com\r\nBcc: x@y.com','a,b@example.com','<a@example.com>','x@y','a b@example.com'])assert(!validEmail(s));
 });
 Deno.test('Auth MIME contains only recipient, safe headers and an encoded one-time challenge',()=>{
- const url=(Deno.env.get('SUPABASE_URL')||'')+'/auth/v1/verify?token=challenge&type=magiclink';
+ const url='https://casey-digital-colleague-live.vercel.app/app-blu.html?prova=1#token_hash=challenge&state=state';
  const mime=accessMessage('sender@example.com','tester@example.com','123456',url);
  assert(mime.includes('To: <tester@example.com>\r\nSubject:'));assert(!mime.includes('123456'));
  const payload=new TextDecoder().decode(Uint8Array.from(atob(mime.split('\r\n\r\n')[1]),c=>c.charCodeAt(0)));assert(payload.includes('123456'));assert(payload.includes(url));

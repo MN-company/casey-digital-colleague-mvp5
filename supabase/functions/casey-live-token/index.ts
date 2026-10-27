@@ -1,3 +1,4 @@
+import {reservePaidVoice,abortPaidVoice} from '../_shared/paid-capacity.ts';
 /** Issues a single-use constrained ephemeral Gemini Live token after Casey session verification. */
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL') || '';
 const DB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default || '';
@@ -43,6 +44,7 @@ async function authorize(req:Request) {
  return true;
 }
 Deno.serve(async(req:Request)=>{
+ let paidLease:Awaited<ReturnType<typeof reservePaidVoice>>|null=null;
  const origin=req.headers.get('origin')||'';
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(origin)});
  if(req.method!=='POST')return json({error:'Method not allowed'},405,origin);
@@ -53,13 +55,14 @@ Deno.serve(async(req:Request)=>{
   if(Number(req.headers.get('content-length')||0)>1024)return json({error:'Payload too large'},413,origin);
   const body=await req.json();const locale=body?.language;
   if(typeof locale!=='string'||!Object.hasOwn(LANGUAGE,locale))return json({error:'Unsupported language'},400,origin);
+  paidLease=await reservePaidVoice('session:'+(req.headers.get('x-session-token')||''));
   const now=Date.now();
   const instructions=`You are Casey, H-FARM College's student assistant. RESPOND ONLY IN ${LANGUAGE[locale]}. Speak naturally and concisely. For booking and verified campus questions USE the supplied tools instead of guessing. NEVER claim a booking has been confirmed from prepare_booking; a visible UI button and verified Google Calendar result are mandatory. If a tool replies authentication_required, tell the student to continue in the authenticated College app; do not request passwords or personal identifiers through this public totem. For campus policy or exam dates rely only on verified excerpts returned by search_verified_knowledge, mention exact source titles, and never invent missing facts. Never send an email, access private Calendar events, claim to have made a booking, or expose tool-internal fields. When the user is choosing an option, ask once and WAIT for their answer. Timezone is Europe/Rome. Today in Europe/Rome is ${new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',dateStyle:'full'}).format(new Date())}. Resolve relative dates in this timezone; ask for clarification for ambiguous dates or hours. The UI is a demo with Emma and Sofia scenarios, which MUST NOT be mistaken for actual user identity or policy facts. When the user clicks confirmation, a later Casey system result update will inform you of the true status.`;
   const config={generationConfig:{responseModalities:['AUDIO'],speechConfig:{voiceConfig:{prebuiltVoiceConfig:{voiceName:'Charon'}}}},inputAudioTranscription:{},outputAudioTranscription:{},realtimeInputConfig:{automaticActivityDetection:{disabled:false,prefixPaddingMs:40,silenceDurationMs:500}},systemInstruction:{parts:[{text:instructions}]},tools:LIVE_TOOLS};
   // Limit use to one Live session and its approved model/config; API key never reaches browser.
-  const google=await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({uses:1,newSessionExpireTime:new Date(now+60000).toISOString(),expireTime:new Date(now+20*60000).toISOString(),bidiGenerateContentSetup:{model:'models/'+MODEL,...config}}),signal:AbortSignal.timeout(9000)});
+  const google=await fetch('https://generativelanguage.googleapis.com/v1beta/auth_tokens',{method:'POST',headers:{'Content-Type':'application/json','x-goog-api-key':API_KEY},body:JSON.stringify({uses:1,newSessionExpireTime:new Date(Math.min(now+60000,Date.parse(paidLease.expires_at!))).toISOString(),expireTime:paidLease.expires_at,bidiGenerateContentSetup:{model:'models/'+MODEL,...config}}),signal:AbortSignal.timeout(9000)});
   const result=await google.json().catch(()=>({}));
-  if(!google.ok||typeof result.name!=='string') {const e=result?.error||{};console.error('Gemini token provisioning failed:',google.status,'code:',String(e.status||'unknown').slice(0,60),'message:',String(e.message||'unspecified').slice(0,350));return google.status===429?json({error:'Google Gemini API rate limit',source:'google'},429,origin):json({error:'Gemini Live unavailable',source:'google'},502,origin);}
-  return json({token:result.name,model:MODEL,config,expiresIn:60},200,origin);
- }catch(error){const status=typeof (error as any)?.status==='number'?(error as any).status:503;console.error('Casey Live token failure:',error instanceof Error?error.message:'Unknown');return json({error:status===429?'Casey demo safety limit reached (not a Google quota)':'Live session unavailable',source:status===429?'casey':'backend'},status,origin);}
+  if(!google.ok||typeof result.name!=='string') {await abortPaidVoice(paidLease);paidLease=null;const e=result?.error||{};console.error('Gemini token provisioning failed:',google.status,'code:',String(e.status||'unknown').slice(0,60),'message:',String(e.message||'unspecified').slice(0,350));return google.status===429?json({error:'Google Gemini API rate limit',source:'google'},429,origin):json({error:'Gemini Live unavailable',source:'google'},502,origin);}
+  paidLease=null;return json({token:result.name,model:MODEL,config,expiresIn:60},200,origin);
+ }catch(error){if(paidLease)await abortPaidVoice(paidLease).catch(()=>{});const status=typeof (error as any)?.status==='number'?(error as any).status:503;console.error('Casey Live token failure:',error instanceof Error?error.message:'Unknown');return json({error:status===429?'Casey demo safety limit reached (not a Google quota)':'Live session unavailable',source:status===429?'casey':'backend'},status,origin);}
 });

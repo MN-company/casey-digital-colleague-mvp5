@@ -1,3 +1,4 @@
+import {reservePaidText,finishPaidText} from '../_shared/paid-capacity.ts';
 /**
  * Casey MVP 5.1: Google Cloud Text-to-Speech adapter (Chirp 3 HD).
  * A valid Casey backend session is required, even with verify_jwt=false.
@@ -147,6 +148,7 @@ function base64ToBytes(data: string): Uint8Array {
 }
 
 export async function handleRequest(request: Request): Promise<Response> {
+  let paid:Awaited<ReturnType<typeof reservePaidText>>|null=null;
   const origin = request.headers.get('origin') || '';
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: cors(origin) });
   if (request.method !== 'POST') return failure('Method not allowed', 405, origin);
@@ -164,6 +166,7 @@ export async function handleRequest(request: Request): Promise<Response> {
       return failure('Text must be 1–1200 characters, max 4000 UTF-8 bytes', 400, origin);
     }
     await validateAndRateLimit(request);
+    paid=await reservePaidText('session:'+request.headers.get('x-session-token'));
     const bearer = await googleAccessToken();
     const response = await fetch(TTS_ENDPOINT, {
       method: 'POST',
@@ -184,7 +187,7 @@ export async function handleRequest(request: Request): Promise<Response> {
     if (typeof data.audioContent !== 'string' || !data.audioContent) return failure('Empty voice result', 502, origin);
     const audio = base64ToBytes(data.audioContent);
     if (!audio.length) return failure('Empty voice result', 502, origin);
-    return new Response(audio, {
+    return new Response(new Uint8Array(audio).buffer, {
       status: 200,
       headers: { ...cors(origin), 'Content-Type': 'audio/mpeg', 'Content-Length': String(audio.length) }
     });
@@ -192,7 +195,7 @@ export async function handleRequest(request: Request): Promise<Response> {
     const status = error instanceof Error && 'status' in error ? Number((error as any).status) : 503;
     console.error('Casey TTS error:', error instanceof Error ? error.message : String(error));
     return failure(status === 429 ? 'Voice request limit reached' : status === 401 ? 'Valid session required' : 'Voice service unavailable', status, origin);
-  }
+  } finally {if(paid)await finishPaidText(paid).catch(()=>{});}
 }
 
 if (import.meta.main) Deno.serve(handleRequest);
