@@ -19,7 +19,7 @@ jobs:
         with:
           deno-version: v2.x
       - run: deno check supabase/functions/casey-handoff/index.ts supabase/functions/casey-handoff-live/index.ts supabase/functions/casey-beta/index.ts supabase/functions/casey-beta-live/index.ts
-      - run: deno test --allow-env tests/handoff-operations.test.ts tests/definitivo-rag.test.ts tests/semantic-rag.test.ts tests/beta-mail.test.ts
+      - run: deno test --allow-env tests/handoff-operations.test.ts tests/definitivo-rag.test.ts tests/semantic-rag.test.ts tests/beta-mail.test.ts tests/beta-live.test.ts
       - run: git diff --check
   handbook-import-safety:
     runs-on: ubuntu-latest
