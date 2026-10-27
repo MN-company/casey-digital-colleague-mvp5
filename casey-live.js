@@ -113,6 +113,11 @@
       pause.textContent = !mediaStream ? 'Attiva microfono' : paused ? 'Riprendi ascolto' : 'Pausa';
     }
   }
+  function studentAccessToken(){
+    const path=typeof location!=='undefined'?location.pathname:'';
+    const personal=window.HandoffAPI?.mobile||['/college.html','/app-blu.html','/app-rossa.html'].some(p=>path.endsWith(p));
+    return personal?(window.HandoffAPI?.auth?.()?.access_token||window.CaseyAuth?.get()?.access_token||''):'';
+  }
   function sessionToken() {
     try {
       const phoneToken=window.HandoffAPI?.session?.();if(phoneToken)return phoneToken;
@@ -370,7 +375,7 @@
       const language = window.CaseyLanguage?.get() || window.CaseyVoice?.getLanguage?.() || 'it-IT';
       const response = await fetch(TOKEN_ENDPOINT, {
         method: 'POST',
-        headers: {'Content-Type': 'application/json', 'x-session-token': session,'x-student-token':window.CaseyAuth?.get()?.access_token||''},
+        headers: {'Content-Type': 'application/json', 'x-session-token': session,'x-student-token':studentAccessToken()},
         body: JSON.stringify({language}),
         signal: AbortSignal.timeout(12000)
       });
