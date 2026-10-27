@@ -7,8 +7,8 @@
  document.body.append(dialog);const $=id=>dialog.querySelector('#'+id),notice=t=>{$('studentAccessStatus').textContent=t||'';};
  dialog.querySelector('.close').onclick=()=>dialog.close();
  function paint(){const label=document.querySelector('#studentAccessLabel');if(label)label.textContent=state?`${state.verified?'Email verificata':'Ospite'} · ${state.text_remaining} domande · ${Math.floor(state.voice_seconds_remaining/60)} min voce`: 'Prova Casey nell’app College';$('studentLogout').hidden=!(state?.verified||B.guest()?.verified);$('studentGuest').hidden=!!state;}
- async function refresh(){state=await B.call('state');await window.CaseyAccount?.profile();paint();return state;}
- async function ensure(){if(!init)init=B.start().then(async s=>{state=s;await window.CaseyAccount?.profile();paint();return s;}).finally(()=>{init=null;});return init;}
+ async function refresh(){state=await B.call('state');await window.CaseyAccount?.profile().catch(()=>null);paint();return state;}
+ async function ensure(){if(!init)init=B.start().then(async s=>{state=s;await window.CaseyAccount?.profile().catch(()=>null);paint();return s;}).finally(()=>{init=null;});return init;}
  function restore(s){if(app.restoreConversation)app.restoreConversation(s.context||[],s.id);}
  async function library(){if(!state)return;const r=await B.call('list');$('studentCloudChats').replaceChildren();for(const c of r.conversations){const b=document.createElement('button');b.className='history-entry';b.textContent=(c.context.find(t=>t.role==='user')?.text||'Conversazione')+' · '+new Date(c.created_at).toLocaleDateString('it-IT');b.onclick=async()=>{try{const s=await B.call('restore',{conversation_id:c.id});restore(s);dialog.close();}catch(e){notice(e.message);}};$('studentCloudChats').append(b);}}
  function open(){dialog.showModal();void (async()=>{try{if(B.guest()){await ensure();await library();}}catch(e){notice(e.message);}})();}
