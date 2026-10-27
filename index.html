@@ -292,6 +292,7 @@ body.show .exit{display:block}
               <button class="mic" id="micBtn" onclick="toggleMic()" title="Parla con Casey" aria-label="Parla con Casey">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5"/></svg>
               </button>
+              <button class="go" id="listenCaseyBtn" onclick="toggleListen()" title="Ascolta Casey senza attivare il microfono">Ascolta</button>
               <input id="q" type="text" placeholder="Parla o scrivi…" autocomplete="off" onkeydown="if(event.key==='Enter')send()">
               <button class="go" onclick="send()">Chiedi</button>
             </div>
@@ -610,7 +611,7 @@ function playState(st){
  const restore=()=>{if(revision!==videoRevision)return;document.getElementById('avatar').style.opacity=1;cur.classList.add('hide');nxt.classList.add('hide');};
  const go=()=>{if(revision!==videoRevision)return;if(i>=c.length){restore();return;}const f=caseyDir()+c[i++];
  nxt.onloadeddata=()=>{if(revision!==videoRevision)return;nxt.classList.remove('hide');cur.classList.add('hide');document.getElementById('avatar').style.opacity=0;liveV=nxt.id;nxt.play().catch(restore);};
- nxt.onerror=go;nxt.loop=(st==='idle'||st==='think');nxt.src=f;nxt.load();};go();
+ nxt.onerror=go;nxt.onended=()=>{if(revision===videoRevision&&!nxt.loop)playState('idle');};nxt.loop=(st==='idle'||st==='think'||st==='talk');nxt.muted=true;nxt.src=f;nxt.load();};go();
 }
 
 function setState(st,label,cls){
@@ -1117,5 +1118,5 @@ function loadScenario(){
 document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
 </script>
 <script src="qr.js"></script>
-<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="real-calendar.js"></script></body>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="kiosk-avatar.js"></script><script src="real-calendar.js"></script></body>
 </html>
