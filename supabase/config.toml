@@ -30,3 +30,7 @@ verify_jwt = false
 entrypoint = "./functions/casey-handoff-ui/index.js"
 [functions.casey-handoff-live]
 verify_jwt = false
+
+[functions.casey-rag-maintenance]
+verify_jwt = true
+entrypoint = "./functions/casey-rag-maintenance/index.ts"

@@ -1,3 +1,5 @@
+> Historical importer-only release record. Superseded by [the complete semantic RAG release](CASEY6_SEMANTIC_RAG_PRODUCTION.md).
+
 # Casey 6 HFARM RAG release — 2026-10-27
 
 ## Recovered package and implementation
