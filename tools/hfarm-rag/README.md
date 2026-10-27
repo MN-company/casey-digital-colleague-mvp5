@@ -56,17 +56,26 @@ The already approved shared document in Supabase is not changed by this release.
 ## Evidence and scope
 
 DM uses CAFOSCARI / DIGITAL_MANAGEMENT. Other handbooks use exact CICC program
-codes; Foundation Year stays candidate. The backend authorizes scope from the
-server roster. Generic Business/null program entries are not sufficient to
-select an exact course. Do not guess an affiliation from an email or chat.
+codes. Foundation Year was reviewed against source pages 9, 13, 23 and 54,
+which explicitly identify Chichester Board/ChiView and University of Chichester,
+and is now approved for the user-requested demo. Fresh imports still start it
+as candidate until reviewed; insert-only repeats preserve the existing review.
+The backend uses canonical verified roster names where present; otherwise it
+asks which course the public question concerns. This selects source context,
+never authenticates a student or authorizes personal operations. Generic
+Business/null values never become an arbitrarily inferred course.
 
 Master L7 pass marks are 50%; undergraduate L4-L6 are 40%. Source excerpts are
 preserved, with contextual headings. Dates from 2026 remain historical evidence
 within academic year 2026/27; no exact 2027 deadline is inferred. Do not remove
 demo-only approval warnings or claim institutional certification.
 
-No embeddings or query-embedding path are introduced. Current retrieval is
-lexical, using existing hf8 tables and RPCs. The original PDFs and visual tables,
-full 120-question evaluation, official roster mapping and physical voice/login
-acceptance remain separate work. There is no new schema migration or deletion
-in this release.
+Production embeddings and query vectors use `gemini-embedding-2` at 768
+dimensions. Text and Live knowledge tools use the same hybrid hf8 retrieval.
+The service-role-only `casey-rag-maintenance` function backfills missing vectors
+in bounded batches and reuses vectors for identical text; it never edits source
+text, document identity, audience or course scope. The service-only
+`hf8_store_embeddings` RPC validates each source content hash and updates only
+missing vector metadata. Retry 429 responses with backoff; never mix model spaces.
+Physical voice/login acceptance and original PDF visual inspection remain
+separate from the automated source-backed retrieval/answer checks.

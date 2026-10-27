@@ -51,6 +51,6 @@ Deno.test('Come stai never touches a document or profile database',async()=>{
 });
 Deno.test('A sourced policy answer is synthesized by AI, never the raw excerpt',async()=>{
  const original=globalThis.fetch;Deno.env.set('GEMINI_API_KEY','test-only');let modelCalls=0;
- globalThis.fetch=async input=>{if(String(input).includes('generativelanguage.googleapis.com')){modelCalls++;return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({answer:'Risposta breve basata sulla fonte.',supported:true,source_ids:[fixture.chunk_id]})}]}}]});}return Response.json([fixture]);};
+ globalThis.fetch=async input=>{if(String(input).includes(':batchEmbedContents'))return Response.json({embeddings:[{values:Array(768).fill(1)}]});if(String(input).includes('generativelanguage.googleapis.com')){modelCalls++;return Response.json({candidates:[{content:{parts:[{text:JSON.stringify({answer:'Risposta breve basata sulla fonte.',supported:true,source_ids:[fixture.chunk_id]})}]}}]});}return Response.json([fixture]);};
  try{const d=await answer([{role:'user',text:'Quale regolamento si applica al campus?'}],new Request('https://example.invalid'));assertEquals(d.mode,'llm');assertEquals(d.answer,'Risposta breve basata sulla fonte.');assertEquals(d.citations[0].id,fixture.chunk_id);assertEquals(modelCalls,1);}finally{globalThis.fetch=original;Deno.env.set('GEMINI_API_KEY','');}
 });

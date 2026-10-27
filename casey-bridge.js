@@ -276,7 +276,7 @@
   return {saved:r.saved===true,google_sync:r.google_sync||null,start:r.start||null,end:r.end||null,email_status:r.email_status||null};
  }
  async function liveSearchKnowledge(query){
-  const r=await api('knowledge_lookup',{query:String(query||'').slice(0,360)});
+  const r=await api('knowledge_lookup',{query:String(query||'').slice(0,360),history:window.CaseyDialogue?.snapshot?.().slice(-10)||[]});
   return {verified:r.verified===true,matches:r.matches||[],note:r.note||''};
  }
  async function sendUserMessage(customText=null){

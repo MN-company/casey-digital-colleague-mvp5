@@ -8,7 +8,7 @@ from public.hf8_source_documents d left join public.hf8_source_chunks c on c.doc
 where d.source_provenance = 'H-FARM Student Office handbook shared 2026-10-26'
 group by d.id order by d.title;
 select count(*) as misleading_future_years from public.hf8_source_documents where source_provenance = 'H-FARM Student Office handbook shared 2026-10-26' and academic_year <> '2026/2027';
-select count(*) as incorrectly_approved_foundation from public.hf8_source_documents where program='FOUNDATION_YEAR' and source_provenance = 'H-FARM Student Office handbook shared 2026-10-26' and approval_status <> 'candidate';
+select count(*) as foundation_missing_scope_review from public.hf8_source_documents where program='FOUNDATION_YEAR' and source_provenance = 'H-FARM Student Office handbook shared 2026-10-26' and approval_status = 'approved' and not (validity_flags @> '["scope_verified_from_source_pages_9_13_23_54"]'::jsonb);
 select count(*) as cross_program_null_handbooks from public.hf8_source_documents where source_provenance = 'H-FARM Student Office handbook shared 2026-10-26' and program is null;
 -- Current retrieval remains service-only; verify grants/RLS separately.
 select schemaname,tablename,policyname,roles,cmd from pg_policies where tablename in ('hf8_source_documents','hf8_source_chunks');
