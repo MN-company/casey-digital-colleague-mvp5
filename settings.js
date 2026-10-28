@@ -58,7 +58,7 @@
   $('calendarForm').addEventListener('submit',async e=>{e.preventDefault();banner('Verifico il calendario selezionato…');try{const r=await call('admin_calendar',{calendar_id:$('calendarId').value.trim()});banner('Calendario verificato e salvato: '+r.calendar_id,'good');await refresh();}catch(e){banner(e.message,'bad');}});
   $('logoutButton').addEventListener('click',async()=>{try{await call('admin_logout');}catch{}token=null;try{sessionStorage.removeItem(key);}catch{}signed(false);banner('Sessione amministrativa chiusa.','good');});
   $('disconnectButton').addEventListener('click',async()=>{if(!confirm('Scollegare Google? Casey non potrà creare nuovi appuntamenti o inviare email finché non ricolleghi l’account.'))return;try{await call('admin_disconnect');banner('Account scollegato. Le prenotazioni e gli eventi già creati rimangono invariati.','good');await refresh();}catch(e){banner(e.message,'bad');}});
-  if(error)banner(decodeURIComponent(error),'bad');
+  if(error)banner(error,'bad');
   if(token){try{await refresh();await Promise.all([refreshRoster(),refreshDocuments()]);if(!error)banner('Accesso amministrativo attivo. Controlla lo stato delle integrazioni.','good');return;}catch(e){token=null;try{sessionStorage.removeItem(key);}catch{}banner('Accesso scaduto: autentica nuovamente il tuo account Google.','bad');}}
   signed(false);
   try{const c=await call('public_config');if(c.oauth_configured){$('connectGoogle').classList.remove('disabled-link');$('connectGoogle').removeAttribute('aria-disabled');$('connectHelp').textContent='Accesso riservato agli account staff configurati. La prima autorizzazione Google potrebbe mostrare la schermata di consenso.';if(!error)banner('Pronto per il collegamento OAuth. Accedi con il tuo account staff.');}

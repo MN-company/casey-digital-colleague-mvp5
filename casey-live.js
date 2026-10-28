@@ -5,7 +5,7 @@
 (() => {
   'use strict';
 
-  const TOKEN_ENDPOINT = window.CASEY_CONFIG?.liveTokenUrl || 'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-live-token';
+  const DEFAULT_TOKEN_ENDPOINT = window.CASEY_CONFIG?.liveTokenUrl || 'https://oxzraaadxqsruibinlxn.supabase.co/functions/v1/casey-live-token';
   const LIVE_ENDPOINT = 'wss://generativelanguage.googleapis.com/ws/google.ai.generativelanguage.v1beta.GenerativeService.BidiGenerateContentConstrained?access_token=';
   const MAX_WS_BUFFERED_BYTES = 32_000;
   const SETUP_TIMEOUT_MS = 15_000;
@@ -114,11 +114,13 @@
     }
   }
   function studentAccessToken(){
+    if(window.CaseyLiveContext?.auth)return window.CaseyLiveContext.auth()?.access_token||'';
     const path=typeof location!=='undefined'?location.pathname:'';
     const personal=window.HandoffAPI?.mobile||['/college.html','/app-blu.html','/app-rossa.html'].some(p=>path.endsWith(p));
     return personal?(window.HandoffAPI?.auth?.()?.access_token||window.CaseyAuth?.get()?.access_token||''):'';
   }
   function sessionToken() {
+    if(window.CaseyLiveContext?.session)return window.CaseyLiveContext.session();
     try {
       const phoneToken=window.HandoffAPI?.session?.();if(phoneToken)return phoneToken;
       const obj = JSON.parse(sessionStorage.getItem(window.CASEY_CONFIG?.sessionStorageKey||'casey-original-ui-session') || 'null');
@@ -209,14 +211,7 @@
     if (raw && typeof raw.text === 'function') return JSON.parse(await raw.text());
     throw new Error('Formato WebSocket non riconosciuto');
   }
-  function readableGeminiError(error) {
-    const message = String(error?.message || error || 'Errore sconosciuto');
-    const statusCode = String(error?.code || '');
-    if (/quota|resource_exhausted|free tier|billing|prepayment|credit/i.test(message + statusCode)) {
-      return 'Gemini: quota o crediti non disponibili (controlla AI Studio)';
-    }
-    return 'Gemini: ' + message.slice(0, 140);
-  }
+  function readableGeminiError(_error) { return 'Voce momentaneamente non disponibile. Riprova oppure continua a scrivere.'; }
   async function handleToolCalls(calls, mine){
     // Gemini requests actions, NEVER performs a booking directly in the browser.
     const responses=await Promise.all((Array.isArray(calls)?calls:[]).slice(0,6).map(async call=>{
@@ -370,10 +365,11 @@
     try {
       // Resume output within the text button's user gesture; no microphone permission is requested.
       if(!microphone){audioContext=new (window.AudioContext || window.webkitAudioContext)();await audioContext.resume();}
+      if(microphone){audioContext=new (window.AudioContext||window.webkitAudioContext)();await connectMicrophone(mine);}
       const session = sessionToken();
       if (!session) throw new Error('Sessione Casey non disponibile: aggiorna la pagina.');
       const language = window.CaseyLanguage?.get() || window.CaseyVoice?.getLanguage?.() || 'it-IT';
-      const response = await fetch(TOKEN_ENDPOINT, {
+      const response = await fetch(window.CaseyLiveContext?.tokenUrl||DEFAULT_TOKEN_ENDPOINT, {
         method: 'POST',
         headers: {'Content-Type': 'application/json', 'x-session-token': session,'x-student-token':studentAccessToken()},
         body: JSON.stringify({language}),
@@ -385,9 +381,8 @@
         throw new Error('Configurazione Gemini non valida');
       }
       if (mine !== revision) return;
-      if(credentials.request_id)window.dispatchEvent(new CustomEvent('casey:live-lease',{detail:{request_id:credentials.request_id,expires_at:credentials.expires_at}}));
+      if(credentials.request_id)window.dispatchEvent(new CustomEvent('casey:live-lease',{detail:{request_id:credentials.request_id,expires_at:credentials.expires_at,kind:window.CaseyNativeHandoff?.active?'private':'beta'}}));
       if(!audioContext)audioContext=new (window.AudioContext || window.webkitAudioContext)();
-      if(microphone)await connectMicrophone(mine);
       if(mine!==revision)return;
       await audioContext.resume();
       if(mine!==revision)return;
@@ -427,7 +422,7 @@
         if(details.includes('prepayment credits are depleted'))metric('upstream_rejection',{code:event.code,reason:details,model:'gemini-3.8-live'});
         const reason = details.includes('prepayment credits are depleted') ? 'Gemini non disponibile per questo progetto. Il contesto resta salvato.' : event.code === 1000
           ? 'Connessione Gemini terminata' // no error implied
-          : 'Gemini WebSocket ' + event.code + (details ? ': ' + details : '');
+          : 'Connessione vocale interrotta. Riattiva il microfono oppure continua a scrivere.';
         console.warn('Casey Live closed:', event.code, details.slice(0,150));
         void stop(reason);
       };
@@ -444,7 +439,7 @@
     } catch (error) {
       if (mine !== revision) return;
       console.warn('Casey Live start failed:', String(error?.message || error).slice(0,160));
-      await stop('Live non disponibile: ' + String(error?.message || 'errore').slice(0,130));
+      await stop(window.CaseyErrors?.message(error)||'Voce non disponibile. Controlla il microfono o continua a scrivere.');
     }
   }
   async function pause() {

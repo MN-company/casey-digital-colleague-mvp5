@@ -9,8 +9,8 @@
  };
  const t=()=>text[CaseyLanguage.get()];
  const status=message=>{const el=document.querySelector('#bePill span');if(el)el.textContent=message;};
- async function call(action,body={}){
- const r=await fetch(C.apiUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:C.publishableKey,'x-session-token':engine},body:JSON.stringify({action,...body}),signal:AbortSignal.timeout(40000)});const d=await r.json();if(!r.ok)throw Error(d.error||t().error);return d;
+ async function call(action,body={},renew=true){
+ const r=await fetch(C.apiUrl,{method:'POST',headers:{'Content-Type':'application/json',apikey:C.publishableKey,'x-session-token':engine},body:JSON.stringify({action,...body}),signal:AbortSignal.timeout(28000)});const d=await (window.CaseyErrors?.json(r)||r.json());if(!r.ok){if(r.status===401&&renew&&action!=='session'){engine='';sessionPromise=null;await session();return call(action,body,false);}throw Object.assign(Error(d.error||t().error),{status:r.status});}return d;
  }
  async function session(){if(engine)return engine;if(!sessionPromise)sessionPromise=call('session').then(d=>engine=d.token).finally(()=>sessionPromise=null);return sessionPromise;}
  function stopPoll(){clearInterval(poll);clearTimeout(expiry);poll=expiry=null;}
@@ -24,30 +24,30 @@
   try{
    const r=await A.call('issue',{context:messages.snapshot()});
    if(rev!==revision){await A.call('cancel',{id:r.id}).catch(()=>{});return;}
-   link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',location.href);url.hash='handoff='+r.token;phoneUrl=url.href;
+   link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',location.href);url.searchParams.set('lang',CaseyLanguage.get());url.hash='handoff='+r.token;phoneUrl=url.href;
    const code=qrcode(0,'M');code.addData(url.href);code.make();const n=code.getModuleCount(),svg=document.getElementById('qrCode');svg.setAttribute('viewBox','-4 -4 '+(n+8)+' '+(n+8));let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(code.isDark(y,x))path+='M'+x+' '+y+'h1v1h-1z';svg.innerHTML='<rect x="-4" y="-4" width="'+(n+8)+'" height="'+(n+8)+'" fill="white"/><path d="'+path+'" fill="#101828" shape-rendering="crispEdges"/>';
 
-   document.getElementById('qrTitle').textContent='Casey · College';document.getElementById('qrSub').textContent=t().transfer;
+   document.getElementById('qrTitle').textContent=S==='FARM'?'Casey · Campus':'Casey · College';document.getElementById('qrSub').textContent=t().transfer;
    const until=Date.now()+r.expires_in*1000;const tick=()=>{document.getElementById('qrMeta').textContent=Math.max(0,Math.ceil((until-Date.now())/1000))+' s · uso singolo';};tick();
    say(t().transfer,null,'pr','Privacy','hand');
    let checking=false;poll=setInterval(async()=>{if(checking||link!==r.id)return;checking=true;tick();try{const state=await A.call('status',{id:r.id});if(link!==r.id)return;if(state.consumed){await window.CaseyVoiceSession?.stop();stopPoll();link=null;messages.clear();engine='';sessionPromise=null;revision++;document.getElementById('qrCard').classList.remove('on');goIdle();}else if(state.expired){stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;}}catch{status(t().error);}finally{checking=false;}},2500);
    expiry=setTimeout(()=>{if(link!==r.id)return;stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;},r.expires_in*1000);
    return {status:'handoff_ready',expires_in:r.expires_in};
-  }catch(e){card.classList.add('expired');document.getElementById('qrMeta').textContent=e.message;}
+  }catch(e){card.classList.add('expired');document.getElementById('qrMeta').textContent=window.CaseyErrors?.message(e)||t().error;}
  }
  window.handover=handover;window.openSession=handover;window.openPhone=()=>{if(phoneUrl&&link)window.open(phoneUrl,'_blank','noopener');};
  // Remove simulated routing, tickets and booking outcomes from the connected path.
  window.send=async custom=>{
-  const input=document.getElementById('q'),value=String(custom||input.value||'').trim().slice(0,1000);if(!value||busy)return;
-  input.value='';if(window.CaseyLive?.active&&window.CaseyLive.ready){window.CaseyLive.sendText(value);return;}busy=true;const rev=revision;shutUp();
+  const input=document.getElementById('q'),value=String(custom||input.value||'').trim();if(!value||busy)return;if(value.length>1000){showSilent('Scrivi un messaggio entro 1.000 caratteri.');return;}
+  input.value='';if(window.CaseyLive?.active&&window.CaseyLive.ready){window.CaseyLive.sendText(value);return;}busy=true;const rev=revision,before=messages.snapshot();shutUp();const wait=setTimeout(()=>{if(busy&&rev===revision){document.getElementById('capText').textContent='Sto ancora cercando nelle fonti…';}},6000);
   try{
    messages.append('user',value);setState('think',t().thinking,'think');
    const route=await A.call('classify',{message:value});if(rev!==revision)return;
    if(route.route!=='public'){await handover();return;}
    await session();const history=messages.snapshot().slice(0,-1);const r=await call('turn',{message:value,history,language:CaseyLanguage.get()});if(rev!==revision)return;
    messages.append('assistant',r.answer);say(r.answer,r.citations?.map(x=>x.title+(x.page?' · p. '+x.page:'')).join(' · ')||null,r.source_status==='candidate'?'nc':'tra',r.source_status==='candidate'?t().candidate:t().verified,'point');status(t().ready);return r.answer;
-  }catch(e){if(rev===revision){say(e.message||t().error);status(t().error);}}
-  finally{busy=false;}
+  }catch(e){if(rev===revision){messages.replace(before);const message=window.CaseyErrors?.message(e)||t().error;showSilent(message);status(t().error);}}
+  finally{clearTimeout(wait);busy=false;}
  };
  const oldIdle=window.goIdle;
  window.goIdle=()=>{if(link)return;revision++;messages.clear();engine='';void clearLink();oldIdle();};

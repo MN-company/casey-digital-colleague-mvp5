@@ -1,0 +1,2 @@
+/* Keep the limit visible near the composer before reaching it. */
+(()=>{'use strict';for(const input of document.querySelectorAll('#q,#cInput')){input.maxLength=1000;const note=document.createElement('small');note.className='input-limit';note.setAttribute('aria-live','polite');input.parentElement.style.position='relative';input.after(note);const update=()=>{note.textContent=input.value.length+' / 1.000';note.hidden=input.value.length<800;};input.addEventListener('input',update);update();}})();

@@ -415,7 +415,7 @@ body{--brand:var(--college);--navy:#1D2A5B;--navy2:#2B3A74;--tint:#EEF1F8;--tint
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"></head>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><link rel="stylesheet" href="native-handoff.css"></head>
 <body>
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-college-logo.png" alt="H-FARM College"><div class="spin"></div></div>
@@ -444,7 +444,7 @@ body{--brand:var(--college);--navy:#1D2A5B;--navy2:#2B3A74;--tint:#EEF1F8;--tint
   <div class="sheet off" id="sheet" role="dialog" aria-modal="true" aria-label="Casey: le conversazioni del tuo account"><div class="inner"></div></div>
 </div>
 
-<script src="config.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><script src="app-connected.js"></script>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-errors.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><script src="app-connected.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1256,7 +1256,7 @@ function buildCasey() {
         <div class="ctop" id="ctop"></div>
         <div class="scroll" id="cScroll"><div id="thread"></div></div>
         <div class="inbar">
-          <div class="inw"><input id="cInput" type="text" placeholder="Scrivi a Casey…" autocomplete="off" enterkeyhint="send" aria-label="Messaggio per Casey"><button class="mic" id="micBtn" data-act="mic" aria-label="Detta il messaggio">${I.mic}</button></div>
+          <div class="inw"><input id="cInput" maxlength="1000" aria-description="Massimo 1.000 caratteri" type="text" placeholder="Scrivi a Casey…" autocomplete="off" enterkeyhint="send" aria-label="Messaggio per Casey"><button class="mic" id="micBtn" data-act="mic" aria-label="Detta il messaggio">${I.mic}</button></div>
           <button class="send" id="sendBtn" data-act="send" aria-label="Invia">${I.send}</button>
         </div>
       </section>
@@ -1278,7 +1278,7 @@ function renderHist() {
   el.innerHTML = html || '<div class="hempty">Le tue conversazioni compariranno qui.</div>';
   $('#hfoot').innerHTML = `Salvate su questo dispositivo.<button data-act="reset">Cancella chat locali</button>`;
 }
-const SUGG = ['Il check-in mi dà errore', 'Sono stato malato 6 giorni: è giustificata?', 'Posso usare l’AI per un compito?', 'Cosa c’è a Game Changer Italy?'];
+const SUGG = ['Come posso stampare in campus?', 'Sono stato malato 6 giorni: l’assenza è giustificata?'];
 function renderChat(scroll = 'bottom') {
   const chat = curChat();
   $('#ctop').innerHTML = `<div class="tt"><b>${chat ? esc(chat.title) : 'Nuova chat'}</b><small>${chat ? esc(dayLabel(new Date(chat.created)) + ' · ' + chat.msgs.length + ' messaggi') : 'Casey risponde con le fonti ufficiali'}</small></div>
@@ -1328,7 +1328,7 @@ async function userSays(text) {
   let reply;
   C.lastEvent = chat.ev || null; // ogni chat ricorda di quale evento si stava parlando
   try { reply = await CaseyApp.answer(text, chat.msgs.slice(0, -1)); chat.ev = C.lastEvent || null; } catch (e) { reply = { text: 'Scusa, qui qualcosa non ha funzionato. Riprova, oppure scrivi allo Student Office.', acts: [mailAct('so', 'Domanda per lo Student Office', text, 'Scrivi allo Student Office')], keep: true }; }
-  await sleep(Math.min(1300, 550 + text.length * 6));
+
   const m = mkMsg('casey', reply, now());
   chat.msgs.push(m); chat.updated = m.ts; C.typingIn = null; C.busy = false; saveChats();
   if (C.cur === chat.id && T.tab === 'CASEY') { renderHist(); renderChat(m.id); } else if (T.tab === 'CASEY') renderHist();
@@ -1414,20 +1414,20 @@ function init() {
   $('#sbIcons').innerHTML = statusIcons();
   $('#avBtn').textContent = U.ini; $('#avBtn').setAttribute('aria-label', 'Profilo di ' + U.name);
   tick(); setInterval(tick, 10000);
-  C.chats = []; saveChats();
+
   if (window.innerWidth < 340) C.hist = false;
   go('HOME');
   document.addEventListener('click', onClick);
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && $('#bsheet').classList.contains('open')) bsClose(); });
   setTimeout(() => { const s = $('#splash'); if (s) s.classList.add('go'); }, 900);
-  function restoreConversation(context, id) {const t=Date.now();C.chats=context.length?[{id:id||'cloud',title:context.find(m=>m.role==='user')?.text.slice(0,44)||'Conversazione',created:t,updated:t,msgs:context.map(m=>mkMsg(m.role==='user'?'me':'casey',{text:String(m.text||'')},new Date()))}]:[];C.cur=C.chats[0]?.id||null;if(C.built)renderCasey('bottom');}
-  function appendVoiceTurn(role,text){if(!text)return;let chat=curChat();if(!chat){const t=Date.now();chat={id:uid('c'),title:String(text).slice(0,44),created:t,updated:t,msgs:[]};C.chats=[chat];C.cur=chat.id;}const from=role==='user'?'me':'casey';chat.msgs.push(mkMsg(from,{text},new Date()));chat.updated=Date.now();if(C.built)renderCasey('bottom');}
+  function restoreConversation(context, id) {const previous=C.chats.find(c=>c.id===id),t=previous?.created||Date.now();const incoming=context.length?[{id:id||'cloud',title:context.find(m=>m.role==='user')?.text.slice(0,44)||'Conversazione',created:t,updated:previous?.updated||t,msgs:context.map((m,i)=>previous?.msgs?.[i]?.text===m.text?previous.msgs[i]:mkMsg(m.role==='user'?'me':'casey',{text:String(m.text||'')},new Date(m.created_at||t)))}]:[];C.chats=[...incoming,...C.chats.filter(c=>c.id!==id)];C.cur=incoming[0]?.id||null;if(C.built)renderCasey('bottom');}
+  function appendVoiceTurn(role,text){if(!text)return;let chat=curChat();if(!chat){const t=Date.now();chat={id:uid('c'),title:String(text).slice(0,44),created:t,updated:t,msgs:[]};C.chats.unshift(chat);C.cur=chat.id;}const from=role==='user'?'me':'casey';chat.msgs.push(mkMsg(from,{text},new Date()));chat.updated=Date.now();if(C.built)renderCasey('bottom');}
   function clearConversations(){C.chats=[];C.cur=null;localStorage.removeItem(KEY);if(C.built)renderCasey('top');}
   function applyProfile(p){Object.assign(STUDENT,{name:p?.display_name|| (p?'Il tuo account':'Ospite'),first:p?.first_name||'',ini:p?.display_name?p.display_name.split(' ').filter(Boolean).map(x=>x[0]).slice(0,2).join(''):'?'});Object.assign(U,STUDENT,{mail:p?.email||'—',code:p?.student_number||'—',deg:p?.program||'Corso non collegato',role:p?.registered?(p.program||'Profilo universitario verificato'):p?'Email verificata':'Accesso ospite'});$('#avBtn').textContent=U.ini;$('#avBtn').setAttribute('aria-label','Profilo di '+U.name);if(T.tab!=='CASEY')renderTab();if(C.built)renderChat();}
-  window.__casey = { T, C, ACT, applyProfile, answer, classify, now, go, userSays, restoreConversation, appendVoiceTurn, clearConversations };
+  window.__casey = { T, C, ACT, loadHistory(chats){for(const chat of chats){if(!C.chats.some(c=>c.id===chat.id))C.chats.push({id:chat.id,title:chat.context.find(t=>t.role==='user')?.text.slice(0,44)||'Conversazione',created:Date.parse(chat.created_at),updated:Date.parse(chat.created_at),msgs:chat.context.map(m=>mkMsg(m.role==='user'?'me':'casey',{text:m.text},new Date(chat.created_at)))});}saveChats();if(C.built)renderHist();}, applyProfile, answer, classify, now, go, userSays, restoreConversation, appendVoiceTurn, clearConversations };
 }
 init();
 
 </script>
-<script src="app-auth-shell.js"></script><script src="account-sheet.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
+<script src="casey-dates.js"></script><script src="casey-chat-merge.js"></script><script src="app-auth-shell.js"></script><script src="account-sheet.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script><script src="input-limits.js"></script><script src="ui-language.js"></script></body>
 </html>
