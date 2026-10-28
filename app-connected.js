@@ -5,6 +5,7 @@
  window.CaseyApp = Object.freeze({async answer(message) {
   const wait=window.setTimeout?.(()=>{const n=window.document?.getElementById('caseyLiveStatus');if(n)n.textContent='Sto ancora cercando nelle fonti…';},6000);
   try {
+   if(!window.CaseyNativeHandoff?.active&&window.HandoffAPI?.auth()&&(sessionStorage.getItem('casey-handoff-v2-pending')||sessionStorage.getItem('casey-handoff-v2-chat-id')))await window.CaseyNativeHandoff.open();
    const campus=await window.CaseyCampusCases?.handle(String(message));if(!campus?.matched&&window.CaseyNativeHandoff?.active)return await window.CaseyNativeHandoff.answer(String(message));
    if(campus?.matched&&window.CaseyNativeHandoff?.active)await window.CaseyNativeHandoff.recordExchange?.(String(message),campus.answer);
    const result=campus?.matched?campus:await window.CaseyBeta.turn(String(message));

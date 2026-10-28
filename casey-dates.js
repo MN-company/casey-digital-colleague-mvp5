@@ -47,8 +47,10 @@
       const text=String(turn.text||'');const fresh=parseAppointment(text,{},instant);
       const information=/\b(come|how|what|cosa|spiega|explain|studio|study|perche|why|regola|rule|esame|exam)\b/i.test(text);
       if(/\b(annull\w*|disdic\w*|cancel\w*)\b|non (?:voglio|devi) (?:piu |più )?prenot|don.t book|do not book/i.test(text)){context={phase:'cancelled'};continue;}
+      const badge=/badge/i.test(text)&&/ritir|slot|orar|data/i.test(text);
+      const continuation=/^(?:ok|okay|quindi|si|sì|va bene|allora)\b|\b(?:ritiro|orari|orario|quando|disponibil|scegli|scelgo)\b/i.test(text);
       const booking=/\b(prenot\w*|appuntament\w*|appointment|book\w*|cita|reserva\w*|slot)\b/i.test(text);
-      if((booking&&!information)||(context.phase==='awaiting_slot'&&!information&&(fresh.explicitDay||fresh.time||fresh.period||fresh.error==='ambiguous_time')))context={...parseAppointment(text,context,instant),phase:'awaiting_slot'};
+      if(badge||(booking&&!information)||(context.phase==='awaiting_slot'&&((!information&&(fresh.explicitDay||fresh.time||fresh.period||fresh.error==='ambiguous_time'))||continuation)))context={...parseAppointment(text,context,instant),phase:'awaiting_slot'};
       else if(!/^\s*(si|sì|yes|ok|va bene|vale)[.!\s]*$/i.test(text))context={phase:'ready'};
     }
     return context;
