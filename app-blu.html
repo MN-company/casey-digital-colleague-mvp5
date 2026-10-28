@@ -1019,7 +1019,7 @@ function homeSection() {
     case 1: return `<div class="bigic"><svg width="56" height="56" viewBox="0 0 24 24" fill="#F7C948" aria-hidden="true"><path d="M12 12c-1.6-3.5-5-6-7-4.5S4 14 9 14c-3 1.5-3.5 5 0 5.5S12 15 12 12z"/><path d="M12 12c1.6-3.5 5-6 7-4.5S20 14 15 14c3 1.5 3.5 5 0 5.5S12 15 12 12z"/></svg></div>
       <div class="ctr"><div class="t">Il mio calendario</div><div class="ds">La tua agenda personale, separata dal calendario Student Office</div>
       <div class="acts"><button class="abtn pri" data-act="student-calendar">${I.cal}Apri il mio calendario</button>
-      <button class="abtn" data-act="student-calendar">${BI.dlc}Collega Google</button></div></div>`;
+      </div></div>`;
     case 2: return stabs(['Students', 'Staff', 'Alumni'], 'first') + (T.st === 1 ? rows(STAFF.map(([n, k]) => [n, 'off:' + k]), 'ppl')
       : T.st === 2 ? '<div class="note">Nessun contenuto per gli Alumni al momento.</div>'
         : rows(['Student Council', 'Buddy Programme', ['H-Mates', 'mates'], ['Segnala un problema', 'issue']]));
@@ -1061,7 +1061,7 @@ function profileView() {
     : T.st === 1 ? rows(['Canvas', 'ChiView', 'Career Passport', 'Microsoft 365'])
       : rows([['Game Changer Italy — 30 ottobre', 'ev:gci'], 'Career Day — 5 novembre'], 'cal');
   return `<div class="pcover"><button class="dl" data-act="toast" data-arg="Nel prototipo il download del profilo non è attivo">${BI.dlc}Download</button><div class="pav">${esc(U.ini)}</div></div>
-    <div class="pname">${esc(U.name)}</div><div class="prole">${esc(U.role)}</div><div class="acts"><button class="abtn pri" data-act="account">Account e accesso</button><button class="abtn" data-act="student-calendar">Il mio calendario</button></div>
+    <div class="pname">${esc(U.name)}</div><div class="prole">${esc(U.role)}</div><div class="acts"><button class="abtn pri" data-act="account">Account</button><button class="abtn" data-act="student-calendar">Il mio calendario</button></div>
     <div class="pbox">${stabs(['Info', 'Platforms', 'My Events'])}${body}</div>`;
 }
 function renderTab() {
@@ -1429,5 +1429,5 @@ function init() {
 init();
 
 </script>
-<script src="app-auth-shell.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
+<script src="app-auth-shell.js"></script><script src="account-sheet.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
 </html>

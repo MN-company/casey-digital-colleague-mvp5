@@ -446,8 +446,8 @@ body{--brand:var(--red)}
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"></head>
-<body>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><link rel="stylesheet" href="native-chat.css"></head>
+<body class="campus-app">
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-logo.png" alt="H-FARM"><div class="spin"></div></div>
   <div class="sb" aria-hidden="true"><span id="clock">9:41</span><span class="sbi" id="sbIcons"></span></div>
@@ -988,7 +988,7 @@ const isOpen = (r, d = now()) => r.open.includes(d.getDay()) && (d.getHours() * 
 /* ---------- stato ---------- */
 const S = {
   screen: 'home', prevScreen: 'home', placeFrom: 'home', tab: 'chat', heroSmall: false, heroAuto: false, menuOpen: false,
-  thread: [], opened: false, voice: !TOUCH, listening: false, fabBadge: true,
+  thread: [], opened: false, voice: false, listening: false, fabBadge: true,
   ev: { gci: { reg: false }, talk: { reg: false }, sp: { notify: false } },
   lunch: { list: [], step: 0, tomorrow: false },
   parcelNotify: false, lastEvent: null, pend: null, asked: new Set(), enNoted: false, newsFilter: 0
@@ -1125,6 +1125,7 @@ function appendMsg(m) {
   S.thread.push(m);
   const th = $('#thread');
   if (th && S.tab === 'chat') {
+    th.querySelector('.welcome')?.remove();
     th.insertAdjacentHTML('beforeend', renderMsg(m));
     const el = th.lastElementChild; if (el && el.classList.contains('msg')) el.classList.add('anim');
     if (m.from === 'casey') scrollToNew(el); else scrollBottom();
@@ -1557,26 +1558,19 @@ function renderEventPage(id, from) {
 /* ---------- Casey ---------- */
 function buildCasey() {
   $('#vCasey').innerHTML = `
-    <div class="cbar">
-      <button class="iconbtn" data-act="home" aria-label="Torna alla home">${I.back}</button>
-      <div class="ctitle"><b>Casey</b><small><span class="aitag">Assistente AI</span> · Campus e Student Office</small></div>
-      <button class="accbtn" data-act="account" aria-label="Le tue chat salvate con l’account">${I.chat}Le tue chat</button>
-      <button class="iconbtn${S.voice ? ' on' : ''}" id="spkBtn" data-act="voice" aria-label="Voce di Casey">${S.voice ? I.spk : I.spkOff}</button>
+    <div class="chead">
+      <button class="hbtn icon" data-act="home" aria-label="Torna alla home">${I.back}</button>
+      <span class="cava"><span class="im"><img src="${FACE}" alt=""></span><i></i></span>
+      <div class="cwho"><b>Casey</b><small>Campus e Student Office</small></div>
+      <button class="hbtn icon" id="histBtn" data-act="hist" aria-label="Mostra o nascondi lo storico" aria-pressed="true">${I.chat}</button>
+      <button class="hbtn" data-act="account" aria-label="Account">${I.user || I.chat}Account</button>
     </div>
-    <div class="hero${S.heroSmall ? ' small' : ''}" id="hero">
-      <div class="stagev"><img class="poster" src="${POSTER}" alt="Casey"><video class="v1" playsinline muted preload="auto"></video><video class="v2 back" playsinline muted preload="auto"></video></div>
-      <div class="state" id="avState"></div>
-      <div class="tools"><button data-act="hero" id="heroBtn" aria-label="Riduci o ingrandisci Casey">${S.heroSmall ? I.grow : I.shrink}</button></div>
-      <div class="subs" id="subs" aria-hidden="true"></div>
-    </div>
-    <div class="seg" id="seg"></div>
-    <div class="scroll" id="cScroll"><div id="pane"></div></div>
-    <div class="chips" id="chips"></div>
-    <div class="inbar" id="inbar">
-      <button class="mic" id="micBtn" data-act="mic" aria-label="Parla con Casey">${I.mic}</button>
-      <input id="cInput" placeholder="Scrivi a Casey…" autocomplete="off" enterkeyhint="send" aria-label="Messaggio per Casey">
-      <button class="send" data-act="send" aria-label="Invia">${I.send}</button>
-    </div>`;
+    <div id="hero" hidden><div class="stagev"><img class="poster" src="${POSTER}" alt=""><video class="v1" playsinline muted preload="none"></video><video class="v2 back" playsinline muted preload="none"></video></div><div id="avState"></div><div id="subs"></div></div>
+    <div id="seg" hidden></div>
+    <div class="cbody" id="cbody"><aside class="hist" aria-label="Storico delle conversazioni"><div class="hin"><button class="hnew" data-act="new-chat">+ Nuova chat</button><div class="hlist" id="campusHistory"></div><div class="hfoot">Le tue conversazioni</div></div></aside>
+    <section class="chat" aria-label="Chat con Casey"><div class="ctop"><b>Casey</b><small>Risposte con le fonti ufficiali</small></div>
+    <div class="scroll" id="cScroll"><div id="pane"></div></div><div class="chips" id="chips"></div>
+    <div class="inbar" id="inbar"><div class="inw"><input id="cInput" placeholder="Scrivi a Casey…" autocomplete="off" enterkeyhint="send" aria-label="Messaggio per Casey"><button class="mic" id="micBtn" data-act="mic" aria-label="Detta il messaggio">${I.mic}</button></div><button class="send" data-act="send" aria-label="Invia">${I.send}</button></div></section></div>`;
   AV.init($('#hero'));
   const inp = $('#cInput');
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ACT.send(); } });
@@ -1605,7 +1599,7 @@ function renderCasey() {
   if (chat) renderThread(); else { renderAgenda(); const sc = $('#cScroll'); if (sc) sc.scrollTop = 0; }
   renderChips();
 }
-function renderThread() { if (S.tab !== 'chat' || !$('#pane')) return; $('#pane').innerHTML = `<div class="thread" id="thread" role="log" aria-live="polite" aria-label="Conversazione con Casey">${S.thread.map(renderMsg).join('')}</div>`; scrollBottom(); }
+function renderThread() { if (S.tab !== 'chat' || !$('#pane')) return; $('#pane').innerHTML = `<div class="thread" id="thread" role="log" aria-live="polite" aria-label="Conversazione con Casey">${S.thread.length?S.thread.map(renderMsg).join(''):'<div class="welcome"><h4>Ciao, come posso aiutarti?</h4><p>Chiedimi delle regole del college e dei servizi del campus: rispondo con le fonti.</p></div>'}</div>`; scrollBottom(); }
 function renderAgenda() {
   $('#pane').innerHTML = `<div class="pane"><div class="wk"><div class="agico">${I.cal}</div><div><h4>I tuoi appuntamenti</h4><p>Accedi per consultare le conversazioni e prenotare con le disponibilità reali dello Student Office.</p></div></div><button class="abtn pri" data-act="account">Apri il tuo account</button></div>`;
 }
@@ -1641,11 +1635,13 @@ async function openCasey(arg, silent) {
   S.tab = arg === 'agenda' ? 'agenda' : 'chat';
   renderCasey();
   try { if (AV.front) { const p = AV.front.play(); if (p && p.catch) p.catch(() => {}); } } catch (e) { /* ignore */ }
+  void campusHistory();
   if (silent || S.opened) return;
-  S.opened = true; AV.set('B');
-  await casey({ text: `Ciao ${U.first}, sono Casey, il collega digitale del campus. Sono un’intelligenza artificiale: ti aiuto con eventi, pranzo, pacchi, indicazioni e shop, e con le regole dello Student Office, usando le fonti disponibili. Per prenotazioni e dati personali è necessario accedere. Le tue chat salvate e quelle iniziate al totem sono in “Le tue chat”, qui in alto.`, voice: `Ciao ${U.first}, sono Casey, il collega digitale del campus. Ti aiuto con eventi, pranzo, pacchi e indicazioni, e con le regole dello Student Office, sempre con la fonte. Di cosa hai bisogno?` }, { think: 400 });
+  S.opened = true;
+  void campusHistory();
 }
 
+async function campusHistory(){const host=$('#campusHistory');if(!host)return;try{await window.CaseyBeta.start();const r=await window.CaseyBeta.call('list');host.replaceChildren();for(const c of r.conversations){const b=document.createElement('button');b.className='hit';b.textContent=c.context.find(t=>t.role==='user')?.text||'Conversazione';b.onclick=async()=>{try{const r=await window.CaseyBeta.call('restore',{conversation_id:c.id});window.__casey.restoreConversation(r.context||[]);}catch(e){toast(e.message);}};host.append(b);}}catch{host.textContent='Le tue conversazioni compariranno qui.';}}
 /* ---------- azioni ---------- */
 const ACT = {
   'student-calendar'() { return window.CaseyPersonalCalendar?.open(); },
@@ -1656,6 +1652,8 @@ const ACT = {
   'place-c'(k) { openPlace(k, 'casey'); },
   'place-back'() { closePlace(); },
   home() { goHome(); },
+  hist(){const body=$('#cbody');body.classList.toggle('nohist');$('#histBtn').setAttribute('aria-pressed',String(!body.classList.contains('nohist')));},
+  'new-chat'(){S.thread=[];S.opened=true;renderCasey();void campusHistory();},
   'open-casey'(a) { return openCasey(a); },
   tab(a) { S.tab = a; if (S.screen !== 'casey') return openCasey(a); renderCasey(); },
   hero() { S.heroAuto = false; S.heroSmall = !S.heroSmall; $('#hero').classList.toggle('small', S.heroSmall); $('#heroBtn').innerHTML = S.heroSmall ? I.grow : I.shrink; scrollBottom(); },
@@ -1724,5 +1722,5 @@ function init() {
 init();
 
 </script>
-<script src="app-auth-shell.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
+<script src="app-auth-shell.js"></script><script src="account-sheet.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
 </html>

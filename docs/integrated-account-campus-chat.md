@@ -1,0 +1,9 @@
+# Account integrato e chat Campus coerente
+
+Il pannello di accesso è ora contenuto nella cornice dell'app originale, con un solo pannello attivo, chiusura con Esc e gestione del focus. Non carica né visualizza conversazioni. La barra aggiuntiva con Accedi e Parla con Casey è rimossa: l'accesso passa dal comando Account esistente. Dopo verifica OTP riuscita il pannello si chiude prima dei caricamenti di profilo e conversazione. La cronologia resta nella chat.
+
+Il pannello personale non rimanda più alle impostazioni staff. Mostra Collega Google solo se manca la connessione; se collegato mostra l'account Google e Gestisci collegamento Google. Scelta calendario e Scollega sono contenuti in quella sezione; Esci da Casey compare solo nella gestione account e ha un ruolo distinto. La lettura eventi parte in parallelo allo stato connessione. La lista calendari viene caricata solo quando serve gestirla, senza bloccare l'agenda. Errori e timeout hanno stato esplicito e Riprova; i pulsanti in corso sono disabilitati.
+
+La chat rossa preesistente aveva header, hero video e tab Chat/Agenda differenti dalla blu. Il layout è stato allineato allo schema blu (Account, storico, messaggi, compositore) mantenendo il tema rosso e il backend comune casey-beta/Gemini/RAG. Rimossi il saluto locale automatico e la lettura automatica del browser all'apertura. Le azioni di errore restano nell'app corrente, senza mandare l'utente dall'app rossa alla blu.
+
+Diagnosi Google: nel campione log disponibile al controllo non risultano risposte 500 di casey-original-ui; risultano callback 302 e una callback 403 da validazione stato. Non si attribuisce una causa al 500 riferito dall'utente senza riproduzione. Non sono stati indeboliti nonce OAuth, controlli proprietario o separazione staff/studente. Il caricamento sequenziale del vecchio pannello era invece riproducibile dalla struttura del client ed è stato eliminato.
