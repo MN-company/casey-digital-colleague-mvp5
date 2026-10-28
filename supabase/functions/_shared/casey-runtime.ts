@@ -24,6 +24,7 @@ export async function routeRequest(query:string,turns:any[]=[]):Promise<Pool>{
  const q=normal(query);
  // Known conversation turns are resolved BEFORE touching any document or profile table.
  if(q&&social.test(q))return 'conversazione';
+ if(/di cosa stavamo parlando|cosa stavamo (?:dicendo|facendo)|dove eravamo rimasti|a che punto (?:siamo|eravamo)|riprend(?:iamo|i) (?:la conversazione|da dove)|what were we (?:discussing|talking)|where were we/i.test(q))return 'conversazione';
  if(classifyHandoff(query).route==='mobile')return 'operazioni';
  if(info.test(q)||namedCourse(query))return 'informazioni';
  if(q.length<80&&/^(e |quindi|invece|quello|quella|and |what about)/.test(q)){
