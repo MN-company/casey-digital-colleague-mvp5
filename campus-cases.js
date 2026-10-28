@@ -8,9 +8,9 @@ async function handle(query){query=String(query||'').trim();if(query.length<3||!
  if(r.review_saved&&r.review?.id)window.dispatchEvent(new CustomEvent('casey:review-created',{detail:r.review}));
  if(r.case==='badge_reschedule'){
   const inApp=/app-(blu|rossa)\.html$/.test(location.pathname);
-  if(inApp){sessionStorage.setItem('casey-badge-intent','1');if(window.CaseyNativeHandoff?.active){sessionStorage.removeItem('casey-badge-intent');await window.CaseyNativeHandoff.slots();}else if(window.CaseyNativeHandoff&&!window.CaseyLive?.active){await window.CaseyNativeHandoff.open();}if(window.HandoffAPI?.auth())r.answer='Controllo gli orari reali dello Student Office. Puoi scegliere qui un nuovo orario per il ritiro del badge.';}
+  if(inApp){sessionStorage.setItem('casey-badge-intent','1');if(window.CaseyNativeHandoff?.active){sessionStorage.removeItem('casey-badge-intent');await window.CaseyNativeHandoff.slots();}if(window.CaseyNativeHandoff?.active)r.answer='Controllo gli orari reali dello Student Office. Puoi scegliere qui un nuovo orario per il ritiro del badge.';}
   else{if(typeof window.setTab==='function')window.setTab('CAL');await window.handover?.(r.answer,'badge');}
-  if(!inApp||!window.CaseyNativeHandoff?.active)availability(r.availability);if(inApp&&window.CaseyLive?.active&&!window.CaseyNativeHandoff?.active){const panel=document.getElementById('caseyOfficeAvailability');const button=document.createElement('button');button.type='button';button.textContent='Continua con il tuo account';button.onclick=()=>window.openSheet?.();panel?.append(button);}
+  if(!inApp||!window.CaseyNativeHandoff?.active)availability(r.availability);if(inApp&&!window.CaseyNativeHandoff?.active){const panel=document.getElementById('caseyOfficeAvailability');const button=document.createElement('button');button.type='button';button.textContent='Continua con il tuo account';button.onclick=()=>window.openSheet?.();panel?.append(button);}
  }
  window.dispatchEvent(new CustomEvent('casey:service-case',{detail:{case:r.case}}));return r;
 }
