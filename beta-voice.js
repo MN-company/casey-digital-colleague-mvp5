@@ -2,7 +2,7 @@
 (() => {
  const original=window.CASEY_CONFIG;
  window.CASEY_CONFIG=Object.freeze({...original,liveTokenUrl:original.supabaseUrl+'/functions/v1/casey-beta-live'});
- window.HandoffAPI={session:()=>window.CaseyBeta.guest()?.token||''};
+ window.HandoffAPI={...window.HandoffAPI,session:()=>window.CaseyBeta.guest()?.token||''};
  window.CaseyAuth={get:()=>window.CaseyBeta.auth()};
  let lease=null,expiryTimer=null;
  window.addEventListener('casey:live-lease',event=>{

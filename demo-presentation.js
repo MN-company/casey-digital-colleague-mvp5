@@ -10,7 +10,7 @@
  function applyMode(value){
   mode=value;document.body.classList.toggle('show',mode==='casey');document.body.classList.toggle('calendar-only',mode==='calendar');
   if(mode==='calendar'){window.setView('OFFICE');window.setTab('CAL');document.title='Casey · Calendario';}
-  else document.title=mode==='casey'?'Casey · Presentazione':'Casey 6.0 — Digital Colleague';
+  else document.title=mode==='casey'?'Casey · Presentazione':'Casey - your digital colleague';
   const next=new URL(location.href);if(mode==='overview')next.searchParams.delete('view');else next.searchParams.set('view',mode);history.replaceState(null,'',next);
  }
  function openCalendar(event){
