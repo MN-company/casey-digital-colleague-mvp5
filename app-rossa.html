@@ -1690,7 +1690,7 @@ const ACT = {
 };
 // Campus provider writes are unavailable; only the authenticated backend may confirm an operation.
 for (const action of ['ev-reg','ev-checkout','ev-confirm','talk-yes','ev-reg-direct','ev-notify','lunch-pick','lunch-tomorrow','lunch-qr','parcel-notify','cancel-yes','qr']) {
- ACT[action] = () => { bsClose(); return casey({text: 'Questo servizio del campus richiede il portale ufficiale: qui non è stata effettuata alcuna prenotazione, iscrizione o attivazione. Per gli appuntamenti Student Office puoi accedere al tuo account.', acts: [{l: 'Accedi a Casey', a: 'account', c: 'pri'}]}, {think: 0}); };
+ ACT[action] = () => bsOpen('<div class="kick">Servizi campus</div><h4>Continua sul portale ufficiale</h4><p class="bsn">Questo servizio non è collegato a Casey. Qui non è stata effettuata alcuna prenotazione, iscrizione o attivazione. Per gli appuntamenti Student Office usa la chat personale.</p><button class="abtn pri" data-act="bs-close">Ho capito</button>');
 }
 ACT['ai-draft'] = () => userSays('Quali sono le regole sull’uso dell’AI nei compiti?');
 ACT.logout = () => openAccount();
