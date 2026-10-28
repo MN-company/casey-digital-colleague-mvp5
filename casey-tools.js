@@ -5,6 +5,7 @@
 (() => {
   'use strict';
   const handlers = Object.freeze({
+    handle_campus_request: 'liveCampusRequest',
     request_mobile_handoff: 'liveMobileHandoff',
     find_available_slots: 'liveFindSlots',
     prepare_booking: 'livePrepareBooking',
@@ -13,6 +14,8 @@
   });
   async function execute(name, args) {
     if (!Object.hasOwn(handlers, name)) return {status:'unsupported_tool'};
+    if(name==='handle_campus_request'){const query=typeof args?.query==='string'?args.query:'';return window.CaseyCampusCases?window.CaseyCampusCases.handle(query):{status:'tool_unavailable'};}
+    if(['search_verified_knowledge','request_mobile_handoff'].includes(name)&&window.CaseyCampusCases?.matches(args?.query)){const result=await window.CaseyCampusCases.handle(args.query);if(result.matched)return result;}
     const method = handlers[name];
     if (!window.CaseyBridge?.[method]) return {status:'bridge_not_ready'};
     try {

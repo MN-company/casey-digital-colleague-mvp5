@@ -17,19 +17,19 @@
  async function clearLink(){stopPoll();const old=link;link=null;phoneUrl='';if(old){await A.call('cancel',{id:old}).catch(()=>{});}document.getElementById('qrCard').classList.remove('on');}
  const visualSay=window.say;
  window.say=(value,source,kind,label,end)=>{if(window.CaseyLive?.active){showSilent(value,source);return;}visualSay(value,source,kind,label,end);clearInterval(capTimer);document.getElementById('capText').textContent=value;};
- async function handover(){
+ async function handover(note,intent){
   // Showing a QR is a visual tool result, not a voice-session teardown.
   const rev=revision;await clearLink();if(rev!==revision)return;
   const card=document.getElementById('qrCard');card.classList.remove('expired');card.classList.add('on');document.getElementById('qrMeta').textContent=t().thinking;
   try{
    const r=await A.call('issue',{context:messages.snapshot()});
    if(rev!==revision){await A.call('cancel',{id:r.id}).catch(()=>{});return;}
-   link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',location.href);url.searchParams.set('lang',CaseyLanguage.get());url.hash='handoff='+r.token;phoneUrl=url.href;
+   link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',location.href);url.searchParams.set('lang',CaseyLanguage.get());if(intent==='badge')url.searchParams.set('intent','badge');url.hash='handoff='+r.token;phoneUrl=url.href;
    const code=qrcode(0,'M');code.addData(url.href);code.make();const n=code.getModuleCount(),svg=document.getElementById('qrCode');svg.setAttribute('viewBox','-4 -4 '+(n+8)+' '+(n+8));let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(code.isDark(y,x))path+='M'+x+' '+y+'h1v1h-1z';svg.innerHTML='<rect x="-4" y="-4" width="'+(n+8)+'" height="'+(n+8)+'" fill="white"/><path d="'+path+'" fill="#101828" shape-rendering="crispEdges"/>';
 
-   document.getElementById('qrTitle').textContent=S==='FARM'?'Casey · Campus':'Casey · College';document.getElementById('qrSub').textContent=t().transfer;
+   document.getElementById('qrTitle').textContent=S==='FARM'?'Casey · Campus':'Casey · College';document.getElementById('qrSub').textContent=typeof note==='string'?note:t().transfer;
    const until=Date.now()+r.expires_in*1000;const tick=()=>{document.getElementById('qrMeta').textContent=Math.max(0,Math.ceil((until-Date.now())/1000))+' s · uso singolo';};tick();
-   say(t().transfer,null,'pr','Privacy','hand');
+   say(typeof note==='string'?note:t().transfer,null,'pr','Privacy','hand');
    let checking=false;poll=setInterval(async()=>{if(checking||link!==r.id)return;checking=true;tick();try{const state=await A.call('status',{id:r.id});if(link!==r.id)return;if(state.consumed){await window.CaseyVoiceSession?.stop();stopPoll();link=null;messages.clear();engine='';sessionPromise=null;revision++;document.getElementById('qrCard').classList.remove('on');goIdle();}else if(state.expired){stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;}}catch{status(t().error);}finally{checking=false;}},2500);
    expiry=setTimeout(()=>{if(link!==r.id)return;stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;},r.expires_in*1000);
    return {status:'handoff_ready',expires_in:r.expires_in};
@@ -42,6 +42,7 @@
   input.value='';if(window.CaseyLive?.active&&window.CaseyLive.ready){window.CaseyLive.sendText(value);return;}busy=true;const rev=revision,before=messages.snapshot();shutUp();const wait=setTimeout(()=>{if(busy&&rev===revision){document.getElementById('capText').textContent='Sto ancora cercando nelle fonti…';}},6000);
   try{
    messages.append('user',value);setState('think',t().thinking,'think');
+   const campus=await window.CaseyCampusCases?.handle(value);if(rev!==revision)return;if(campus?.matched){messages.append('assistant',campus.answer);say(campus.answer,campus.citations?.map(x=>x.title+' · p. '+x.page).join(' · ')||null,'tra','Fonte verificata','point');return campus.answer;}
    const route=await A.call('classify',{message:value});if(rev!==revision)return;
    if(route.route!=='public'){await handover();return;}
    await session();const history=messages.snapshot().slice(0,-1);const r=await call('turn',{message:value,history,language:CaseyLanguage.get()});if(rev!==revision)return;

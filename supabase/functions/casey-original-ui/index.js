@@ -498,6 +498,8 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
      if(!ready()||!scoped(c))return json({connected:false,events:[],reason:'Connetti lo Student Office Google nelle Impostazioni.'},200,origin);
      const token=await accessToken(c);return json({connected:true,google_email:c.google_email,events:await googleCalendarEvents(c.calendar_id,token,month.begin,month.end)},200,origin);
    }
+   if(b.action==='admin_service_reviews'){const rows=await db('casey_service_reviews?'+qs({select:'id,kind,subject,question,status,staff_reply,created_at',is_test:'eq.false',order:'created_at.desc',limit:'100'}));return json({reviews:rows},200,origin);}
+   if(b.action==='admin_service_review_update'){if(!UUID.test(b.id||'')||!['in_review','resolved','closed'].includes(b.status)||typeof b.staff_reply!=='string'||b.staff_reply.length>3000)return json({error:'Aggiornamento non valido'},400,origin);const rows=await db('casey_service_reviews?'+qs({id:'eq.'+b.id}),{status:b.status,staff_reply:b.staff_reply,reviewed_by:admin.google_email,updated_at:new Date().toISOString()},'PATCH');return json({saved:rows.length>0},200,origin);}
    if(b.action==='admin_requests')return json(await officeRequests(),200,origin);
    if(b.action==='admin_request_update'){
      if(!UUID.test(b.id||'')||!['open','in_review','resolved','closed'].includes(b.status)||typeof b.staff_reply!=='string'||b.staff_reply.length>2000)return json({error:'Aggiornamento non valido'},400,origin);
