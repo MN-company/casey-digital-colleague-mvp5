@@ -229,10 +229,10 @@ body.show .exit{display:block}
 
 .mlist button.mrow{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #e4e7ee;background:transparent}.mlist button.mrow[aria-pressed=true]{background:#f1f3fa}.workspace-demo-note{font-size:11px;color:#667085;background:#f3f5fa;border:1px solid #e4e7ee;border-radius:8px;padding:8px 10px;margin:0 0 12px}
 </style>
-<link rel="stylesheet" href="definitivo.css?v=20261028-review"></head>
+<link rel="stylesheet" href="definitivo.css?v=20261028-review"><link rel="stylesheet" href="native-handoff.css"></head>
 <body>
 
-<button class="exit" onclick="toggleShow()">Esci dallo schermo intero  ·  Esc</button>
+<button class="exit" data-command="toggleShow()">Esci dallo schermo intero  ·  Esc</button>
 
 <header class="top">
   <div class="in">
@@ -241,25 +241,25 @@ body.show .exit{display:block}
       <div><div class="nm">Casey - your digital colleague</div><div class="sb" id="ctxLine"></div></div>
     </div>
     <div class="seg" role="tablist" aria-label="Scenario">
-      <button id="sc-COLLEGE" role="tab" aria-selected="true" onclick="setScenario('COLLEGE')">College</button>
-      <button id="sc-FARM" role="tab" aria-selected="false" onclick="setScenario('FARM')">Farm</button>
+      <button id="sc-COLLEGE" role="tab" aria-selected="true" data-command="setScenario('COLLEGE')">College</button>
+      <button id="sc-FARM" role="tab" aria-selected="false" data-command="setScenario('FARM')">Farm</button>
     </div>
     <div class="seg" role="tablist" aria-label="Punto di vista">
-      <button id="pv-OFFICE" role="tab" aria-selected="true" onclick="setView('OFFICE')">Ufficio</button>
-      <button id="pv-STUDENT" role="tab" aria-selected="false" onclick="setView('STUDENT')">Studente</button>
+      <button id="pv-OFFICE" role="tab" aria-selected="true" data-command="setView('OFFICE')">Ufficio</button>
+      <button id="pv-STUDENT" role="tab" aria-selected="false" data-command="setView('STUDENT')">Studente</button>
     </div>
     <div class="sp"></div>
     <label class="language-control"><select data-casey-language aria-label="Lingua"><option value="it-IT">IT</option><option value="en-US">EN</option><option value="es-ES">ES</option></select></label><span class="bepill" id="bePill" title="Da dove arrivano le risposte"><i></i><span>locale</span></span>
     <a href="settings.html" id="settingsLink">Impostazioni</a>
     <a href="index.html?view=calendar" id="calendarLink" target="casey-calendar" rel="noopener">Calendario separato</a>
     <button type="button" id="startDemo" class="demo-action">Apri Casey</button>
-    <a href="app-blu.html?prova=1" target="_blank" rel="noopener">Prova Casey</a>
+    <a id="tryCaseyLink" href="app-blu.html?prova=1" target="_blank" rel="noopener">Prova Casey</a>
     <a href="app-blu.html" target="_blank" rel="noopener" id="appLink">Apri l'app</a>
-    <button class="ic" onclick="toggleShow()" title="Schermo intero, modalità presentazione" aria-label="Schermo intero">
+    <button class="ic" data-command="toggleShow()" title="Schermo intero, modalità presentazione" aria-label="Schermo intero">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M8 3H5a2 2 0 0 0-2 2v3M16 3h3a2 2 0 0 1 2 2v3M8 21H5a2 2 0 0 1-2-2v-3M16 21h3a2 2 0 0 0 2-2v-3"/></svg></button>
-    <button class="ic" id="muteBtn" onclick="toggleMute()" title="Voce" aria-label="Voce">
+    <button class="ic" id="muteBtn" data-command="toggleMute()" title="Voce" aria-label="Voce">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H3v6h3l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg></button>
-    <button class="ic" onclick="resetAll()" title="Ricomincia" aria-label="Ricomincia">
+    <button class="ic" data-command="resetAll()" title="Ricomincia" aria-label="Ricomincia">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 2.6-6.4M3 4v5h5"/></svg></button>
   </div>
 </header>
@@ -288,15 +288,15 @@ body.show .exit{display:block}
             <div class="qr" id="qrCard">
               <svg class="code" id="qrCode" aria-hidden="true"></svg>
               <div class="tx"><b id="qrTitle"></b><span id="qrSub"></span><span class="meta" id="qrMeta"></span></div>
-              <button class="open" onclick="openPhone()">Apri</button>
+              <button class="open" data-command="openPhone()">Apri</button>
             </div>
             <div class="ask">
-              <button class="mic" id="micBtn" onclick="toggleMic()" title="Parla con Casey" aria-label="Parla con Casey">
+              <button class="mic" id="micBtn" data-command="toggleMic()" title="Parla con Casey" aria-label="Parla con Casey">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5"/></svg>
               </button>
 
-              <input id="q" type="text" placeholder="Parla o scrivi…" autocomplete="off" onkeydown="if(event.key==='Enter')send()">
-              <button class="go" onclick="send()">Chiedi</button>
+              <input id="q" maxlength="1000" aria-description="Massimo 1.000 caratteri" type="text" placeholder="Parla o scrivi…" autocomplete="off">
+              <button class="go" data-command="send()">Chiedi</button>
             </div>
           </div>
         </div>
@@ -664,7 +664,7 @@ function showSilent(t,s){
 }
 
 /* ---------------- privacy: il totem dimentica ---------------- */
-function armIdle(){clearTimeout(idleTimer);idleTimer=setTimeout(()=>{if(session!=='PHONE')goIdle();},75000);}
+function armIdle(){clearTimeout(idleTimer);idleTimer=setTimeout(()=>{if(session!=='PHONE')goIdle();},(new Date() < new Date('2026-10-29T00:00:00+01:00')?1800000:75000));}
 function goIdle(){
   shutUp();clearInterval(capTimer);pendingTriage=null;closeSession();
   document.getElementById('qrCard').classList.remove('on');
@@ -735,32 +735,10 @@ function backToTotem(){session='TOTEM';goIdle();}
 function openPhone(){
   if(!cid) openSession();
   try{localStorage.setItem('CASEY_HANDOVER',JSON.stringify({scenario:S,cid:cid,ts:Date.now()}));}catch(e){}
-  if(chan)chan.postMessage({type:'HANDOVER',scenario:S,cid:cid});
   toPhone();
   window.open(appFile()+'?s='+S+'&casey=1&cid='+encodeURIComponent(cid),'_blank');
 }
 
-const chan=('BroadcastChannel' in window)?new BroadcastChannel('casey_sync'):null;
-if(chan)chan.onmessage=e=>handlePhone(e.data||{});
-window.addEventListener('storage',e=>{
-  if(e.key==='CASEY_ACTION'&&e.newValue){try{handlePhone(JSON.parse(e.newValue));}catch(x){}}
-});
-/* Tutto cio' che arriva dal telefono aggiorna il back-office IN SILENZIO. */
-function handlePhone(m){
-  if(m.type==='SLOT_CONFIRMED'){
-    bookSlot(m.day,m.time);
-    toast('Confermato dal telefono',D.apptTitle+' · '+dayLabel(m.day)+' alle '+m.time);
-    pushFeed('telefono',D.apptTitle.toLowerCase()+' spostato','ok','risolto');
-    kpi.phone++;kpi.solved++;renderKpi();
-    if(session==='PHONE')showSilent('Pratica chiusa dal telefono. Il totem è libero.','Nessun dato personale resta su questo schermo');
-  }
-  if(m.type==='ESCALATE'){
-    addTicket();toast('Inoltrata dal telefono',D.escal.tk.to);
-    bumpOffice(D.escal.off);
-    pushFeed('telefono','eccezione inoltrata a una persona','hu','umano');
-  }
-  if(m.type==='PHONE_CLOSED')backToTotem();
-}
 function toast(t,x){
   const b=document.getElementById('toasts'),e=document.createElement('div');
   e.className='tst';e.innerHTML='<b></b><span></span>';
@@ -963,7 +941,7 @@ function renderTabs(){
     :[['CHECK',D.personTab],['CAL','Il mio calendario'],['MAIL','Le mie email']];
   if(!tabs.some(t=>t[0]===TAB))TAB=tabs[0][0];
   document.getElementById('tabs').innerHTML=
-    tabs.map(t=>'<button role="tab" aria-selected="'+(TAB===t[0])+'" onclick="setTab(\''+t[0]+'\')">'+t[1]+'</button>').join('')+
+    tabs.map(t=>'<button role="tab" aria-selected="'+(TAB===t[0])+'" data-command="setTab(\''+t[0]+'\')">'+t[1]+'</button>').join('')+
     '<span class="who"><i></i>'+esc(VIEW==='OFFICE'?D.officeMail:(window.CaseyAccount?.auth()?.email||'Studente · Accedi al tuo account'))+'</span>';
   ['CAL','MAIL','QUEUE','ROUTE','CHECK','FEED'].forEach(v=>document.getElementById('v-'+v).classList.toggle('on',v===TAB));
 }
@@ -976,7 +954,7 @@ function renderMail(){
   const l=VIEW==='OFFICE'?mailOffice:mailPerson;
   if(selMail>=l.length)selMail=0;
   document.getElementById('mlist').innerHTML=l.map((m,i)=>
-    '<button type="button" class="mrow" aria-pressed="'+(i===selMail)+'" onclick="selMail='+i+';renderMail()">'+
+    '<button type="button" class="mrow" aria-pressed="'+(i===selMail)+'" data-command="selMail='+i+';renderMail()">'+
     '<div class="f"><span>'+esc(m.from.split('<')[0].trim())+'</span><span>'+esc(m.when)+'</span></div>'+
     '<div class="s">'+esc(m.subj)+'</div></button>').join('')||'<div class="empty">Nessun messaggio</div>';
   const m=l[selMail];
@@ -996,8 +974,8 @@ function renderQueue(){
     '<div class="kv">Destinatario: <b>'+esc(t.to)+'</b></div><div class="rule">'+esc(t.rule)+'</div>'+
     (t.status!=='PENDING'?'<div class="kv" style="margin-top:12px;color:var(--ok);font-weight:700">'+(t.status==='REJECTED'?'Bozza scartata':'Bozza approvata dallo staff')+'</div>'
       :'<textarea aria-label="Bozza della pratica '+esc(t.id)+'" id="dr'+i+'" rows="4">'+esc(t.draft)+'</textarea><div class="acts">'+
-       '<button class="btn ok" onclick="approve('+i+')">Approva bozza</button>'+
-       '<button class="btn gh" onclick="reject('+i+')">Scarta la bozza</button></div>')+'</div>').join('');
+       '<button class="btn ok" data-command="approve('+i+')">Approva bozza</button>'+
+       '<button class="btn gh" data-command="reject('+i+')">Scarta la bozza</button></div>')+'</div>').join('');
 }
 function renderOffices(){
   document.getElementById('rTitle').textContent=D.rTitle;
@@ -1088,7 +1066,7 @@ if(window.CaseyBackend){
 
 /* ---------------- avvio ---------------- */
 function loadScenario(){
-  D=DATA[S];
+  D=DATA[S];const trial=document.getElementById('tryCaseyLink');if(trial)trial.href=(S==='FARM'?'app-rossa.html':'app-blu.html')+'?prova=1';
   session='TOTEM';moved=false;pendingTriage=null;selMail=0;queue=[];lastOff=-1;stopMic();
   shutUp();clearInterval(capTimer);clearTimeout(idleTimer);
   document.getElementById('ctxLine').textContent=D.ctx;
@@ -1108,7 +1086,7 @@ function loadScenario(){
     checklist=[{t:'Account e profilo attivi',meta:'Completato',done:true},
       {t:'Accesso a Canvas e Career Passport',meta:'Completato',done:true},
       {t:"Check-in in aula dall'app",meta:'Da verificare',done:false},
-      {t:'Ritiro dello Student Badge',meta:'Mercoledì 21 alle 10:00 — si sovrappone a una lezione',done:false},
+      {t:'Ritiro dello Student Badge',meta:'Data e ora da concordare — si sovrappone a una lezione',done:false},
       {t:'Iscrizione agli Enhancing del secondo semestre',meta:'Finestra non ancora aperta',done:false}];
     mailPerson=[{from:'Student Office <student.office@h-farm.com>',to:D.person.name+' <'+D.person.mail+'>',
       when:'oggi 09:00',subj:'Promemoria: ritiro badge mercoledì 21 ottobre ore 10:00',
@@ -1119,7 +1097,7 @@ function loadScenario(){
     checklist=[{t:'Contratto firmato e anagrafica in HR',meta:'Completato',done:true},
       {t:'Account aziendale attivo',meta:'Completato',done:true},
       {t:'Badge e VPN',meta:'Da fare oggi',done:false},
-      {t:'Colloquio di onboarding',meta:'Mercoledì 21 alle 10:00 — si sovrappone al kickoff',done:false},
+      {t:'Colloquio di onboarding',meta:'Data e ora da concordare — si sovrappone al kickoff',done:false},
       {t:'Corso sicurezza D.Lgs 81',meta:'Entro il primo mese',done:false}];
     mailPerson=[{from:'People & Culture <hr@acmeanalytics.example>',to:D.person.name+' <'+D.person.mail+'>',
       when:'oggi 09:00',subj:'Benvenuto in Acme Analytics — onboarding mercoledì 21 ottobre ore 10:00',
@@ -1133,6 +1111,6 @@ function loadScenario(){
 }
 document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
 </script>
-<script src="demo-workspace.js"></script><script src="qr.js"></script>
-<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="kiosk-avatar.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><script src="account-sheet.js"></script><script src="student-calendar.js"></script><script src="real-calendar.js"></script></body>
+<script src="dashboard-events.js"></script><script src="demo-workspace.js"></script><script src="qr.js"></script>
+<script src="config.js"></script><script src="casey-errors.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="kiosk-avatar.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><script src="account-sheet.js"></script><script src="student-calendar.js"></script><script src="real-calendar.js"></script><script src="input-limits.js"></script><script src="ui-language.js"></script></body>
 </html>

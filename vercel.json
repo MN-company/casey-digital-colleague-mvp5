@@ -32,6 +32,24 @@
           "value": "no-store"
         }
       ]
+    },
+    {
+      "source": "/",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'sha256-ET16RzB/t+bCz5aYod/KK+bBzSjbfHi5z9vSYoLt8kQ=' 'sha256-YO1UUov7aR0RayIef/LbFfZHJ9VLtQb1glsIwJICCRc=' 'sha256-ch+oWBJqhK1FsCra4rwHx3q3nUdC5Y/evhqqzTZLDpU=' 'sha256-opvYipmBjCpjkyl5oUSrWhLHjR4f4Etl13V8DgVBxqk='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://generativelanguage.googleapis.com; frame-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        }
+      ]
+    },
+    {
+      "source": "/:page(index.html|app-blu.html|app-rossa.html|college.html|settings.html)",
+      "headers": [
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; script-src 'self' 'sha256-ET16RzB/t+bCz5aYod/KK+bBzSjbfHi5z9vSYoLt8kQ=' 'sha256-YO1UUov7aR0RayIef/LbFfZHJ9VLtQb1glsIwJICCRc=' 'sha256-ch+oWBJqhK1FsCra4rwHx3q3nUdC5Y/evhqqzTZLDpU=' 'sha256-opvYipmBjCpjkyl5oUSrWhLHjR4f4Etl13V8DgVBxqk='; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; media-src 'self' blob: data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co wss://generativelanguage.googleapis.com; frame-src 'self'; frame-ancestors 'self'; object-src 'none'; base-uri 'self'; form-action 'self'"
+        }
+      ]
     }
   ]
 }

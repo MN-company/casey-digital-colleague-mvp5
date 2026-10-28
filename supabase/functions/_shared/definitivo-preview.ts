@@ -80,7 +80,7 @@ export async function lookupKnowledge(query:string,req:Request,turns:any[]=[],la
 export async function answer(turns:any[],req:Request,language='it-IT'){
  const query=String(turns.filter(x=>x.role==='user').at(-1)?.text||'').slice(0,1000);
  const route=await routeRequest(query,turns);
- if(route==='operazioni')return {answer:language==='en-US'?'Use the appointment button to check real availability. ':language==='es-ES'?'Usa el botón de citas para comprobar la disponibilidad. ':'Usa il pulsante Appuntamento per verificare gli orari reali. ',citations:[],pool:route,mode:'operation_guidance'};
+ if(route==='operazioni')return {answer:language==='en-US'?'Open Account and continue in your personal chat to check real Student Office availability. For check-in, explain which service you mean. ':language==='es-ES'?'Abre Cuenta y continúa en tu conversación personal para consultar la disponibilidad real de Student Office. Para el check-in, indica a qué servicio te refieres. ':'Apri Account e continua nella chat personale per verificare gli orari reali dello Student Office. Per il check-in, indica a quale servizio ti riferisci. ',citations:[],pool:route,mode:'operation_guidance'};
  if(route==='conversazione'){
  const key=JSON.stringify([query.toLowerCase(),language,turns.slice(-3)]);const cached=await readCache(route,key,BASE,headers);if(cached)return cached;
  const result=await generateReply(turns,language,[],'conversazione');

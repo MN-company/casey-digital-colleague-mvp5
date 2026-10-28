@@ -28,7 +28,7 @@
  }
  window.toggleShow=()=>{if(mode==='casey'){applyMode('overview');if(document.fullscreenElement)void document.exitFullscreen().catch(()=>{});}else void fullscreen();};
  // Opening a popup consumes browser activation; fullscreen has its own explicit button.
- document.getElementById('startDemo').onclick=()=>{openCalendar();applyMode('casey');};
+ document.getElementById('startDemo').onclick=()=>applyMode('casey');
  document.getElementById('calendarLink').onclick=openCalendar;
  document.getElementById('presentationCalendar').onclick=openCalendar;
  document.getElementById('presentationFullscreen').onclick=()=>void fullscreen();

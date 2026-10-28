@@ -446,7 +446,7 @@ body{--brand:var(--red)}
 }
 
 </style>
-<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><link rel="stylesheet" href="native-chat.css"></head>
+<link rel="stylesheet" href="app-auth-shell.css"><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><link rel="stylesheet" href="native-handoff.css"><link rel="stylesheet" href="native-chat.css"><style>#phone{overflow:clip}</style></head>
 <body class="campus-app">
 <div class="phone" id="phone">
   <div class="splash" id="splash"><img src="hfarm-logo.png" alt="H-FARM"><div class="spin"></div></div>
@@ -462,7 +462,7 @@ body{--brand:var(--red)}
     <span class="ph"><img src="Casey - H-FARM/casey-face.png" alt=""></span><span class="bd" id="caseyBadge">1</span>
   </button>
 
-  <div class="menu" id="menu"><div class="dim" data-act="menu-close"></div><div class="panel" id="menuPanel" role="dialog" aria-label="Profilo e menu"></div></div>
+  <div class="menu" id="menu" inert><div class="dim" data-act="menu-close"></div><div class="panel" id="menuPanel" role="dialog" aria-label="Profilo e menu"></div></div>
   <div class="bsw" id="bsheet"><div class="dim" data-act="bs-close"></div><div class="bs" id="bsBody" role="dialog" aria-modal="true" aria-label="Dettagli"></div></div>
   <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -470,7 +470,7 @@ body{--brand:var(--red)}
   <div class="sheet off" id="sheet" role="dialog" aria-modal="true" aria-label="Casey: le tue conversazioni"><div class="inner"></div></div>
 </div>
 
-<script src="config.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><script src="app-connected.js"></script>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-errors.js"></script><script src="handoff-client.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><script src="app-connected.js"></script>
 <script>
 'use strict';
 /* =====================================================================
@@ -1412,7 +1412,7 @@ function caseyCard() {
   const lt = lunchToday();
   if (lt) return card(`Pranzo prenotato da ${esc(RESTOS[lt.r].n)}.`, 'Alla cassa mostri il QR della prenotazione.', btn(1, 'lunch-qr', 'today', 'Mostra il QR'), btn(0, 'way-to', RESTOS[lt.r].wf, 'Portami lì'));
   if (S.ev.gci.reg && !evPast(EVENTS.gci)) return card('Sei iscritto a Game Changer Italy.', `${cap1(relDay(evStart(EVENTS.gci)) || 'venerdì')}, 10:00 · Big Hall. Ti ricordo l’evento il giorno prima.`, btn(1, 'ev-open', 'gci', 'Dettagli'), btn(0, 'open-casey', 'agenda', 'La mia agenda'));
-  return card(`Ciao${U.first?' '+esc(U.first):''}, cosa ti serve oggi in campus?`, 'Eventi, pranzo, pacchi, come arrivare. E lo Student Office.', btn(1, 'chip', 'Che eventi ci sono questa settimana?', 'Eventi della settimana'), btn(0, 'chip', 'Prenotami il pranzo', 'Prenota il pranzo'));
+  return card(`Ciao${U.first?' '+esc(U.first):''}, cosa ti serve oggi in campus?`, 'Eventi, pranzo, pacchi, come arrivare. E lo Student Office.', btn(1, 'place', 'eventi', 'Eventi della settimana'), btn(0, 'place', 'rist', 'Ristoranti e orari'));
 }
 function renderHome() {
   const el = $('#homeScroll'); if (!el) return;
@@ -1468,7 +1468,7 @@ const phead = (k) => { const p = PAGES[k]; return `<div class="phead ${p[1]}"><b
 function pageRist() {
   const open = RIST.filter((r) => isOpen(r)), closed = RIST.filter((r) => !isOpen(r));
   const card = (r) => `<div class="rcard"><div class="im" style="background:${r.bg}"><span>${esc(r.n)}</span></div><div class="hr"><b>Orari di apertura</b><span>${r.days}<br>${r.hrs}</span></div></div>`;
-  return `<button class="abtn pri" data-act="chip" data-arg="Prenotami il pranzo" style="width:100%;margin-bottom:16px">${I.fork}Prenota il pranzo con Casey</button>
+  return `<p class="bsn">Consulta qui i ristoranti; per ordini e pagamenti usa il portale ufficiale del servizio.</p>
     ${open.length ? open.map(card).join('') : '<div class="empty" style="margin-bottom:16px">In questo momento i ristoranti sono chiusi.</div>'}
     ${closed.length ? `<div class="closed"><h3>Chiusi ora</h3>${closed.map(card).join('')}</div>` : ''}`;
 }
@@ -1570,7 +1570,7 @@ function buildCasey() {
     <div class="cbody" id="cbody"><aside class="hist" aria-label="Storico delle conversazioni"><div class="hin"><button class="hnew" data-act="new-chat">+ Nuova chat</button><div class="hlist" id="campusHistory"></div><div class="hfoot">Le tue conversazioni</div></div></aside>
     <section class="chat" aria-label="Chat con Casey"><div class="ctop"><b>Casey</b><small>Risposte con le fonti ufficiali</small></div>
     <div class="scroll" id="cScroll"><div id="pane"></div></div><div class="chips" id="chips"></div>
-    <div class="inbar" id="inbar"><div class="inw"><input id="cInput" placeholder="Scrivi a Casey…" autocomplete="off" enterkeyhint="send" aria-label="Messaggio per Casey"><button class="mic" id="micBtn" data-act="mic" aria-label="Detta il messaggio">${I.mic}</button></div><button class="send" data-act="send" aria-label="Invia">${I.send}</button></div></section></div>`;
+    <div class="inbar" id="inbar"><div class="inw"><input id="cInput" maxlength="1000" aria-description="Massimo 1.000 caratteri" placeholder="Scrivi a Casey…" autocomplete="off" enterkeyhint="send" aria-label="Messaggio per Casey"><button class="mic" id="micBtn" data-act="mic" aria-label="Detta il messaggio">${I.mic}</button></div><button class="send" data-act="send" aria-label="Invia">${I.send}</button></div></section></div>`;
   AV.init($('#hero'));
   const inp = $('#cInput');
   inp.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); ACT.send(); } });
@@ -1603,19 +1603,14 @@ function renderThread() { if (S.tab !== 'chat' || !$('#pane')) return; $('#pane'
 function renderAgenda() {
   $('#pane').innerHTML = `<div class="pane"><div class="wk"><div class="agico">${I.cal}</div><div><h4>I tuoi appuntamenti</h4><p>Accedi per consultare le conversazioni e prenotare con le disponibilità reali dello Student Office.</p></div></div><button class="abtn pri" data-act="account">Apri il tuo account</button></div>`;
 }
-function suggestions() {
-  const l = [];
-  if (!S.ev.gci.reg) l.push('Eventi di questa settimana?', 'Iscrivimi a Game Changer'); else l.push('Chi parla a Game Changer?');
-  if (!lunchToday()) l.push('Prenotami il pranzo');
-  l.push('Dov’è la Big Hall?', 'Mi è arrivato un pacco?', 'Quanto costa la palestra?', 'Dove trovo la tua felpa?', 'Il check-in mi dà errore', 'Ho perso il badge', 'Posso usare l’AI per un compito?');
-  return l.filter((x) => !S.asked.has(x)).slice(0, 3);
-}
+function suggestions(){return ['Come posso stampare in campus?','Sono stato malato 6 giorni: l’assenza è giustificata?'].filter(x=>!S.asked.has(x));}
+
 function renderChips() { const el = $('#chips'); if (!el) return; el.innerHTML = suggestions().map((t, i) => `<button class="chip${i < 2 ? ' hot' : ''}" data-act="chip" data-arg="${esc(t)}">${esc(t)}</button>`).join(''); }
 function refreshAll() { renderHome(); if ($('#seg')) renderSeg(); renderChips(); if (S.tab === 'agenda' && S.screen === 'casey') renderAgenda(); S.thread.filter((m) => m.evs).forEach((m) => rerenderMsg(m.id)); }
 
 /* ---------- navigazione ---------- */
 function setFab() { const b = $('#caseyBtn'); if (!b) return; b.classList.toggle('gone', S.screen !== 'home' || S.menuOpen); const bd = $('#caseyBadge'); if (bd) bd.hidden = !S.fabBadge; }
-function closeMenu() { S.menuOpen = false; $('#menu').classList.remove('open'); setFab(); }
+function closeMenu() { S.menuOpen = false; $('#menu').classList.remove('open');$('#menu').inert=true; setFab(); }
 function goHome() { interrupt(); NAV++; STT.cancel(); S.screen = 'home'; $('#vCasey').classList.add('off-right'); $('#vPlace').classList.add('off-right'); renderHome(); setFab(); }
 function openPlace(k, from, dest) {
   NAV++; STT.cancel(); closeMenu(); bsClose();
@@ -1645,7 +1640,7 @@ async function campusHistory(){const host=$('#campusHistory');if(!host)return;tr
 /* ---------- azioni ---------- */
 const ACT = {
   'student-calendar'() { return window.CaseyPersonalCalendar?.open(); },
-  menu() { renderMenu(); S.menuOpen = true; $('#menu').classList.add('open'); setFab(); },
+  menu() { renderMenu(); S.menuOpen = true; $('#menu').classList.add('open');$('#menu').inert=false; setFab(); },
   'menu-close'() { closeMenu(); },
   qr() { qrSheet(); },
   place(k) { openPlace(k, S.screen === 'casey' ? 'casey' : 'home'); },
@@ -1659,7 +1654,7 @@ const ACT = {
   hero() { S.heroAuto = false; S.heroSmall = !S.heroSmall; $('#hero').classList.toggle('small', S.heroSmall); $('#heroBtn').innerHTML = S.heroSmall ? I.grow : I.shrink; scrollBottom(); },
   voice() { S.voice = !S.voice; if (!S.voice) interrupt(); else VOICE.speak('Voce attiva.'); const b = $('#spkBtn'); if (b) { b.classList.toggle('on', S.voice); b.innerHTML = S.voice ? I.spk : I.spkOff; } toast(S.voice ? 'Voce di Casey attiva' : 'Voce di Casey spenta: restano i sottotitoli'); },
   mic() { STT.toggle(); },
-  send() { const i = $('#cInput'); if (!i) return; const t = i.value.trim(); if (!t) return; i.value = ''; if (TOUCH && S.heroAuto && document.activeElement !== i) { try { i.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } return userSays(t); },
+  send() { const i = $('#cInput'); if (!i || S.busy) return; const t = i.value.trim(); if (!t) return; i.value = ''; if (TOUCH && S.heroAuto && document.activeElement !== i) { try { i.focus({ preventScroll: true }); } catch (e) { /* ignore */ } } return userSays(t); },
   chip(t) { return userSays(t); },
   say(t, mid, b) { if (mid) pick(mid, +b.dataset.idx); return userSays(t); },
   src(k) { showSource(k); },
@@ -1722,5 +1717,5 @@ function init() {
 init();
 
 </script>
-<script src="app-auth-shell.js"></script><script src="account-sheet.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script></body>
+<script src="casey-dates.js"></script><script src="casey-chat-merge.js"></script><script src="app-auth-shell.js"></script><script src="account-sheet.js"></script><script src="student-access.js"></script><script src="student-calendar.js"></script><script src="input-limits.js"></script><script src="ui-language.js"></script></body>
 </html>

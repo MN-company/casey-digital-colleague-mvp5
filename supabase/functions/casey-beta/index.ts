@@ -4,7 +4,7 @@ import {answer,lookupKnowledge} from '../_shared/definitivo-preview.ts';
 import {classifyHandoff as classify} from '../_shared/handoff-policy.js';
 import {BASE,KEY,SITE,access,checked,cors,validateRequest,rate,verifiedUser,requestId,hash,db} from '../_shared/beta-access.ts';
 Deno.serve(async req=>{
- const json=(data:unknown,status=200)=>new Response(JSON.stringify(data),{status,headers:{...cors(req),'Content-Type':'application/json'}});
+ const json=(data:unknown,status=200)=>new Response(JSON.stringify(data,(key,value)=>['generation_model','retrieval','pool','knowledge_scope'].includes(key)?undefined:value),{status,headers:{...cors(req),'Content-Type':'application/json'}});
  try{
  validateRequest(req);if(req.method==='OPTIONS')return new Response(null,{status:204,headers:cors(req)});
  const raw=await req.text();if(raw.length>64000)return json({error:'Richiesta troppo lunga'},413);const b=JSON.parse(raw);
@@ -30,6 +30,7 @@ Deno.serve(async req=>{
  if(b.action==='state')return json(state);
  if(b.action==='link')return json(checked(await access(token,'link',null,{email_hash:await hash(user.email.toLowerCase()),state_hash:await hash(String(b.state||''))},user.id)));
  if(['list','restore','new_chat'].includes(b.action))return json(checked(await db('rpc/casey_beta_chats',{p_hash:await hash(token),p_action:b.action==='new_chat'?'new':b.action,p_chat:b.action==='restore'?requestId(b.conversation_id):null,p_user:user?.id||null})));
+ if(b.action==='voice_end')return json(checked(await access(token,'voice_end',requestId(b.request_id))));
  if(b.action==='voice_save'){
  const context=Array.isArray(b.context)?b.context.slice(-100):[];
  if(context.some((t:any)=>!['user','assistant'].includes(t?.role)||typeof t.text!=='string'||t.text.length>6000))return json({error:'Conversazione non valida'},400);
@@ -52,7 +53,7 @@ Deno.serve(async req=>{
    const profile=user?(await db('casey_account_profiles?'+new URLSearchParams({select:'display_name',user_id:'eq.'+user.id,limit:'1'})))[0]:null;
    const first=(profile?.display_name|| (user?nameFromEmail(user.email):'')).split(' ')[0];
    const greeting=/^\s*(ciao|salve|buongiorno|buonasera|hello|hi)[!.,\s]*$/i.test(message);
-   reply=greeting&&first?{answer:'Ciao '+first+'! Sono Casey. Come posso aiutarti?',citations:[],mode:'greeting'}:route.route==='public'?await answer([...reservation.context.slice(-10),{role:'user',text:message}],new Request(req.url),'it-IT'):{answer:'Per dati personali e appuntamenti apri il tuo account College. Verificare l’email di prova non abilita i servizi riservati agli studenti.',citations:[],mode:'account_required'};
+   reply=greeting&&first?{answer:'Ciao '+first+'! Sono Casey. Come posso aiutarti?',citations:[],mode:'greeting'}:route.route==='public'?await answer([...reservation.context.slice(-10),{role:'user',text:message}],new Request(req.url),['it-IT','en-US','es-ES'].includes(b.language)?b.language:'it-IT'):{answer:'Per dati personali e appuntamenti apri il tuo account College. Verificare l’email di prova non abilita i servizi riservati agli studenti.',citations:[],mode:'account_required'};
   }catch{reply={answer:'Non riesco a consultare le fonti in questo momento. Riprova tra poco.',citations:[],mode:'unavailable'};}
   checked(await access(token,'finish',id,reply));return json(reply);
  }

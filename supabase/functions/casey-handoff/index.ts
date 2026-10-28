@@ -1,5 +1,5 @@
 import {verifiedFirstName,namedGreeting} from '../_shared/account-profile.js';
-import {withPaidText} from '../_shared/paid-capacity.ts';
+import {withPaidText,finishPaidVoice} from '../_shared/paid-capacity.ts';
 import {operation} from '../_shared/handoff-operations.ts';
 import {classifyHandoff} from '../_shared/handoff-policy.js';
 /** Full-chat transfer: account ownership and operations are verified server-side. */
@@ -29,7 +29,7 @@ async function rate(bucket:string,limit:number){if(await db('rpc/hf7_take_rate',
 function classify(message:string){return {...classifyHandoff(message),method:'privacy_rules',modelEnabled:Deno.env.get('HANDOFF_CLASSIFIER')==='model'};}
 Deno.serve(async req=>{
  const origin=req.headers.get('origin')||'';const h={'Content-Type':'application/json','Cache-Control':'no-store','Referrer-Policy':'no-referrer','Access-Control-Allow-Origin':origins.has(origin)?origin:'null','Access-Control-Allow-Headers':'content-type,x-session-token,x-student-token,x-casey-session-token','Access-Control-Allow-Methods':'POST,OPTIONS',Vary:'Origin'};
- const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:{...h,...(status===429?{'Retry-After':'60'}:{})}});
+ const reply=(body:unknown,status=200)=>new Response(JSON.stringify(body,(key,value)=>['generation_model','retrieval','pool','knowledge_scope'].includes(key)?undefined:value),{status,headers:{...h,...(status===429?{'Retry-After':'60'}:{})}});
  if(origin&&!origins.has(origin))return reply({error:'Origine non autorizzata'},403);
  if(req.method==='OPTIONS')return new Response(null,{status:204,headers:h});
  if(req.method!=='POST')return reply({error:'Metodo non consentito'},405);
@@ -69,6 +69,7 @@ Deno.serve(async req=>{
    try{const result=await db('rpc/hf7_restore',{p_user:u.id,p_chat:b.chat_id,p_hash:await hash(t)});return reply({...result,session_token:t});}
    catch{return reply({error:'Nessuna conversazione salvata disponibile: scansiona un nuovo QR'},404);}
   }
+  if(b.action==='scan'){if(!/^[a-f0-9]{64}$/.test(b.token||'')||!/^[a-f0-9]{64}$/.test(b.attempt||''))return reply({error:'QR non valido'},400);try{return reply(await db('rpc/hf7_scan',{p_hash:await hash(b.token),p_attempt:await hash(b.attempt)}));}catch{return reply({error:'QR scaduto o già aperto su un altro dispositivo'},409);}}
   if(b.action==='claim'){
    const u=await user(req);await rate('claim:'+u.id,15);
    if(!/^[a-f0-9]{64}$/.test(b.token||''))return reply({error:'Trasferimento non disponibile: genera un nuovo QR'},400);
@@ -81,7 +82,8 @@ Deno.serve(async req=>{
    const s=await session(req);if(!/^[a-f0-9-]{36}$/i.test(b.id||''))return reply({error:'Riferimento non valido'},400);
    const rows=await db('hf7_links?'+qs({select:'consumed_at,expires_at',id:'eq.'+b.id,source_session:'eq.'+s}));return reply({consumed:!!rows[0]?.consumed_at,expired:!rows[0]||Date.parse(rows[0].expires_at)<=Date.now()});
   }
-  if(['chat_turn','load','save','clear','operation'].includes(b.action)){const u=await user(req),sid=await session(req);const owned=await db('hf7_chats?'+qs({select:'id',id:'eq.'+b.chat_id,user_id:'eq.'+u.id,expires_at:'gt.'+new Date().toISOString()}));const linked=await db('hf7_chat_sessions?'+qs({select:'chat_id',chat_id:'eq.'+b.chat_id,session_id:'eq.'+sid}));if(!owned[0]||!linked[0])return reply({error:'Conversazione non disponibile'},404);}
+  if(['chat_turn','load','save','clear','operation','voice_end'].includes(b.action)){const u=await user(req),sid=await session(req);const owned=await db('hf7_chats?'+qs({select:'id',id:'eq.'+b.chat_id,user_id:'eq.'+u.id,expires_at:'gt.'+new Date().toISOString()}));const linked=await db('hf7_chat_sessions?'+qs({select:'chat_id',chat_id:'eq.'+b.chat_id,session_id:'eq.'+sid}));if(!owned[0]||!linked[0])return reply({error:'Conversazione non disponibile'},404);}
+  if(b.action==='voice_end'){if(!/^[a-f0-9-]{36}$/i.test(b.request_id||''))return reply({error:'Riferimento non valido'},400);await finishPaidVoice({subject:'session:'+(req.headers.get('x-session-token')||''),id:b.request_id});return reply({released:true});}
   if(b.action==='operation'){const u=await user(req),sid=await session(req);await rate('operation:'+u.id,40);return reply(await operation(b,u,sid,req,db,hash,URL_BASE,Deno.env.get('CASEY_TOKEN_ENCRYPTION_KEY')||''));}
   if(b.action==='chat_turn'){
    const u=await user(req),s=await session(req);await rate('text:'+s,30);

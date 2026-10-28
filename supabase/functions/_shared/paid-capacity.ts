@@ -6,3 +6,5 @@ export async function finishPaidText(a:Admission){await paid(a.subject,'finish',
 export async function withPaidText<T>(subject:string,run:()=>Promise<T>):Promise<T>{const admission=await reservePaidText(subject);try{return await run();}finally{await finishPaidText(admission);}}
 export async function reservePaidVoice(subject:string):Promise<Admission>{const id=crypto.randomUUID();const r=await paid(subject,'voice',id);return {subject,id,expires_at:r.expires_at,seconds:r.seconds};}
 export async function abortPaidVoice(a:Admission){await paid(a.subject,'voice_abort',a.id);}
+
+export async function finishPaidVoice(a:Admission){await paid(a.subject,'voice_end',a.id);}

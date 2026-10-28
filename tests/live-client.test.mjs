@@ -6,7 +6,7 @@ import test from 'node:test';
 const client = readFileSync(new URL('../casey-live.js', import.meta.url), 'utf8');
 const tick = () => new Promise(resolve => setTimeout(resolve, 0));
 
-function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true, pathname='/index.html', identity=null } = {}) {
+function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true, pathname='/index.html', identity=null, microphoneError=null } = {}) {
   const elems = new Map();
   function el(id) {
     if (!elems.has(id)) elems.set(id, {textContent: '', title: '', hidden: false, disabled: false});
@@ -38,7 +38,7 @@ function setup({ httpStatus = 200, serverToken = 'token-example', autoEnd=true, 
   if(identity)window.HandoffAPI={auth:()=>({access_token:identity}),session:()=> 'session-token'};
   const globals = {
     location:{pathname},
-    window, WebSocket, navigator:{mediaDevices:{getUserMedia: async () => {microphoneCalls++;return {getTracks:()=>tracks, getAudioTracks:()=>tracks};}}},
+    window, WebSocket, navigator:{mediaDevices:{getUserMedia: async () => {microphoneCalls++;if(microphoneError)throw microphoneError;return {getTracks:()=>tracks, getAudioTracks:()=>tracks};}}},
     sessionStorage:{getItem:()=>JSON.stringify({token:'session-token', exp:Date.now()+90000})},
     document:{getElementById:el, addEventListener() {}},
     fetch:async(url,options)=>{requests.push({url,options});return ({ok:httpStatus===200, status:httpStatus, json:async()=>httpStatus===200?{token:serverToken, model:'gemini-3.8-live', config:{generationConfig:{responseModalities:['AUDIO']}}}:{error:'Forbidden'}});},
@@ -103,14 +103,14 @@ test('close event reports reason and cleans up rather than hanging on initializa
   env.instances[0].onclose({code:1008,reason:'session exhausted'});
   await tick();
   assert.equal(env.window.CaseyLive.active,false);
-  assert.match(env.el('caseyLiveStatus').textContent,/1008/);
+  assert.match(env.el('caseyLiveStatus').textContent,/interrotta/);assert.doesNotMatch(env.el('caseyLiveStatus').textContent,/session exhausted|1008/);
 });
 
-test('upstream failure surfaces readable error without opening microphone', async()=>{
+test('upstream failure releases the already approved microphone and shows a safe error', async()=>{
   const env=setup({httpStatus:403});
   await env.window.CaseyLive.start();
   assert.equal(env.instances.length,0);
-  assert.match(env.el('caseyLiveStatus').textContent,/Forbidden/);
+  assert.match(env.el('caseyLiveStatus').textContent,/Voce non disponibile/);assert.equal(env.microphoneCalls,1);assert.equal(env.tracks[0].stopped,true);
 });
 
 test('Gemini server error is displayed and voice session stops', async()=>{
@@ -119,7 +119,7 @@ test('Gemini server error is displayed and voice session stops', async()=>{
   env.instances[0].onmessage({data:JSON.stringify({error:{code:429,message:'RESOURCE_EXHAUSTED: API quota reached'}})});
   await tick();
   assert.equal(env.window.CaseyLive.active,false);
-  assert.match(env.el('caseyLiveStatus').textContent,/quota/i);
+  assert.match(env.el('caseyLiveStatus').textContent,/momentaneamente non disponibile/i);assert.doesNotMatch(env.el('caseyLiveStatus').textContent,/RESOURCE_EXHAUSTED|quota/i);
 });
 
 
@@ -188,3 +188,5 @@ test('Interrupt closes the response and microphone, and reports idle state',asyn
 });
 test('College Live sends the verified shared account even when the old auth store is empty',async()=>{const e=setup({pathname:'/college.html',identity:'verified-owner'});const ready=e.window.CaseyLive.startText();await tick();e.instances[0].onopen();e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});await ready;assert.equal(e.requests[0].options.headers['x-student-token'],'verified-owner');assert.equal(e.microphoneCalls,0);await e.window.CaseyLive.stop();});
 test('Public kiosk Live never forwards a phone identity kept in the same tab',async()=>{const e=setup({pathname:'/index.html',identity:'phone-owner'});const ready=e.window.CaseyLive.startText();await tick();e.instances[0].onopen();e.instances[0].onmessage({data:JSON.stringify({setupComplete:{}})});await ready;assert.equal(e.requests[0].options.headers['x-student-token'],'');assert.equal(e.window.HandoffAPI.auth().access_token,'phone-owner');await e.window.CaseyLive.stop();});
+
+test('denied microphone never mints a paid provider credential',async()=>{const e=setup({microphoneError:Object.assign(Error('Permission denied'),{name:'NotAllowedError'})});await e.window.CaseyLive.start();assert.equal(e.requests.length,0);assert.equal(e.instances.length,0);assert.equal(e.microphoneCalls,1);});
