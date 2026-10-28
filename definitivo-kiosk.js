@@ -14,7 +14,7 @@
  }
  async function session(){if(engine)return engine;if(!sessionPromise)sessionPromise=call('session').then(d=>engine=d.token).finally(()=>sessionPromise=null);return sessionPromise;}
  function stopPoll(){clearInterval(poll);clearTimeout(expiry);poll=expiry=null;}
- async function clearLink(){stopPoll();const old=link;link=null;phoneUrl='';if(old){await A.call('cancel',{id:old}).catch(()=>{});}document.getElementById('qrCard').classList.remove('on');}
+ async function clearLink(){stopPoll();const old=link;link=null;phoneUrl='';document.getElementById('qrCard').classList.remove('on');if(old){await A.call('cancel',{id:old}).catch(()=>{});}document.getElementById('qrCard').classList.remove('on');}
  const visualSay=window.say;
  window.say=(value,source,kind,label,end)=>{if(window.CaseyLive?.active){showSilent(value,source);return;}visualSay(value,source,kind,label,end);clearInterval(capTimer);document.getElementById('capText').textContent=value;};
  async function handover(note,intent){
@@ -55,6 +55,7 @@
  const reset=window.resetAll;window.resetAll=()=>{revision++;messages.clear();engine='';void clearLink();reset();};
  const scenario=window.setScenario;window.setScenario=s=>{revision++;messages.clear();engine='';void clearLink();scenario(s);};
  window.addEventListener('casey:language',()=>{revision++;shutUp();document.getElementById('q').placeholder=t().placeholder;status(t().ready);say(t().welcome);});
+ window.addEventListener('casey:service-case',event=>{if(['checkin','internship_contract'].includes(event.detail?.case))void clearLink();});
  // Back-office action controls are demonstrations; label them persistently.
  window.CaseyBridge={liveMobileHandoff:async()=>{const latest=messages.snapshot().filter(t=>t.role==='user').at(-1)?.text||'';if(!latest)return {status:'clarification_required',note:'Ask a short clarification here. Do not suggest QR for uncertainty or missing sources.'};const decision=await A.call('classify',{message:latest});if(decision.route==='public')return {status:'public_question',note:'Continue answering here. For public procedures search verified knowledge; if needed ask which course. Do not propose a QR.'};return handover();},liveSearchKnowledge:async query=>{await session();return call('knowledge_lookup',{query,history:messages.snapshot().slice(-10),language:CaseyLanguage.get()});}};
  status(t().ready);document.getElementById('q').placeholder=t().placeholder;
