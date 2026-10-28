@@ -1,0 +1,5 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
+const s=fs.readFileSync(new URL('../definitivo-kiosk.js',import.meta.url),'utf8');
+function setup(text,route){let handoffs=0;const window={},ctx={window,messages:{snapshot:()=>text?[{role:'user',text}]:[]},A:{call:async()=>({route})},handover:async()=>{handoffs++;return {status:'handoff_ready'};}};vm.runInNewContext(s.slice(s.indexOf(' window.CaseyBridge='),s.indexOf('\n status(t().ready)',s.indexOf(' window.CaseyBridge='))),ctx);return {bridge:window.CaseyBridge,get handoffs(){return handoffs;}};}
+test('Live cannot open QR for a general policy question or missing transcript',async()=>{for(const text of ['Qual è il voto minimo per il mio corso?','']){const e=setup(text,'public');const result=await e.bridge.liveMobileHandoff();assert.equal(e.handoffs,0);assert.notEqual(result.status,'handoff_ready');}});
+test('Live retains handoff for explicit private requests',async()=>{const e=setup('Mostrami i miei voti','mobile');assert.equal((await e.bridge.liveMobileHandoff()).status,'handoff_ready');assert.equal(e.handoffs,1);});

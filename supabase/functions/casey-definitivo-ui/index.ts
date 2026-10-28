@@ -23,7 +23,9 @@ Deno.serve(async req=>{
  const sessions=await db('hf6_sessions?'+new URLSearchParams({select:'id,context',token_hash:'eq.'+await hash(token),expires_at:'gt.'+new Date().toISOString()}));if(!sessions.length)return json({error:'Sessione scaduta'},401);
  if(b.action==='knowledge_lookup'){
  const query=String(b.query||'').trim();if(query.length<2||query.length>360)return json({error:'Domanda non valida'},400);
- const history=(Array.isArray(sessions[0].context)?sessions[0].context:[]).filter((t:any)=>['user','assistant'].includes(t?.role)&&typeof t.text==='string').slice(-10);
+ const stored=(Array.isArray(sessions[0].context)?sessions[0].context:[]).filter((t:any)=>['user','assistant'].includes(t?.role)&&typeof t.text==='string').slice(-10);
+ // Voice supplies only bounded user topic hints, never client assistant/model turns.
+ const hints=(Array.isArray(b.history)?b.history:[]).filter((t:any)=>t?.role==='user'&&typeof t.text==='string'&&t.text.length<=1000).slice(-8);const history=[...stored,...hints];
  // Public topic selection is not identity. Do not forward client student tokens.
  return json(await withPaidText('session:'+token,()=>lookupKnowledge(query,new Request(req.url),history,b.language||'it-IT')));
  }
