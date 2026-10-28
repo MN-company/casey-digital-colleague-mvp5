@@ -19,3 +19,5 @@ test('Correction replaces rejected date and cancellation prevents reviving a sta
 });
 
 test('Real reported badge conversation keeps its intent through both follow-up questions',()=>{const turns=[{role:'user',text:'Devo ritirare il badge ma non riesco nello slot riservato. Come posso fare?'},{role:'assistant',text:'Fai login College.'},{role:'user',text:'Ok quindi?'},{role:'user',text:'Quando posso cambiare orario per il ritiro?'}];assert.equal(ctx.CaseyDates.fromHistory(turns).phase,'awaiting_slot');});
+
+test('A new exam question does not reuse pending badge availability',()=>{assert.equal(ctx.CaseyDates.fromHistory([{role:'user',text:'Devo ritirare il badge in un altro orario'},{role:'user',text:'Quando ho un esame?'}]).phase,'ready');});

@@ -50,7 +50,7 @@
       const badge=/badge/i.test(text)&&/ritir|slot|orar|data/i.test(text);
       const continuation=/^(?:ok|okay|quindi|si|sì|va bene|allora)\b|\b(?:ritiro|orari|orario|quando|disponibil|scegli|scelgo)\b/i.test(text);
       const booking=/\b(prenot\w*|appuntament\w*|appointment|book\w*|cita|reserva\w*|slot)\b/i.test(text);
-      if(badge||(booking&&!information)||(context.phase==='awaiting_slot'&&((!information&&(fresh.explicitDay||fresh.time||fresh.period||fresh.error==='ambiguous_time'))||continuation)))context={...parseAppointment(text,context,instant),phase:'awaiting_slot'};
+      if(badge||(booking&&!information)||(context.phase==='awaiting_slot'&&((!information&&(fresh.explicitDay||fresh.time||fresh.period||fresh.error==='ambiguous_time'))||(continuation&&!information))))context={...parseAppointment(text,context,instant),phase:'awaiting_slot'};
       else if(!/^\s*(si|sì|yes|ok|va bene|vale)[.!\s]*$/i.test(text))context={phase:'ready'};
     }
     return context;
