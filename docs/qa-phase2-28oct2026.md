@@ -40,7 +40,7 @@ La ripresa usa il renderer della chat già presente in entrambe le app, senza if
 ## Verifiche locali
 
 - Node: 130 test superati.
-- Deno: 30 test superati, incluso handler pubblico con cronologia falsificata.
+- Deno: 31 test superati, incluso handler pubblico con cronologia falsificata.
 - Type check: sette funzioni chat/Live/handoff/Beta.
 - SQL con rollback in Preview e produzione: quote demo/normali, proprietario della lease, rifiuto del contesto dopo stop, scansione/riserva/scadenza QR. Il test ha individuato il vecchio vincolo di due minuti: migrazione aggiuntiva applicata senza cancellare dati.
 - Browser locale: dashboard, Apri Casey, posta, app College e login integrato con CSP attiva.
@@ -53,3 +53,7 @@ Voce sul microfono e altoparlante fisici, consenso Google su account reale e sca
 ## Rilascio
 
 Rollback frontend precedente: `dpl_8PSjYbgqFvBGVKKHupewhpH5ZrSM`, commit main `9a730d43a9f19d3cbf5411f9ddddd9e127dea9ad`. Le quattro migrazioni sono additive o modificano funzioni/vincoli; non alterano documenti o chunk del RAG. Dettagli del nuovo deploy e smoke HTTPS vengono registrati dopo il rilascio.
+
+### Esito rilascio verificato
+
+PR #35 unita; commit main `8793246fed666966774e1b8e01ce3350f8025322`; Vercel `dpl_3hPyVWQBU16fwWN8mGnWmbzeUBnx`, https://casey-digital-colleague-live-9t3fnc6lz-mnbrain.vercel.app. Backend Actions `40679108283` completato con successo. Verificati 22 file pubblici identici al sorgente e CSP presente. Smoke API produzione: 21 controlli superati, RAG con citazioni, sei orari reali, Auth/QR e recupero; nessun commit di prenotazione. Gemini Live: WebSocket setupComplete e audio generato reali, stop libera capacità e riavvio riesce. Il follow-up corregge anche la selezione lingua nel token Beta Live e ne aggiunge il test.
