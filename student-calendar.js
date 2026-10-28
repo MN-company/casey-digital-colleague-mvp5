@@ -3,7 +3,7 @@
 const el=(tag,text,cls)=>{const n=document.createElement(tag);if(text)n.textContent=text;if(cls)n.className=cls;return n;};
 function button(text,fn,status){const b=el('button',text);b.type='button';b.onclick=async()=>{b.disabled=true;try{await fn();}catch(e){status.textContent=e.message;}finally{b.disabled=false;}};return b;}
 async function mount(host,{account=false}={}){const current=++revision,alive=()=>current===revision;host.replaceChildren();host.append(el('h2',account?'Il mio account':'Il mio calendario'));const status=el('p','Caricamento…','personal-status');status.setAttribute('role','status');host.append(status);
- try{const p=await A.profile();if(!alive())return;if(!p){status.textContent='Accedi per vedere il tuo calendario.';const login=el('a','Accedi / Registrati');login.href='app-blu.html?account=1';host.append(login);return;}
+ try{const p=await A.profile();if(!alive())return;if(!p){status.textContent='Accedi per vedere il tuo calendario.';const login=el('a','Accedi');login.href='app-blu.html?account=1';host.append(login);return;}
  host.append(el('p',`${p.display_name||'Studente'} · ${p.email}`));
  if(account){const form=el('form'),label=el('label','Nome visualizzato'),name=el('input'),save=el('button','Salva nome');name.value=p.display_name||'';name.maxLength=80;name.required=true;name.setAttribute('aria-label','Il tuo nome');save.type='submit';form.append(label,name,save);form.onsubmit=async e=>{e.preventDefault();save.disabled=true;try{await A.updateName(name.value);if(alive())status.textContent='Nome salvato.';}catch(e){if(alive())status.textContent=e.message;}finally{save.disabled=false;}};host.append(form);}
  const connection=el('section','','personal-connection');host.append(connection);

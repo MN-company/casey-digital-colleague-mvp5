@@ -988,7 +988,7 @@ const isOpen = (r, d = now()) => r.open.includes(d.getDay()) && (d.getHours() * 
 /* ---------- stato ---------- */
 const S = {
   screen: 'home', prevScreen: 'home', placeFrom: 'home', tab: 'chat', heroSmall: false, heroAuto: false, menuOpen: false,
-  thread: [], opened: false, voice: false, listening: false, fabBadge: true,
+  thread: [], opened: false, voice: false, listening: false, fabBadge: false,
   ev: { gci: { reg: false }, talk: { reg: false }, sp: { notify: false } },
   lunch: { list: [], step: 0, tomorrow: false },
   parcelNotify: false, lastEvent: null, pend: null, asked: new Set(), enNoted: false, newsFilter: 0
@@ -1406,7 +1406,7 @@ function tile(cls, g, kk, tt, icon, act, arg, extra = '') {
 }
 function caseyCard() {
   const face = `<span class="face"><img src="${FACE}" alt=""></span>`;
-  const top = `<div class="top">${face}<span class="who"><b>Casey</b><small>Assistente AI del campus</small></span><span class="live"><i></i>online</span></div>`;
+  const top = `<div class="top">${face}<span class="who"><b>Casey</b><small>Assistente AI del campus</small></span></div>`;
   const btn = (w, act, arg, label) => `<button${w ? ' class="w"' : ''} data-act="${act}" data-arg="${esc(arg)}">${label}</button>`;
   const card = (msg, small, b1, b2) => `<div class="ccard" id="ccard">${top}<div class="cmsg">${msg}<small>${small}</small></div><div class="cacts">${b1}${b2}</div></div>`;
   const lt = lunchToday();

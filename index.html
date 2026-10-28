@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Casey 6.0 — Totem e Back-office</title>
+<title>Casey - your digital colleague</title>
 <style>
 :root{
   --navy:#1D2A5B; --navy-d:#141C3A; --navy-l:#2B3A74; --navy-x:#0D1226;
@@ -226,6 +226,8 @@ body.show .exit{display:block}
 .tst b{display:block;font-size:12.8px;color:var(--brand)}
 .tst span{font-size:12px;color:var(--mut)}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+
+.mlist button.mrow{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #e4e7ee;background:transparent}.mlist button.mrow[aria-pressed=true]{background:#f1f3fa}.workspace-demo-note{font-size:11px;color:#667085;background:#f3f5fa;border:1px solid #e4e7ee;border-radius:8px;padding:8px 10px;margin:0 0 12px}
 </style>
 <link rel="stylesheet" href="definitivo.css"></head>
 <body>
@@ -236,7 +238,7 @@ body.show .exit{display:block}
   <div class="in">
     <div class="brand">
       <img id="brandLogo" src="hfarm-college-logo.png" alt="H-FARM College">
-      <div><div class="nm">Casey 6.0 — Digital Colleague</div><div class="sb" id="ctxLine"></div></div>
+      <div><div class="nm">Casey - your digital colleague</div><div class="sb" id="ctxLine"></div></div>
     </div>
     <div class="seg" role="tablist" aria-label="Scenario">
       <button id="sc-COLLEGE" role="tab" aria-selected="true" onclick="setScenario('COLLEGE')">College</button>
@@ -907,13 +909,13 @@ function addTicket(){const t=D.escal.tk;if(queue.some(x=>x.id===t.id))return;que
 function approve(i){
   const t=queue[i];if(!t||t.status==='DONE')return;
   const ta=document.getElementById('dr'+i); t.draft=ta?ta.value:t.draft; t.status='DONE';
-  const m={from:t.to,to:D.person.name+' <'+D.person.mail+'>',when:'adesso',
-    subj:'Risposta ufficiale — pratica '+t.id,body:t.draft+'\n\n---\nRiferimento: '+t.rule};
+  const m={from:t.to,to:t.who+' <'+(t.email||'studente@example.com')+'>',when:'adesso',demo:true,
+    subj:'Bozza approvata — pratica '+t.id,body:t.draft+'\n\n---\nRiferimento: '+t.rule};
   mailPerson.unshift(m);mailOffice.unshift(m);selMail=0;
-  toast('Approvata','La risposta è partita verso '+D.person.mail);
+  toast('Bozza approvata','Salvata nella demo. Nessuna email è stata inviata.');
   setTab('MAIL');renderAll();
 }
-function reject(i){const t=queue[i];if(!t)return;t.status='DONE';
+function reject(i){const t=queue[i];if(!t)return;t.status='REJECTED';
   t.draft='(Bozza scartata: la pratica resta interamente a una persona.)';renderAll();}
 function markCheck(i,meta){if(!checklist[i])return;checklist[i].done=true;checklist[i].meta=meta;renderAll();}
 
@@ -974,9 +976,9 @@ function renderMail(){
   const l=VIEW==='OFFICE'?mailOffice:mailPerson;
   if(selMail>=l.length)selMail=0;
   document.getElementById('mlist').innerHTML=l.map((m,i)=>
-    '<div class="mrow" role="option" aria-selected="'+(i===selMail)+'" onclick="selMail='+i+';renderMail()">'+
+    '<button type="button" class="mrow" aria-pressed="'+(i===selMail)+'" onclick="selMail='+i+';renderMail()">'+
     '<div class="f"><span>'+esc(m.from.split('<')[0].trim())+'</span><span>'+esc(m.when)+'</span></div>'+
-    '<div class="s">'+esc(m.subj)+'</div></div>').join('')||'<div class="empty">Nessun messaggio</div>';
+    '<div class="s">'+esc(m.subj)+'</div></button>').join('')||'<div class="empty">Nessun messaggio</div>';
   const m=l[selMail];
   document.getElementById('mbody').innerHTML=m
     ?'<h3>'+esc(m.subj)+'</h3><div class="meta">Da '+esc(m.from)+'<br>A '+esc(m.to)+'</div><pre>'+esc(m.body)+'</pre>'
@@ -989,12 +991,12 @@ function renderQueue(){
   if(!queue.length){b.innerHTML='<div class="empty"><div class="big">Nessuna pratica in attesa</div>'+
     'Quando Casey incontra qualcosa che non deve decidere da solo — tasse, deroghe, casi limite, dati sensibili, benessere — la prepara e la lascia qui con la bozza già scritta.</div>';return;}
   b.innerHTML=queue.map((t,i)=>
-    '<div class="tk'+(t.status==='DONE'?' done':'')+'"><div class="r1"><div><div class="id">'+esc(t.id)+' · '+esc(t.who)+'</div>'+
+    '<div class="tk'+(t.status!=='PENDING'?' done':'')+'"><div class="r1"><div><div class="id">'+esc(t.id)+' · '+esc(t.who)+'</div>'+
     '<h4>'+esc(t.q)+'</h4></div><span class="lvl '+t.lvl+'">'+esc(t.lvlTxt)+'</span></div>'+
     '<div class="kv">Destinatario: <b>'+esc(t.to)+'</b></div><div class="rule">'+esc(t.rule)+'</div>'+
-    (t.status==='DONE'?'<div class="kv" style="margin-top:12px;color:var(--ok);font-weight:700">Chiusa dallo staff</div>'
-      :'<textarea id="dr'+i+'" rows="4">'+esc(t.draft)+'</textarea><div class="acts">'+
-       '<button class="btn ok" onclick="approve('+i+')">Approva e invia</button>'+
+    (t.status!=='PENDING'?'<div class="kv" style="margin-top:12px;color:var(--ok);font-weight:700">'+(t.status==='REJECTED'?'Bozza scartata':'Bozza approvata dallo staff')+'</div>'
+      :'<textarea aria-label="Bozza della pratica '+esc(t.id)+'" id="dr'+i+'" rows="4">'+esc(t.draft)+'</textarea><div class="acts">'+
+       '<button class="btn ok" onclick="approve('+i+')">Approva bozza</button>'+
        '<button class="btn gh" onclick="reject('+i+')">Scarta la bozza</button></div>')+'</div>').join('');
 }
 function renderOffices(){
@@ -1131,6 +1133,6 @@ function loadScenario(){
 }
 document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
 </script>
-<script src="qr.js"></script>
+<script src="demo-workspace.js"></script><script src="qr.js"></script>
 <script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="kiosk-avatar.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><link rel="stylesheet" href="student-access.css"><link rel="stylesheet" href="student-calendar.css"><script src="account-sheet.js"></script><script src="student-calendar.js"></script><script src="real-calendar.js"></script></body>
 </html>
