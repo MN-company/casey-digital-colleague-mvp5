@@ -1,0 +1,9 @@
+# Accesso e separazione della vista Studente
+
+Il selettore del pannello principale è ora Ufficio / Studente. La precedente implementazione chiamava sempre admin_live_calendar, anche dalla vista personale. Ora Studente chiama student_live_calendar con la sola identità verificata dell'utente e non riutilizza il token staff. Senza accesso viene mostrato Accedi / Registrati; senza Google personale non vengono sostituiti eventi Office. Una revisione della richiesta impedisce che risposte in ritardo del contesto precedente ripristinino eventi dopo un cambio di vista. L'identità dimostrativa fissa è stata rimossa dall'intestazione Studente.
+
+L'app originale offre Accedi / Registrati nello stesso pannello: email → invio codice → verifica. Registrati usa la creazione passwordless con email verificata già supportata; Accedi recupera la stessa identità. Entrambi usano il flusso OTP protetto esistente senza esporre pubblicamente se una mail è già registrata. I dati delle chat e i permessi istituzionali restano protetti dai controlli server. La verifica del codice compare solo dopo una richiesta e Cambia email permette di tornare indietro. Non sono state inviate email reali durante questo rilascio.
+
+Ascolta avviava una sessione Live senza microfono, non la lettura della sola ultima risposta. È stato rimosso dalla barra app e dal totem perché ambiguo. Rimane Parla con Casey per la conversazione vocale; motore audio e controlli di arresto esistenti restano invariati.
+
+Verifica locale: 115 test Node riusciti; inclusi risposta Office tardiva dopo cambio vista, nessuna lettura Office per studente senza identità anche con credenziale staff presente, rendering positivo di eventi propri, invalidazione dopo logout e OTP con richiesta/nonce. Browser: Accedi e Registrati visibili separatamente; cambio Studente mostra calendario personale con invito all'accesso e nessun evento staff. Il backend, le connessioni Google e il corpus RAG non sono stati modificati.
