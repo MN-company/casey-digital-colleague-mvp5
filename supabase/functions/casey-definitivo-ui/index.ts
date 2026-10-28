@@ -1,3 +1,4 @@
+import {handleCampusCase} from '../_shared/campus-cases.ts';
 import {withPaidText} from '../_shared/paid-capacity.ts';
 import {answer,lookupKnowledge} from '../_shared/definitivo-preview.ts';
 const BASE=Deno.env.get('SUPABASE_URL')||'';
@@ -21,6 +22,7 @@ Deno.serve(async req=>{
  const token=req.headers.get('x-session-token')||'';
  if(!/^[a-f0-9-]{72}$/i.test(token))return json({error:'Sessione richiesta'},401);
  const sessions=await db('hf6_sessions?'+new URLSearchParams({select:'id,context',token_hash:'eq.'+await hash(token),expires_at:'gt.'+new Date().toISOString()}));if(!sessions.length)return json({error:'Sessione scaduta'},401);
+ if(b.action==='service_case'){const query=String(b.query||'').trim();if(query.length<3||query.length>1000)return json({error:'Domanda non valida'},400);return json(await handleCampusCase(query,sessions[0].id,db,BASE,b.language||'it-IT',b.dry_run===true));}
  if(b.action==='knowledge_lookup'){
  const query=String(b.query||'').trim();if(query.length<2||query.length>360)return json({error:'Domanda non valida'},400);
  const stored=(Array.isArray(sessions[0].context)?sessions[0].context:[]).filter((t:any)=>['user','assistant'].includes(t?.role)&&typeof t.text==='string').slice(-10);

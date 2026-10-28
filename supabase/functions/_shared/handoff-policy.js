@@ -11,6 +11,7 @@ export function classifyHandoff(message) {
  const privateHealth=/\b(diagnos\w*|medical|health|salute)\b/.test(t)&&own;
  const negated=/^(non (?:voglio|devi)|do not|don't)\b/.test(t);
  const directRecord=/mostrami (?:i |le |il |la )?(?:miei |mie |mio |mia )?(?:voti|rate|rata|pagamenti|presenze|assenze)|show me (?:my )?(?:grades|payments|attendance)|quante (?:assenze|presenze) ho/.test(t);
- if(directRecord||credentials||(!procedural&&!publicRule&&privateHealth)||(booking&&!procedural&&!negated)||(!procedural&&!publicRule&&record&&(own||access||/quante (?:assenze|presenze) ho/.test(t))))return {personal:true,route:'mobile',reason:'personal_request'};
+ const badgeChange=/badge|tessera/.test(t)&&/ritir/.test(t)&&/non.{0,20}riesc|altr[ao]|spost|cambi|assegnat|riprogramm/.test(t);
+ if(badgeChange||directRecord||credentials||(!procedural&&!publicRule&&privateHealth)||(booking&&!procedural&&!negated)||(!procedural&&!publicRule&&record&&(own||access||/quante (?:assenze|presenze) ho/.test(t))))return {personal:true,route:'mobile',reason:'personal_request'};
  return {personal:false,route:'public',reason:procedural||publicRule?'general_question':'public_clarification'};
 }
