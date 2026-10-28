@@ -33,3 +33,5 @@ test('Broken playlist assets stop after bounded attempts instead of spinning or 
 });
 
 test('A scanned QR uses the server login deadline instead of the original local timeout',async()=>{const f=handoffFixture({consumed:false,expired:false,reserved:true,expires_at:new Date(Date.now()+600000).toISOString()});await f.ctx.handover();await f.poll();assert.equal(f.ctx.link,'link');assert.equal(f.ctx.expiry,null);assert.equal(f.stopped,0);});
+
+test('Voice handoff checkpoints the unfinished transcript before taking the QR snapshot',async()=>{const f=handoffFixture();let captured=false;f.ctx.window.CaseyLive={checkpoint(){captured=true;}};f.ctx.messages.snapshot=()=>{assert.equal(captured,true);return [{role:'user',text:'Devo spostare il ritiro del badge'}];};await f.ctx.handover();assert.equal(captured,true);});

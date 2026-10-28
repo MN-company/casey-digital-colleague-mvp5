@@ -22,6 +22,7 @@
   const rev=revision;await clearLink();if(rev!==revision)return;
   const card=document.getElementById('qrCard');card.classList.remove('expired');card.classList.add('on');document.getElementById('qrMeta').textContent=t().thinking;
   try{
+   window.CaseyLive?.checkpoint?.();
    const r=await A.call('issue',{context:messages.snapshot()});
    if(rev!==revision){await A.call('cancel',{id:r.id}).catch(()=>{});return;}
    link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',location.href);url.searchParams.set('lang',CaseyLanguage.get());if(intent==='badge')url.searchParams.set('intent','badge');url.hash='handoff='+r.token;phoneUrl=url.href;
