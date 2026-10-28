@@ -13,7 +13,7 @@
  async function refresh(){state=await B.call('state');await window.CaseyAccount?.profile().catch(()=>null);paint();return state;}
  async function ensure(){if(!init)init=B.start().then(async s=>{state=s;await window.CaseyAccount?.profile().catch(()=>null);paint();return s;}).finally(()=>{init=null;});return init;}
  function restore(s){if(app.restoreConversation)app.restoreConversation(s.context||[],s.id);}
- function open(){if(B.auth()?.access_token){if(window.CaseyPersonalCalendar)void window.CaseyPersonalCalendar.open({account:true});else document.addEventListener('DOMContentLoaded',()=>void window.CaseyPersonalCalendar.open({account:true}),{once:true});return;}paint();sheet.open();}
+ function open(){void window.CaseyLive?.stop();if(B.auth()?.access_token){if(window.CaseyPersonalCalendar)void window.CaseyPersonalCalendar.open({account:true});else document.addEventListener('DOMContentLoaded',()=>void window.CaseyPersonalCalendar.open({account:true}),{once:true});return;}paint();sheet.open();}
  $('studentGuest').onclick=async()=>{try{restore(await ensure());sheet.close();}catch(e){notice(e.message);}};
  $('studentEmailForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{if(!B.guest())await ensure();await B.call('email',{email:$('studentEmail').value});codeSent=true;paint();$('studentCode').focus();notice('Codice inviato a '+$('studentEmail').value+'. Inseriscilo qui.');}catch(err){notice(err.message);}finally{button.disabled=false;}};
  $('studentCodeForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{await B.verify($('studentEmail').value,$('studentCode').value);$('studentCode').value='';codeSent=false;sheet.close();if(pendingPrivate){pendingPrivate=false;window.openSheet();}void refresh().then(restore).catch(()=>{});}catch(err){notice(err.message);}finally{button.disabled=false;}};
@@ -25,14 +25,16 @@
  const nativeChat=document.getElementById('vCasey');if(nativeChat)new MutationObserver(paintVoice).observe(nativeChat,{childList:true,subtree:true});
  const liveStatus=document.createElement('p');liveStatus.id='caseyLiveStatus';liveStatus.className='native-voice-status';liveStatus.setAttribute('role','status');const liveSub=document.createElement('span');liveSub.id='subtitleBox';liveSub.hidden=true;document.getElementById('vCasey')?.append(liveStatus,liveSub);
  window.CaseyStudentAccess=Object.freeze({open,ensure,refresh,voice});
- if(app.ACT){app.ACT.logout=async()=>{await B.logout();window.CaseyAccount?.clear();app.clearConversations?.();document.getElementById('menu')?.classList.remove('open');app.ACT.home?.();};app.ACT.mic=()=>void voice(true).catch(e=>{const status=document.getElementById('caseyLiveStatus');if(status)status.textContent=e.message;});app.ACT.account=open;app.ACT['private-chat']=()=>{if(B.auth()?.access_token)window.openSheet();else{pendingPrivate=true;open();}};const newChat=app.ACT['new-chat'],openChat=app.ACT.open;
- if(newChat)app.ACT['new-chat']=async()=>{try{if(app.C?.busy)return;await ensure();const r=await B.call('new_chat');const previous=app.C?.chats.find(c=>c.id===app.C.cur);if(previous&&r.archived_id)previous.id=r.archived_id;newChat();}catch(e){open();notice(e.message);}};
+ if(app.ACT){app.ACT.logout=async()=>{await window.CaseyLive?.stop();await B.logout();window.CaseyAccount?.clear();app.clearConversations?.();document.getElementById('menu')?.classList.remove('open');app.ACT.home?.();};app.ACT.mic=()=>void voice(true).catch(e=>{const status=document.getElementById('caseyLiveStatus');if(status)status.textContent=e.message;});app.ACT.account=open;app.ACT['private-chat']=()=>{if(B.auth()?.access_token)window.openSheet();else{pendingPrivate=true;open();}};const newChat=app.ACT['new-chat'],openChat=app.ACT.open;
+ if(newChat)app.ACT['new-chat']=async()=>{try{if(app.C?.busy||app.S?.busy)return;await window.CaseyLive?.stop();await ensure();const r=await B.call('new_chat');const previous=app.C?.chats.find(c=>c.id===app.C.cur);if(previous&&r.archived_id)previous.id=r.archived_id;newChat();}catch(e){open();notice(e.message);}};
  if(openChat)app.ACT.open=async id=>{try{await ensure();await B.call('restore',{conversation_id:id});openChat(id);}catch(e){open();notice(e.message);}};
  }
 
+ for(const name of ['home','tab','place']){const previous=app.ACT?.[name];if(previous)app.ACT[name]=(...args)=>{if(name!=='tab'||args[0]!=='CASEY')void window.CaseyLive?.stop();return previous(...args);};}
  if(new URLSearchParams(location.search).get('prova')==='1'){if(app.go)app.go('CASEY');else app.ACT['open-casey']?.('chat');if(!B.guest())open();}
  window.addEventListener('casey:profile',e=>{paint();});
- window.addEventListener('casey:account-change',()=>{if(!B.auth()){state=null;app.clearConversations?.();paint();}else sheet.close();});
+ window.addEventListener('pagehide',()=>{void window.CaseyLive?.stop();});
+ window.addEventListener('casey:account-change',()=>{if(!B.auth()){void window.CaseyLive?.stop();state=null;app.clearConversations?.();paint();}else sheet.close();});
  if(new URLSearchParams(location.search).has('account'))open();
  void (async()=>{try{const linked=await B.callback();if(B.guest()){restore(await ensure());if(linked&&sessionStorage.getItem('casey-handoff-v2-pending')){window.openSheet();return;}if(linked)sheet.close();}}catch(e){open();notice(e.message);}})();
 })();
