@@ -1603,9 +1603,9 @@ function renderThread() { if (S.tab !== 'chat' || !$('#pane')) return; $('#pane'
 function renderAgenda() {
   $('#pane').innerHTML = `<div class="pane"><div class="wk"><div class="agico">${I.cal}</div><div><h4>I tuoi appuntamenti</h4><p>Accedi per consultare le conversazioni e prenotare con le disponibilità reali dello Student Office.</p></div></div><button class="abtn pri" data-act="account">Apri il tuo account</button></div>`;
 }
-function suggestions(){return ['Come posso stampare in campus?','Sono stato malato 6 giorni: l’assenza è giustificata?'].filter(x=>!S.asked.has(x));}
+function suggestions(){if(S.thread.some(m=>m.from==='me'&&String(m.text||'').trim()))return [];return ['Come posso stampare in campus?','Sono stato malato 6 giorni: l’assenza è giustificata?'].filter(x=>!S.asked.has(x));}
 
-function renderChips() { const el = $('#chips'); if (!el) return; el.innerHTML = suggestions().map((t, i) => `<button class="chip${i < 2 ? ' hot' : ''}" data-act="chip" data-arg="${esc(t)}">${esc(t)}</button>`).join(''); }
+function renderChips() { const el = $('#chips'); if (!el) return; const items=suggestions();el.hidden=S.tab!=='chat'||!items.length;el.innerHTML = items.map((t, i) => `<button class="chip${i < 2 ? ' hot' : ''}" data-act="chip" data-arg="${esc(t)}">${esc(t)}</button>`).join(''); }
 function refreshAll() { renderHome(); if ($('#seg')) renderSeg(); renderChips(); if (S.tab === 'agenda' && S.screen === 'casey') renderAgenda(); S.thread.filter((m) => m.evs).forEach((m) => rerenderMsg(m.id)); }
 
 /* ---------- navigazione ---------- */
