@@ -55,6 +55,6 @@
  const scenario=window.setScenario;window.setScenario=s=>{revision++;messages.clear();engine='';void clearLink();scenario(s);};
  window.addEventListener('casey:language',()=>{revision++;shutUp();document.getElementById('q').placeholder=t().placeholder;status(t().ready);say(t().welcome);});
  // Back-office action controls are demonstrations; label them persistently.
- window.CaseyBridge={liveMobileHandoff:handover,liveSearchKnowledge:async query=>{await session();return call('knowledge_lookup',{query,history:messages.snapshot().slice(-10),language:CaseyLanguage.get()});}};
+ window.CaseyBridge={liveMobileHandoff:async()=>{const latest=messages.snapshot().filter(t=>t.role==='user').at(-1)?.text||'';if(!latest)return {status:'clarification_required',note:'Ask a short clarification here. Do not suggest QR for uncertainty or missing sources.'};const decision=await A.call('classify',{message:latest});if(decision.route==='public')return {status:'public_question',note:'Continue answering here. For public procedures search verified knowledge; if needed ask which course. Do not propose a QR.'};return handover();},liveSearchKnowledge:async query=>{await session();return call('knowledge_lookup',{query,history:messages.snapshot().slice(-10),language:CaseyLanguage.get()});}};
  status(t().ready);document.getElementById('q').placeholder=t().placeholder;
 })();
