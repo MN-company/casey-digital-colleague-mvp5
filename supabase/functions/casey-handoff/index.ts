@@ -80,7 +80,7 @@ Deno.serve(async req=>{
   if(b.action==='cancel'){const source=await session(req);return reply(await db('rpc/hf7_cancel',{p_source:source,p_id:b.id}));}
   if(b.action==='status'){
    const s=await session(req);if(!/^[a-f0-9-]{36}$/i.test(b.id||''))return reply({error:'Riferimento non valido'},400);
-   const rows=await db('hf7_links?'+qs({select:'consumed_at,expires_at',id:'eq.'+b.id,source_session:'eq.'+s}));return reply({consumed:!!rows[0]?.consumed_at,expired:!rows[0]||Date.parse(rows[0].expires_at)<=Date.now()});
+   const rows=await db('hf7_links?'+qs({select:'consumed_at,expires_at,scan_attempt_hash',id:'eq.'+b.id,source_session:'eq.'+s}));return reply({consumed:!!rows[0]?.consumed_at,expires_at:rows[0]?.expires_at||null,reserved:!!rows[0]?.scan_attempt_hash,expired:!rows[0]||Date.parse(rows[0].expires_at)<=Date.now()});
   }
   if(['chat_turn','load','save','clear','operation','voice_end'].includes(b.action)){const u=await user(req),sid=await session(req);const owned=await db('hf7_chats?'+qs({select:'id',id:'eq.'+b.chat_id,user_id:'eq.'+u.id,expires_at:'gt.'+new Date().toISOString()}));const linked=await db('hf7_chat_sessions?'+qs({select:'chat_id',chat_id:'eq.'+b.chat_id,session_id:'eq.'+sid}));if(!owned[0]||!linked[0])return reply({error:'Conversazione non disponibile'},404);}
   if(b.action==='voice_end'){if(!/^[a-f0-9-]{36}$/i.test(b.request_id||''))return reply({error:'Riferimento non valido'},400);await finishPaidVoice({subject:'session:'+(req.headers.get('x-session-token')||''),id:b.request_id});return reply({released:true});}

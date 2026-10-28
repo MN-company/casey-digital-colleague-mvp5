@@ -6,6 +6,7 @@
   const wait=window.setTimeout?.(()=>{const n=window.document?.getElementById('caseyLiveStatus');if(n)n.textContent='Sto ancora cercando nelle fonti…';},6000);
   try {
    const campus=await window.CaseyCampusCases?.handle(String(message));if(!campus?.matched&&window.CaseyNativeHandoff?.active)return await window.CaseyNativeHandoff.answer(String(message));
+   if(campus?.matched&&window.CaseyNativeHandoff?.active)await window.CaseyNativeHandoff.recordExchange?.(String(message),campus.answer);
    const result=campus?.matched?campus:await window.CaseyBeta.turn(String(message));
    const sources=(result.citations||[]).map(s=>s.title+(s.page?' · p. '+s.page:'')).join(' · ');
    return {text:result.answer,...(sources?{html:'<p>'+escape(result.answer).replace(/\n/g,'<br>')+'</p><small>Fonti: '+escape(sources)+'</small>'}:{}),...(result.mode==='account_required'?{acts:[{l:'Continua nella chat personale',a:'private-chat',c:'pri'}]}:{}),keep:true};
