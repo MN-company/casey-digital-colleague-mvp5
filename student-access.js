@@ -14,7 +14,7 @@
  async function refresh(){state=await B.call('state');await window.CaseyAccount?.profile().catch(()=>null);paint();return state;}
  async function ensure(){if(!init)init=B.start().then(async s=>{state=s;await window.CaseyAccount?.profile().catch(()=>null);paint();return s;}).finally(()=>{init=null;});return init;}
  function restore(s){if(app.restoreConversation)app.restoreConversation(s.context||[],s.id);}
- function open(){if(B.auth()?.access_token){void window.CaseyPersonalCalendar.open({account:true});return;}paint();sheet.open();}
+ function open(){if(B.auth()?.access_token){if(window.CaseyPersonalCalendar)void window.CaseyPersonalCalendar.open({account:true});else document.addEventListener('DOMContentLoaded',()=>void window.CaseyPersonalCalendar.open({account:true}),{once:true});return;}paint();sheet.open();}
  $('studentGuest').onclick=async()=>{try{restore(await ensure());sheet.close();}catch(e){notice(e.message);}};
  $('studentEmailForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{if(!B.guest())await ensure();await B.call('email',{email:$('studentEmail').value});codeSent=true;paint();$('studentCode').focus();notice('Codice inviato a '+$('studentEmail').value+'. Inseriscilo qui.');}catch(err){notice(err.message);}finally{button.disabled=false;}};
  $('studentCodeForm').onsubmit=async e=>{e.preventDefault();const button=e.target.querySelector('button');button.disabled=true;try{await B.verify($('studentEmail').value,$('studentCode').value);$('studentCode').value='';codeSent=false;sheet.close();if(pendingPrivate){pendingPrivate=false;window.openSheet();}void refresh().then(restore).catch(()=>{});}catch(err){notice(err.message);}finally{button.disabled=false;}};
