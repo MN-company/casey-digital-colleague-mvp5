@@ -176,10 +176,10 @@ body.show .exit{display:block}
 
 .tk{border:1px solid var(--bor);border-radius:13px;padding:16px;margin-bottom:12px}
 .tk.done{border-color:#A8D4BF;background:var(--ok-bg)}
-.tk .r1{display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.tk .r1{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
 .tk .id{font-size:10.4px;font-weight:700;color:var(--mut);letter-spacing:.4px}
 .tk h4{margin:3px 0 0;font-size:14.4px;color:var(--brand)}
-.lvl{font-size:9.8px;font-weight:700;padding:3px 9px;border-radius:999px;flex:none}
+.lvl{display:inline-flex;align-items:center;justify-content:center;align-self:center;text-align:center;font-size:9.8px;font-weight:700;padding:3px 9px;border-radius:999px;flex:none}
 .lvl.h{background:var(--err-bg);color:var(--err);border:1px solid #F0C8C4}
 .lvl.a{background:var(--wait-bg);color:var(--wait);border:1px solid #EBD9AE}
 .kv{margin-top:11px;font-size:12.4px;color:var(--mut)}.kv b{color:var(--ink)}
@@ -605,7 +605,7 @@ function stopMic(){
 const CASEY={COLLEGE:'Casey - H-FARM College/',FARM:'Casey - H-FARM/'};
 function caseyDir(){return CASEY[S]||CASEY.COLLEGE;}
 // These are real playlists, not fallback-only filename lists.
-const VID={idle:['A.mp4','B.mp4'],talk:['C.mp4','D.mp4'],think:['B.mp4'],point:['D.mp4'],hand:['D.mp4']};
+const VID={idle:['A.mp4','C.mp4'],talk:['B.mp4','C.mp4'],think:['B.mp4','C.mp4'],point:['B.mp4','C.mp4'],hand:['B.mp4','C.mp4']};
 let liveV='vA',videoState='',videoRevision=0;
 const videoCursors=Object.create(null);
 function playState(st){
