@@ -12,20 +12,20 @@ function avatarFixture(scenario='COLLEGE'){
  const loaded=id=>{el(id).onloadeddata();return el(id);};
  return {ctx,events,el,loaded};
 }
-for(const scenario of ['COLLEGE','FARM'])test(`${scenario}: actual A/C idle and B/C talking playlists rotate at video end and across short replies`,()=>{
+for(const scenario of ['COLLEGE','FARM'])test(`${scenario}: idle alternates A/C and speaking immediately starts C on every reply`,()=>{
  const f=avatarFixture(scenario),dir=scenario==='COLLEGE'?'Casey - H-FARM College/':'Casey - H-FARM/';
  f.events['casey:live-state']({detail:{state:'idle'}});assert.equal(f.el('vB').src,dir+'A.mp4');f.loaded('vB');
  assert.equal(f.el('vB').loop,false);f.el('vB').onended();assert.equal(f.el('vA').src,dir+'C.mp4');f.loaded('vA');assert.equal(f.el('vB').paused,true);
- f.events['casey:live-state']({detail:{state:'responding'}});assert.equal(f.el('vB').src,dir+'B.mp4');f.loaded('vB');
+ f.events['casey:live-state']({detail:{state:'responding'}});assert.equal(f.el('vB').src,dir+'C.mp4');f.loaded('vB');
  f.el('vB').onended();assert.equal(f.el('vA').src,dir+'C.mp4');f.loaded('vA');assert.equal(f.el('vB').classList.contains('hide'),true);
- f.el('vA').onended();assert.equal(f.el('vB').src,dir+'B.mp4');f.loaded('vB');
+ f.el('vA').onended();assert.equal(f.el('vB').src,dir+'C.mp4');f.loaded('vB');
  f.events['casey:live-state']({detail:{state:'idle'}});f.loaded('vA');
  f.events['casey:live-state']({detail:{state:'responding'}});assert.equal(f.el('vB').src,dir+'C.mp4');
 });
 test('Scenario change discards a pending old-color frame and uses the new color playlist',()=>{
  const f=avatarFixture();f.events['casey:live-state']({detail:{state:'responding'}});const stale=f.el('vB').onloadeddata;
  f.ctx.S='FARM';f.events['casey:live-state']({detail:{state:'responding'}});stale();assert.equal(f.el('vB').classList.contains('hide'),true);
- assert.equal(f.el('vB').src,'Casey - H-FARM/B.mp4');f.loaded('vB');assert.equal(f.el('vB').classList.contains('hide'),false);
+ assert.equal(f.el('vB').src,'Casey - H-FARM/C.mp4');f.loaded('vB');assert.equal(f.el('vB').classList.contains('hide'),false);
 });
 test('Broken playlist assets stop after bounded attempts instead of spinning or showing stale video',()=>{
  const f=avatarFixture();f.events['casey:live-state']({detail:{state:'idle'}});f.el('vB').onerror();assert.match(f.el('vB').src,/C.mp4$/);f.el('vB').onerror();
