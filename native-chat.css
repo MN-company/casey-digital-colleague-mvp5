@@ -1,0 +1,33 @@
+.chead{flex:0 0 auto;display:flex;align-items:center;gap:10px;padding:6px 12px 10px;border-bottom:1px solid var(--line);background:#fff}
+.cava{position:relative;flex:0 0 46px;width:46px;height:46px}
+.cava .im{display:block;width:46px;height:46px;border-radius:50%;overflow:hidden;background:var(--navy);box-shadow:0 0 0 2px #fff,0 0 0 4px #CDEBDD}
+.cava img{width:100%;height:100%;object-fit:cover;object-position:50% 25%}
+.cava i{position:absolute;right:-1px;bottom:1px;width:13px;height:13px;border-radius:50%;background:var(--green);border:2.5px solid #fff}
+.cwho{flex:1;min-width:0}
+.cwho b{display:block;font-size:17px;line-height:1.15}
+.cwho small{display:flex;align-items:center;gap:5px;font-size:11.8px;color:#0B7A50;font-weight:700;margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cwho small span{color:var(--mute);font-weight:600;overflow:hidden;text-overflow:ellipsis}
+.hbtn{height:36px;min-width:36px;padding:0 11px;border-radius:18px;background:var(--tint);color:var(--navy);font-size:12px;font-weight:800;display:flex;align-items:center;justify-content:center;gap:6px;flex:none}
+.hbtn svg{width:17px;height:17px}
+.hbtn.icon{padding:0;width:36px}
+.hbtn[aria-pressed="true"]{background:var(--navy);color:#fff}
+.cbody{flex:1;min-height:0;display:flex;position:relative}
+
+.hist{width:132px;flex:0 0 132px;border-right:1px solid var(--line);background:#F6F7FB;display:flex;flex-direction:column;min-height:0;overflow:hidden;transition:flex-basis .28s cubic-bezier(.2,.8,.2,1),width .28s cubic-bezier(.2,.8,.2,1)}
+.cbody.nohist .hist{width:0;flex-basis:0;border-right-width:0}
+.hin{width:132px;display:flex;flex-direction:column;min-height:0;flex:1}
+.hnew{margin:10px 8px 4px;display:flex;align-items:center;justify-content:center;gap:6px;padding:9px 8px;border-radius:13px;background:var(--navy);color:#fff;font-size:12.4px;font-weight:800;box-shadow:0 4px 12px rgba(29,42,91,.25);flex:none}
+.hnew svg{width:15px;height:15px}
+.hlist{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;padding:2px 6px 8px;scrollbar-width:none}
+.hlist::-webkit-scrollbar{display:none}
+.hgrp{font-size:9.8px;font-weight:800;letter-spacing:.09em;text-transform:uppercase;color:var(--mute);padding:11px 6px 4px}
+.hit{display:block;width:100%;text-align:left;padding:8px;border-radius:12px;margin-bottom:2px;transition:background .15s}
+.hit b{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;font-size:12.3px;line-height:1.28;font-weight:700;color:var(--ink);overflow-wrap:anywhere}
+.hit small{display:block;font-size:10.6px;color:var(--mute);margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hit:hover{background:#ECEFF7}
+.hit[aria-current="true"]{background:#fff;box-shadow:var(--sh1),inset 3px 0 0 var(--navy)}
+.hempty{font-size:11.5px;color:var(--mute);padding:10px 6px;line-height:1.4}
+
+#vCasey{--navy:#b52d25;--tint:#fff0ee;--line:#e9e1df;--green:#22956c}#vCasey [hidden]{display:none!important}.chat{display:flex;flex:1;flex-direction:column;min-width:0;min-height:0}.ctop{padding:10px 14px;border-bottom:1px solid var(--line)}.ctop b,.ctop small{display:block}.ctop small,.hfoot{font-size:11px;color:var(--mute);margin-top:3px}.hfoot{padding:10px}.chat>.scroll{flex:1;min-height:0}.chat .inbar{display:flex;gap:8px;padding:10px 12px}.chat .inw{display:flex;flex:1;min-width:0;border:1px solid var(--line);border-radius:22px;background:#fff}.chat .inw input{flex:1;min-width:0;border:0;background:transparent;padding:10px 12px}.chat .mic{background:transparent;color:var(--navy);width:36px}.chat .send{background:var(--navy);color:white;border-radius:50%;width:40px;height:40px}.welcome{padding:18px 6px}.welcome h4{font-size:20px;margin:0 0 8px}.welcome p{font-size:13px;color:var(--mute)}@media(max-width:380px){.hist{width:105px;flex-basis:105px}.hin{width:105px}.chead{gap:5px}.cava,.cava .im{width:34px;height:34px;flex-basis:34px}}
+
+.hlist{font-size:12px;line-height:1.5;color:var(--mute);padding:8px}.cwho small{display:block;text-overflow:ellipsis;white-space:nowrap;overflow:hidden}
