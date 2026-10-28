@@ -244,7 +244,7 @@ body.show .exit{display:block}
     </div>
     <div class="seg" role="tablist" aria-label="Punto di vista">
       <button id="pv-OFFICE" role="tab" aria-selected="true" onclick="setView('OFFICE')">Ufficio</button>
-      <button id="pv-STUDENT" role="tab" aria-selected="false" onclick="setView('STUDENT')">Persona</button>
+      <button id="pv-STUDENT" role="tab" aria-selected="false" onclick="setView('STUDENT')">Studente</button>
     </div>
     <div class="sp"></div>
     <label class="language-control"><select data-casey-language aria-label="Lingua"><option value="it-IT">IT</option><option value="en-US">EN</option><option value="es-ES">ES</option></select></label><span class="bepill" id="bePill" title="Da dove arrivano le risposte"><i></i><span>locale</span></span>
@@ -292,7 +292,7 @@ body.show .exit{display:block}
               <button class="mic" id="micBtn" onclick="toggleMic()" title="Parla con Casey" aria-label="Parla con Casey">
                 <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2.5" width="6" height="11.5" rx="3"/><path d="M5.5 11.5a6.5 6.5 0 0 0 13 0M12 18v3.5"/></svg>
               </button>
-              <button class="go" id="listenCaseyBtn" onclick="toggleListen()" title="Ascolta Casey senza attivare il microfono">Ascolta</button>
+              
               <input id="q" type="text" placeholder="Parla o scrivi…" autocomplete="off" onkeydown="if(event.key==='Enter')send()">
               <button class="go" onclick="send()">Chiedi</button>
             </div>
@@ -962,7 +962,7 @@ function renderTabs(){
   if(!tabs.some(t=>t[0]===TAB))TAB=tabs[0][0];
   document.getElementById('tabs').innerHTML=
     tabs.map(t=>'<button role="tab" aria-selected="'+(TAB===t[0])+'" onclick="setTab(\''+t[0]+'\')">'+t[1]+'</button>').join('')+
-    '<span class="who"><i></i>'+esc(VIEW==='OFFICE'?D.officeMail:D.person.mail+' · '+D.person.code)+'</span>';
+    '<span class="who"><i></i>'+esc(VIEW==='OFFICE'?D.officeMail:(window.CaseyAccount?.auth()?.email||'Studente · Accedi al tuo account'))+'</span>';
   ['CAL','MAIL','QUEUE','ROUTE','CHECK','FEED'].forEach(v=>document.getElementById('v-'+v).classList.toggle('on',v===TAB));
 }
 function renderCal(){
@@ -1132,5 +1132,5 @@ function loadScenario(){
 document.addEventListener('DOMContentLoaded',()=>{setupMic();loadScenario();setState('idle','Pronto','');});
 </script>
 <script src="qr.js"></script>
-<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="kiosk-avatar.js"></script><script src="real-calendar.js"></script></body>
+<script src="config.js"></script><script src="casey-language.js"></script><script src="casey-dialogue.js"></script><script src="handoff-client.js"></script><script src="vendor/qrcode.js"></script><script src="definitivo-kiosk.js"></script><script src="demo-presentation.js"></script><span id="caseyLiveStatus" hidden></span><span id="subtitleBox" hidden></span><script src="auth.0916809e.js"></script><script src="casey-tools.js"></script><script src="casey-live.js"></script><script src="casey-voice-session.js"></script><script src="kiosk-voice.js"></script><script src="kiosk-avatar.js"></script><script src="beta-client.js"></script><script src="account-client.js"></script><link rel="stylesheet" href="student-calendar.css"><script src="student-calendar.js"></script><script src="real-calendar.js"></script></body>
 </html>
