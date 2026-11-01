@@ -19,12 +19,12 @@ function dropRecognizer(){const r=recognizer;recognizer=null;if(r){r.onresult=r.
 // Resolves true when the line finished in this revision; false if stopped meanwhile.
 function playLine(line,rev){
  if(rev!==revision)return Promise.resolve(false);
- window.say(line.text);window.CaseyDialogue?.append('assistant',line.text);avatar('C');
+ const text=S.render(line.text);window.say(text);window.CaseyDialogue?.append('assistant',text);avatar('C');
  return new Promise(resolve=>{
   let done=false,silent=false,a=null;
   const finish=ok=>{if(done)return;done=true;pending.delete(finish);if(audio===a)audio=null;resolve(ok&&rev===revision);};
   pending.add(finish);
-  const fallback=()=>{if(done||silent||rev!==revision)return;silent=true;if(audio===a)audio=null;avatar('C');later(Math.max(2000,line.text.length*55),()=>finish(true));};
+  const fallback=()=>{if(done||silent||rev!==revision)return;silent=true;if(audio===a)audio=null;avatar('C');later(Math.max(2000,text.length*55),()=>finish(true));};
   try{a=new Audio(line.audio);}catch{a=null;}
   if(!a){fallback();return;}
   audio=a;a.onended=()=>{if(rev===revision&&!silent)finish(true);};a.onerror=fallback;
