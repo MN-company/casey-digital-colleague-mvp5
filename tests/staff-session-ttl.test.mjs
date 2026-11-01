@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';
+const read=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
+test('staff admin session created in oauthCallback lasts 30 days',()=>{const source=read('supabase/functions/casey-original-ui/index.js');const start=source.indexOf("db('dc_v3_admin_sessions',{");assert.ok(start>=0,'admin session insert present');const insert=source.slice(start,source.indexOf("'POST')",start));assert.ok(insert.includes('30*24*3600000'),'30-day TTL');assert.ok(!insert.includes('Date.now()+4*3600000'),'old 4h TTL removed');});

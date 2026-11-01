@@ -367,7 +367,7 @@ async function oauthCallback(req){
   if(!refresh)throw new Error('Google non ha rilasciato un refresh token: rimuovi la connessione e ripeti il consenso');
   const enc=await encrypt(refresh);
   await db('dc_v3_google_connections?on_conflict=id',{id:'staff',google_email:email,...enc,granted_scopes:scopes,calendar_id:old?.calendar_id||'primary',updated_at:new Date().toISOString()},'POST',{prefer:'resolution=merge-duplicates,return=representation'});
-  const token=randomToken();await db('dc_v3_admin_sessions',{token_hash:await digest(token),google_email:email,expires_at:new Date(Date.now()+4*3600000).toISOString()},'POST');
+  const token=randomToken();await db('dc_v3_admin_sessions',{token_hash:await digest(token),google_email:email,expires_at:new Date(Date.now()+30*24*3600000).toISOString()},'POST');
   return redirect(`${returnTo}#admin_token=${encodeURIComponent(token)}&connected=1`,'casey_ui_oauth_state=; Path=/functions/v1/casey-original-ui/; Max-Age=0; HttpOnly; Secure; SameSite=Lax');
  }catch(e){return errorRedirect(e.message||'Errore Google OAuth');}
 }
