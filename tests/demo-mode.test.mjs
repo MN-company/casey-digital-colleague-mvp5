@@ -92,12 +92,18 @@ test('interim recognition updates #capText without advancing; final result advan
 test('a throwing recognizer start() is dropped and retried with backoff',async()=>{const f=fixture({startThrows:1});f.window.toggleMic();assert.equal(f.recs.length,1);assert.notEqual(f.recs[0].started,true);await f.run(3);assert.equal(f.recs.length,2);assert.equal(f.recs[1].started,true);});
 test('consecutive recognizer errors back off and stop after five with a subtitle notice',async()=>{
  const f=fixture();f.window.toggleMic();const waits=[];
- for(let n=0;n<5;n++){const r=f.recs.at(-1);const before=f.delays.length;r.onerror({error:n%2?'network':'no-speech'});r.onend();waits.push(...f.delays.slice(before));await f.run(3);}
+ for(let n=0;n<5;n++){const r=f.recs.at(-1);const before=f.delays.length;r.onerror({error:n%2?'network':'aborted'});r.onend();waits.push(...f.delays.slice(before));await f.run(3);}
  assert.equal(f.recs.length,5);assert.ok(waits.length===4&&waits.every((ms,i)=>!i||ms>waits[i-1]),'backoff grows: '+waits);
  assert.match(f.el('capText').textContent,/microfono/i);await f.run();assert.equal(f.recs.length,5);
  assert.equal(f.el('micBtn').classList.contains('on'),false);
 });
-test('a result resets the recognizer error count',async()=>{const f=fixture();f.window.toggleMic();for(let n=0;n<4;n++){const r=f.recs.at(-1);r.onerror({error:'no-speech'});r.onend();await f.run(3);}const r=f.recs.at(-1);r.onresult({results:[result('cia',false)]});r.onerror({error:'no-speech'});r.onend();await f.run(3);assert.equal(f.recs.length,6);});
+test('a result resets the recognizer error count',async()=>{const f=fixture();f.window.toggleMic();for(let n=0;n<4;n++){const r=f.recs.at(-1);r.onerror({error:'network'});r.onend();await f.run(3);}const r=f.recs.at(-1);r.onresult({results:[result('cia',false)]});r.onerror({error:'network'});r.onend();await f.run(3);assert.equal(f.recs.length,6);});
+test('no-speech silences never pause the microphone and restart after the normal delay',async()=>{
+ const f=fixture();f.window.toggleMic();
+ for(let n=0;n<10;n++){const r=f.recs.at(-1);const before=f.delays.length;r.onerror({error:'no-speech'});r.onend();assert.deepEqual(f.delays.slice(before),[350]);await f.run(3);}
+ assert.equal(f.recs.length,11);assert.equal(f.recs.at(-1).started,true);
+ assert.doesNotMatch(f.el('capText').textContent,/Microfono in pausa/);assert.equal(f.el('micBtn').classList.contains('on'),true);
+});
 test('step index survives goIdle and a reload through sessionStorage',async()=>{const storage=memory();const f=fixture({storage});void f.window.send('primo');await f.run();await f.end();f.window.goIdle();assert.equal(storage.getItem('casey-demo-step'),'1');const g=fixture({storage});assert.equal(g.window.CaseyDemo.step(),1);void g.window.send('secondo');await g.run();assert.equal(g.texts()[0],g.script.steps[1].totem[0].text);});
 test('Shift+ArrowRight forces the current step exactly once while audio is playing',async()=>{const f=fixture();f.key('ArrowRight');await f.run();assert.equal(f.dialogue[0][1],f.script.steps[0].question);f.key('ArrowRight');f.key('ArrowRight');await f.run();assert.equal(f.audios.length,1);assert.equal(f.said.length,1);await f.end();assert.equal(f.window.CaseyDemo.step(),1);f.key('ArrowRight');await f.run();assert.equal(f.audios.length,2);assert.equal(f.texts()[1],f.script.steps[1].totem[0].text);f.key('ArrowRight',false);await f.run();assert.equal(f.audios.length,2);});
 test('Shift+Backspace resets to step 0, stops audio and goes idle',async()=>{const f=fixture({storage:at(2)});void f.window.send('x');await f.run();f.key('Backspace');assert.equal(f.audios[0].playing,false);assert.equal(f.window.CaseyDemo.step(),0);assert.equal(f.idles,1);f.audios[0].fire('ended');await f.run();assert.equal(f.issues(),0);});

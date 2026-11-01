@@ -69,6 +69,7 @@ function listen(){
  r.onerror=e=>{
   if(rev!==revision||recognizer!==r)return;
   if(FATAL.includes(e?.error)){caption('Microfono non disponibile. Controlla il permesso del browser.');stop();return;}
+  if(e?.error==='no-speech')return;
   failed=true;errors++;
  };
  r.onend=()=>{
