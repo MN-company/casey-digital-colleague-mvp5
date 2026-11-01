@@ -8,7 +8,7 @@ if(!SUPABASE_URL.includes('oxzraaadxqsruibinlxn'))throw new Error('Unexpected pr
 const DB_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') || JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS') || '{}').default || '';
 const API_KEY = Deno.env.get('GEMINI_API_KEY') || '';
 const MODEL = 'gemini-3.8-live';
-const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','http://localhost:8000','http://localhost:4173']);
+const ORIGINS = new Set(['https://casey-digital-colleague-live.vercel.app','https://casey-digital-colleague-live-git-demo-casey-video-mnbrain.vercel.app','https://casey-digital-colleague-live-git-feature-casey-6-d4ec7b-mnbrain.vercel.app','http://localhost:8000','http://localhost:4173']);
 const LANGUAGE: Record<string, string> = { 'it-IT': 'Italian', 'en-US': 'English', 'es-ES': 'Spanish' };
 // Intent descriptions are not authorization. The server and College app enforce all permissions.
 const LIVE_TOOLS = [{ functionDeclarations: [
