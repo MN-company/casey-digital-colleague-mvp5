@@ -35,21 +35,29 @@ if(N())N().answerOverride=async()=>({answer:fallback()});
 // After a QR claim only: greeting from the server profile, then the scripted intent lines.
 // The name comes from CaseyAccount.profile() (server account_profile with the display name). HandoffAPI
 // operation:'profile' is not used: it returns only institution/program, never a name.
-async function greet(){let p=null;try{p=await window.CaseyAccount?.profile();}catch{}const name=String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0];if(name)await N().say(S.phoneGreeting(name));}
+// Cross-tab dedupe: the server-owned chat context restored on claim is authoritative. A new tab has a fresh
+// sessionStorage and a new campus-cases session token, so neither the per-tab key nor the server's session_id
+// dedupe can see another tab's work; a line already in the server context is never appended or acted on again.
+const has=(ctx,t)=>(ctx||[]).some(x=>x?.role==='assistant'&&x.text===t);
+async function greet(ctx){let p=null;try{p=await window.CaseyAccount?.profile();}catch{}const name=String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0];if(name&&!has(ctx,S.phoneGreeting(name)))await N().say(S.phoneGreeting(name));}
 // service_case is idempotent per session (casey_service_reviews by session_id): one re-check with the same
 // campus-cases session reads the authoritative state without duplicating the request.
 const review=question=>Promise.resolve().then(()=>window.CaseyCampusCases.handle(question)).catch(()=>null);
-async function internship(){const i=step('internship');await N().say(text(i.phone[0]));let r=await review(i.question);
+// Line A is written through say() (persisted server-side) BEFORE service_case, so any later tab sees it and skips the call.
+async function internship(ctx){const i=step('internship'),a=text(i.phone[0]);if(has(ctx,a)||has(ctx,text(i.phone[1])))return;if(!await N().say(a))return;let r=await review(i.question);
  if(r?.review_saved!==true){await N().say(CHECKING);r=await review(i.question);}
  await N().say(r?.review_saved===true?text(i.phone[1]):UNCONFIRMED);}
-async function entered(kind){await greet();if(kind==='internship')await internship();else if(kind==='badge')await N().say(text(step('badge').phone[0]));}
+// A claim whose slots() failed (error) skips the badge line: it would point at slots that are not shown.
+async function entered(kind,ctx,error){await greet(ctx);if(kind==='internship')await internship(ctx);else if(kind==='badge'&&!error){const l=text(step('badge').phone[0]);if(!has(ctx,l))await N().say(l);}}
 // Single use: drop intent from the URL (demo and the rest kept), so reloads, restores and new chats never replay it.
 function forgetIntent(){if(!q.has('intent'))return;const next=new URLSearchParams(location.search);next.delete('intent');const search=next.toString();history.replaceState(null,'',location.pathname+(search?'?'+search:'')+(location.hash||''));}
 let queue=Promise.resolve();
 window.addEventListener('casey:handoff-entered',e=>{
  const chat=e.detail?.chat_id;if(e.detail?.source!=='claim'||!chat||!N())return;
  const key='casey-demo-consumed-'+chat,kind=intent();consumed=true;
+ // Secondary per-tab guard; the authoritative check is the server context in entered().
  if(sessionStorage.getItem(key)){forgetIntent();return;}sessionStorage.setItem(key,'1');
- queue=queue.then(()=>entered(kind)).catch(err=>status(window.CaseyErrors?.message(err)||'Operazione non disponibile. Riprova.')).finally(forgetIntent);
+ const ctx=e.detail.context||[],error=e.detail.error===true;
+ queue=queue.then(()=>entered(kind,ctx,error)).catch(err=>status(window.CaseyErrors?.message(err)||'Operazione non disponibile. Riprova.')).finally(forgetIntent);
 });
 })();

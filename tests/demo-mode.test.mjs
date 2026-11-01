@@ -162,3 +162,31 @@ test('Shift+Backspace forgets a pending claim so a later consumed event does not
  const f=fixture({storage:at(1)});void f.window.send('badge');await f.run();await f.end();f.key('Backspace');await f.run();
  f.window.dispatchEvent(new f.window.CustomEvent('casey:handoff-consumed',{detail:{}}));assert.equal(f.window.CaseyDemo.step(),0);
 });
+
+test('demo: status failures after the phone reserved the link never clear it (non-demo and unreserved demo unchanged)',async()=>{
+ const f=fixture({storage:at(1)});void f.window.send('badge');await f.run();await f.end();
+ f.window.HandoffAPI.call=statusReply({consumed:false,expired:false,reserved:true,expires_at:new Date(Date.now()+600000).toISOString()}).bind(f);await f.poll();
+ f.window.HandoffAPI.call=statusReply(Error('offline')).bind(f);for(let n=0;n<8;n++)await f.poll();
+ assert.equal(f.window.caseyHandoffActive(),true);assert.equal(f.qrOn(),true);assert.deepEqual(f.cancels(),[]);
+ f.window.HandoffAPI.call=statusReply({consumed:true}).bind(f);await f.poll();assert.equal(f.window.CaseyDemo.step(),2,'claim seen after recovery advances the step');
+ const g=fixture({search:''});await g.window.handover();g.window.HandoffAPI.call=statusReply({consumed:false,expired:false,reserved:true}).bind(g);await g.poll();
+ g.window.HandoffAPI.call=statusReply(Error('offline')).bind(g);for(let n=0;n<5;n++)await g.poll();assert.equal(g.window.caseyHandoffActive(),false,'non-demo still clears');
+});
+test('demo: handoff-consumed is dispatched even when CaseyVoiceSession.stop() rejects',async()=>{
+ const f=fixture({storage:at(1)});f.window.CaseyVoiceSession={stop:async()=>{throw Error('stop failed');}};void f.window.send('badge');await f.run();await f.end();
+ f.window.HandoffAPI.call=statusReply({consumed:true}).bind(f);await f.poll();
+ assert.ok(f.events.includes('casey:handoff-consumed'));assert.equal(f.window.CaseyDemo.step(),2);assert.equal(f.window.caseyHandoffActive(),false);assert.equal(f.qrOn(),false);
+ const g=fixture({search:''});g.window.CaseyVoiceSession={stop:async()=>{throw Error('stop failed');}};await g.window.handover();g.window.HandoffAPI.call=statusReply({consumed:true}).bind(g);await g.poll();
+ assert.ok(!g.events.includes('casey:handoff-consumed'));assert.equal(g.window.caseyHandoffActive(),true,'non-demo keeps the 7236e06 behavior');
+});
+function voice(demo){
+ const calls=[];const live={active:false,ready:false,setMuted(){},async start(o){calls.push(['live-start',o]);this.active=this.ready=true;},async stop(){this.active=this.ready=false;}};
+ class SR{constructor(){calls.push(['mic']);}start(){}abort(){}}
+ const win={CaseyLive:live,SpeechRecognition:SR,speechSynthesis:{cancel(){}},addEventListener(){},dispatchEvent(){},CaseyLanguage:{get:()=>'it-IT'},...(demo?{CaseyDemo:{active:true}}:{})};
+ vm.runInNewContext(read('casey-voice-session.js'),{window:win,document:{addEventListener(){}},location:{pathname:'/index.html'},setTimeout,clearTimeout,CustomEvent:class{},SpeechSynthesisUtterance:class{}});
+ win.CaseyVoiceSession.configure({send:async()=>'',prepare:async()=>calls.push(['prepare'])});return {calls,voice:win.CaseyVoiceSession};
+}
+test('CaseyVoiceSession.start() is inert on the demo totem: no Live token, no microphone',async()=>{
+ const d=voice(true);await d.voice.start();await d.voice.start({microphone:false});assert.deepEqual(d.calls,[]);assert.equal(d.voice.state,'idle');
+ const n=voice(false);await n.voice.start();assert.deepEqual(n.calls.map(c=>c[0]),['prepare','live-start']);assert.equal(n.voice.state,'live');
+});

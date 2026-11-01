@@ -22,6 +22,8 @@
   listen();
  }
  async function start({microphone=true}={}){
+  // Demo totem (demo-mode.js): scripted audio only; never request a Live token or open the microphone here.
+  if(window.CaseyDemo?.active)return;
   if(wanted){await stop();return;}wanted=true;inputMicrophone=microphone;const mine=++revision;emit('connecting');
   try{
    await options.prepare?.();if(!wanted||mine!==revision)return;

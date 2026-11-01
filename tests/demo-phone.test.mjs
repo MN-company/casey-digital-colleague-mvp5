@@ -3,18 +3,18 @@ const read=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
 const flush=async()=>{for(let i=0;i<20;i++)await new Promise(r=>setTimeout(r,0));};
 const CHECKING='Sto verificando lo stato della richiesta…',UNCONFIRMED='Non riesco a confermare l’invio adesso: lo staff può verificarlo dalla coda.';
 // Phone fixture: real app-auth-shell.js + app-connected.js + demo-script.js + demo-phone.js, stubbed network and DOM.
-function setup({search='?casey=1&lang=it-IT&demo=1&intent=internship',signed=true,storage:initial=[],pending=true,local=new Map(),review=true,reviewThrows=false,reviews=null,slotsThrow=false,profile={display_name:'Giulia Rossi',first_name:'Giulia'}}={}){
+function setup({search='?casey=1&lang=it-IT&demo=1&intent=internship',signed=true,storage:initial=[],pending=true,local=new Map(),review=true,reviewThrows=false,reviews=null,slotsThrow=false,profile={display_name:'Giulia Rossi',first_name:'Giulia'},context:serverContext=null}={}){
  const calls=[],renders=[],handled=[],entered=[],urls=[],elements=new Map(),listeners={},storage=new Map([...(pending?[['casey-handoff-v2-pending','a'.repeat(64)]]:[]),...initial]);
  const element=tag=>{const e={tag,children:[],classList:{add(){},remove(){},toggle(){}},setAttribute(){},querySelector(){return null;},append(...i){this.children.push(...i);},replaceChildren(...i){e.children=i;},before(c){elements.set(c.id,c);},remove(){elements.delete(e.id);},textContent:'',hidden:false};e.append=(...i)=>e.children.push(...i);Object.defineProperty(e,'id',{set(id){e._id=id;elements.set(id,e);},get(){return e._id;}});return e;};
  const root=element('section');
  const document={documentElement:element('html'),head:element('head'),getElementById:id=>id==='vCasey'?root:elements.get(id)||null,createElement:element,querySelector:()=>element('input'),addEventListener(){}};
- let auth=signed?{access_token:'owner'}:null,version=1;const context=[{id:'t',role:'assistant',text:'Ripresa dal totem'}];
+ let auth=signed?{access_token:'owner'}:null,version=1;const context=serverContext||[{id:'t',role:'assistant',text:'Ripresa dal totem'}];
  const original={open:()=>calls.push({action:'login-dialog'}),ensure(){},refresh(){},voice:()=>calls.push({action:'live-voice'})};
  const ACT={account:()=>calls.push({action:'act-account'}),'private-chat':()=>calls.push({action:'act-private'}),mic:()=>calls.push({action:'act-mic'})};
  const window={CASEY_CONFIG:{},
   HandoffAPI:{auth:()=>auth,session:()=>'s',sessionKey:'k',saveSession(){},async call(action,args){calls.push({action,args});if(['claim','restore','create'].includes(action))return {chat_id:'owned-chat',session_token:'s',version,context};if(action==='save')return {version:++version};if(action==='chat_turn')return {answer:'LLM',citations:[]};if(action==='operation'){if(args.operation==='slots'){if(slotsThrow)throw Error('calendario offline');return {calendar_connected:true,slots:[{id:'slot',starts_at:'2030-01-10T09:00:00Z'}]};}return {draft:null};}return {};}},
   CaseyAccount:{profile:async()=>{calls.push({action:'account_profile'});return profile;}},
-  CaseyCampusCases:{matches:()=>true,async handle(q){handled.push(q);const next=reviews?reviews[handled.length-1]:(reviewThrows?'throw':review);if(next==='throw')throw Error('rete');return {matched:true,case:'internship_contract',review_saved:next};}},
+  CaseyCampusCases:{matches:()=>true,async handle(q){handled.push(q);calls.push({action:'service_case'});const next=reviews?reviews[handled.length-1]:(reviewThrows?'throw':review);if(next==='throw')throw Error('rete');return {matched:true,case:'internship_contract',review_saved:next};}},
   CaseyBeta:{turn:async()=>{calls.push({action:'turn'});return {answer:'x'};}},
   __casey:{ACT,go(){},restoreConversation:(ctx,id)=>renders.push(ctx.map(t=>t.text))},
   CaseyStudentAccess:Object.freeze(original),CaseyChatMerge:{merge:(_b,l)=>l},CaseyLive:{stop:async()=>{}},
@@ -63,9 +63,17 @@ test('a reload restoring the stored chat (no QR token) does not replay the inten
  const e=setup({pending:false,storage:[['casey-handoff-v2-chat-id','owned-chat']]});await e.window.CaseyNativeHandoff.open();await flush();
  assert.deepEqual(e.entered.map(d=>d.source),['restore']);assert.equal(e.handled.length,0);assert.ok(!e.last().some(t=>scriptedLines(e).includes(t)));
 });
-test('a failed enter dispatches no handoff-entered event',async()=>{
- const e=setup({search:'?casey=1&demo=1&intent=badge',slotsThrow:true});await assert.rejects(e.window.CaseyNativeHandoff.open());await flush();
+test('a failed restore enter dispatches no handoff-entered event',async()=>{
+ const e=setup({search:'?casey=1&demo=1&intent=badge',slotsThrow:true,pending:false,storage:[['casey-handoff-v2-chat-id','owned-chat']]});await assert.rejects(e.window.CaseyNativeHandoff.open());await flush();
  assert.deepEqual(e.entered,[]);assert.ok(!e.calls.some(c=>c.action==='account_profile'));
+});
+test('a claim whose slots() fails still dispatches handoff-entered with error, and the error is still shown and propagated',async()=>{
+ const e=setup({search:'?casey=1&demo=1&intent=badge',slotsThrow:true});await assert.rejects(e.window.CaseyNativeHandoff.open(),/calendario offline/);await flush();
+ assert.equal(e.entered.length,1);assert.equal(e.entered[0].source,'claim');assert.equal(e.entered[0].error,true);
+ assert.equal(e.elements.get('nativePrivateStatus').textContent,'Operazione non disponibile. Riprova.','error status shown as before');
+ assert.ok(e.last().includes(e.script.phoneGreeting('Giulia')),'claim consumed: greeting still runs');
+ assert.ok(!e.last().includes(e.script.render(step(e.script,'badge').phone[0].text)),'no "slots below" line when slots failed');
+ const ok=setup({search:'?casey=1&demo=1&intent=badge'});await ok.window.CaseyNativeHandoff.open();await flush();assert.equal(ok.entered[0].error,undefined);
 });
 test('after a claim the intent is consumed: removed from the URL (demo kept) and persisted per chat',async()=>{
  const e=setup({search:'?casey=1&lang=it-IT&demo=1&intent=internship'});assert.equal(e.window.CaseyDemoPhone.intent(),'internship');
@@ -128,4 +136,42 @@ test('setup mode shows the saved-session status and "Esci dalla demo" clears bot
  const exit=panel.children[1];assert.equal(exit.textContent,'Esci dalla demo');e.storage.set(AUTH,token(1));await exit.onclick();
  assert.equal(local.has(COPY),false);assert.equal(e.storage.has(AUTH),false);
  const n=setup({search:'?demo=1',pending:false,local:new Map([[COPY,token(1)]])});assert.ok(!n.elements.get('caseyDemoSetup')||n.elements.get('caseyDemoSetup').hidden,'no setup controls outside setup mode');
+});
+
+// Server-owned chat context is the authoritative dedupe across tabs (a new tab has a new campus-cases session token).
+const ctxOf=(...texts)=>[{id:'t',role:'assistant',text:'Ripresa dal totem'},...texts.map((text,n)=>({id:'s'+n,role:'assistant',text}))];
+test('new tab: server context already holding internship line A makes no service_case call and adds nothing twice',async()=>{
+ const probe=setup({pending:false}),s=probe.script,i=step(s,'internship'),A=s.render(i.phone[0].text),B=s.render(i.phone[1].text),hi=s.phoneGreeting('Giulia');
+ for(const texts of [[hi,A],[hi,A,B],[A]]){
+  const e=setup({context:ctxOf(...texts)});await e.window.CaseyNativeHandoff.open();await flush();
+  assert.equal(e.handled.length,0,JSON.stringify(texts));assert.ok(!e.calls.some(c=>c.action==='service_case'));
+  for(const t of [hi,A,B])assert.ok(e.last().filter(x=>x===t).length<=1,t);
+  assert.ok(!e.last().includes(CHECKING)&&!e.last().includes(UNCONFIRMED));
+ }
+});
+test('line A is persisted server-side before service_case is called',async()=>{
+ const e=setup();await e.window.CaseyNativeHandoff.open();await flush();const A=e.script.render(step(e.script,'internship').phone[0].text);
+ const saveWithA=e.calls.findIndex(c=>c.action==='save'&&c.args.context.some(t=>t.text===A)),review=e.calls.findIndex(c=>c.action==='service_case');
+ assert.ok(saveWithA>=0&&review>saveWithA,saveWithA+' < '+review);
+});
+test('greeting and badge line already in the server context are not appended again',async()=>{
+ const probe=setup({pending:false}),s=probe.script,hi=s.phoneGreeting('Giulia'),badge=s.render(step(s,'badge').phone[0].text);
+ const e=setup({search:'?casey=1&demo=1&intent=badge',context:ctxOf(hi,badge)});await e.window.CaseyNativeHandoff.open();await flush();
+ assert.equal(e.last().filter(t=>t===hi).length,1);assert.equal(e.last().filter(t=>t===badge).length,1);
+ const g=setup({context:ctxOf(hi)});await g.window.CaseyNativeHandoff.open();await flush();assert.equal(g.last().filter(t=>t===hi).length,1);assert.equal(g.handled.length,1,'greeting alone does not block the review');
+});
+test('demo bridge: the first copy is saved only from a ?setup=1 tab',()=>{
+ const local=new Map();const plain=tab({local});plain.session.set(AUTH,token(1));plain.emit('casey:profile',{});plain.tick();assert.equal(local.has(COPY),false);
+ const s=tab({search:'?demo=1&setup=1',local});s.session.set(AUTH,token(2));s.emit('casey:profile',{});assert.equal(local.get(COPY),token(2));
+});
+test('demo bridge: a different identity never overwrites or adopts the saved copy; same user may update it',()=>{
+ const local=new Map([[COPY,token(1)]]);const other=tab({local,session:new Map([[AUTH,token(5,'u2')]])});other.tick();
+ assert.equal(local.get(COPY),token(1),'u2 tab does not overwrite');assert.equal(other.ctx.HandoffAPI.auth().user_id,'u2','u2 tab does not adopt u1');
+ other.session.set(AUTH,token(6,'u2'));other.emit('casey:profile',{});assert.equal(local.get(COPY),token(1));
+ const setupOther=tab({search:'?demo=1&setup=1',local,session:new Map([[AUTH,token(7,'u2')]])});setupOther.tick();assert.equal(local.get(COPY),token(1),'not even from setup');
+ const same=tab({local});same.session.set(AUTH,token(8));same.tick();assert.equal(local.get(COPY),token(8));
+});
+test('demo bridge: logout of another identity keeps the copy; logout of the saved user removes it',()=>{
+ const local=new Map([[COPY,token(1)]]);const other=tab({local,session:new Map([[AUTH,token(5,'u2')]])});other.session.delete(AUTH);other.emit('casey:account-change',{signedOut:true});assert.equal(local.get(COPY),token(1));
+ const saved=tab({local});saved.session.delete(AUTH);saved.emit('casey:account-change',{signedOut:true});assert.equal(local.has(COPY),false);
 });
