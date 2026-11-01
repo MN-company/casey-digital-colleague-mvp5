@@ -1,30 +1,55 @@
 /* Live-demo phone runtime (?demo=1 only). Scripted lines replace chat_turn; real effects (claim, slots, prepare, commit, service_case) stay in existing clients. */
 (()=>{'use strict';
 const q=new URLSearchParams(location.search),active=q.get('demo')==='1',setup=q.get('setup')==='1';
-const intent=()=>{const v=q.get('intent');return active&&(v==='badge'||v==='internship')?v:null;};
+let consumed=false;
+const intent=()=>{const v=q.get('intent');return active&&!consumed&&(v==='badge'||v==='internship')?v:null;};
 window.CaseyDemoPhone=Object.freeze({active,intent});
 if(!active)return;
 const S=window.CaseyDemoScript,A=window.HandoffAPI,N=()=>window.CaseyNativeHandoff,app=window.__casey;
-const OFF='Sessione demo non attiva',ERROR='Non riesco a inviare la richiesta adesso. Riprova tra poco.';
+const OFF='Sessione demo non attiva',VOICE_OFF='La voce non è disponibile in questa demo.',CHECKING='Sto verificando lo stato della richiesta…',UNCONFIRMED='Non riesco a confermare l’invio adesso: lo staff può verificarlo dalla coda.';
 const step=id=>S.steps.find(s=>s.id===id),text=l=>S.render(l.text),fallback=()=>S.render(S.fallback.text);
 const locked=()=>!setup&&!A?.auth();
 function status(t){let n=document.getElementById('nativePrivateStatus');if(!n){n=document.createElement('p');n.id='nativePrivateStatus';n.className='native-private-status';n.setAttribute('role','status');document.getElementById('vCasey')?.append(n);}n.textContent=t;}
-// Login hidden: no sign-in sheet unless the presenter opens ?setup=1 before going live.
+// Login hidden: no sign-in sheet unless the presenter opens ?setup=1 before going live. No Gemini Live voice in demo.
 const access=window.CaseyStudentAccess;
-if(access)window.CaseyStudentAccess=Object.freeze({...access,open(...a){if(locked()){status(OFF);return;}return access.open(...a);}});
+if(access)window.CaseyStudentAccess=Object.freeze({...access,open(...a){if(locked()){status(OFF);return;}return access.open(...a);},async voice(){status(VOICE_OFF);}});
 if(app?.ACT){for(const name of ['account','private-chat']){const previous=app.ACT[name];if(previous)app.ACT[name]=(...a)=>{if(locked()){status(OFF);return;}return previous(...a);};}
  if(app.ACT.mic)app.ACT.mic=()=>status('Nella demo scrivi qui sotto: la voce è disattivata.');}
 const style=document.createElement('style');style.textContent='.casey-demo-locked [data-act="account"],.casey-demo-locked [data-act="private-chat"]{display:none!important}';document.head?.append(style);
 const paint=()=>document.documentElement?.classList.toggle('casey-demo-locked',locked());paint();window.addEventListener('casey:account-change',paint);
+// Setup mode: show that the session is saved for later QR tabs (demo-auth-bridge.js) and allow leaving the demo.
+function setupPanel(){
+ if(!setup)return;let panel=document.getElementById('caseyDemoSetup');
+ if(!panel){panel=document.createElement('div');panel.id='caseyDemoSetup';panel.className='native-private-status';panel.setAttribute('role','status');
+  const note=document.createElement('p');note.textContent='Sessione demo salvata su questo dispositivo';
+  const exit=document.createElement('button');exit.type='button';exit.textContent='Esci dalla demo';
+  exit.onclick=async()=>{window.CaseyDemoAuth?.clear();try{if(window.CaseyBeta?.logout)await window.CaseyBeta.logout();else sessionStorage.removeItem(A?.authKey||'casey-beta-auth-v1');}catch{}sessionStorage.removeItem(A?.authKey||'casey-beta-auth-v1');window.CaseyDemoAuth?.clear();setupPanel();};
+  panel.append(note,exit);document.getElementById('vCasey')?.append(panel);}
+ panel.hidden=!window.CaseyDemoAuth?.saved();
+}
+setupPanel();for(const n of ['casey:demo-auth','casey:account-change','casey:profile'])window.addEventListener(n,setupPanel);
 // Free text: scripted fallback instead of chat_turn/turn/service_case; booking phase stays real (app-auth-shell answer()).
 const api=window.CaseyApp;
 if(api)window.CaseyApp=Object.freeze({...api,async answer(message){const t=String(message);try{if(!N()?.active&&A?.auth()&&(sessionStorage.getItem('casey-handoff-v2-pending')||sessionStorage.getItem('casey-handoff-v2-chat-id')))await N().open();if(N()?.active)return await N().answer(t);}catch(e){return {text:window.CaseyErrors?.message(e)||'Casey non è raggiungibile in questo momento. Riprova tra poco.',keep:true};}return {text:fallback(),keep:true};}});
 if(N())N().answerOverride=async()=>({answer:fallback()});
-// After claim: greeting from the server profile, then the scripted intent lines. Each runs once per chat.
-const once=key=>{if(sessionStorage.getItem(key))return false;sessionStorage.setItem(key,'1');return true;};
-async function greet(chat){if(!once('casey-demo-greet-'+chat))return;let p=null;try{p=await window.CaseyAccount?.profile();}catch{}const name=String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0];if(name)await N().say(S.phoneGreeting(name));}
-async function internship(chat){if(!once('casey-demo-internship-'+chat))return;const i=step('internship');await N().say(text(i.phone[0]));let r=null;try{r=await window.CaseyCampusCases.handle(i.question);}catch{}await N().say(r?.review_saved===true?text(i.phone[1]):ERROR);}
-async function entered(chat,kind){await greet(chat);if(kind==='internship')await internship(chat);else if(kind==='badge'&&once('casey-demo-badge-'+chat))await N().say(text(step('badge').phone[0]));}
+// After a QR claim only: greeting from the server profile, then the scripted intent lines.
+// The name comes from CaseyAccount.profile() (server account_profile with the display name). HandoffAPI
+// operation:'profile' is not used: it returns only institution/program, never a name.
+async function greet(){let p=null;try{p=await window.CaseyAccount?.profile();}catch{}const name=String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0];if(name)await N().say(S.phoneGreeting(name));}
+// service_case is idempotent per session (casey_service_reviews by session_id): one re-check with the same
+// campus-cases session reads the authoritative state without duplicating the request.
+const review=question=>Promise.resolve().then(()=>window.CaseyCampusCases.handle(question)).catch(()=>null);
+async function internship(){const i=step('internship');await N().say(text(i.phone[0]));let r=await review(i.question);
+ if(r?.review_saved!==true){await N().say(CHECKING);r=await review(i.question);}
+ await N().say(r?.review_saved===true?text(i.phone[1]):UNCONFIRMED);}
+async function entered(kind){await greet();if(kind==='internship')await internship();else if(kind==='badge')await N().say(text(step('badge').phone[0]));}
+// Single use: drop intent from the URL (demo and the rest kept), so reloads, restores and new chats never replay it.
+function forgetIntent(){if(!q.has('intent'))return;const next=new URLSearchParams(location.search);next.delete('intent');const search=next.toString();history.replaceState(null,'',location.pathname+(search?'?'+search:'')+(location.hash||''));}
 let queue=Promise.resolve();
-window.addEventListener('casey:handoff-entered',e=>{const chat=e.detail?.chat_id,kind=intent();if(!chat||!N())return;queue=queue.then(()=>entered(chat,kind)).catch(err=>status(window.CaseyErrors?.message(err)||'Operazione non disponibile. Riprova.'));});
+window.addEventListener('casey:handoff-entered',e=>{
+ const chat=e.detail?.chat_id;if(e.detail?.source!=='claim'||!chat||!N())return;
+ const key='casey-demo-consumed-'+chat,kind=intent();consumed=true;
+ if(sessionStorage.getItem(key)){forgetIntent();return;}sessionStorage.setItem(key,'1');
+ queue=queue.then(()=>entered(kind)).catch(err=>status(window.CaseyErrors?.message(err)||'Operazione non disponibile. Riprova.')).finally(forgetIntent);
+});
 })();

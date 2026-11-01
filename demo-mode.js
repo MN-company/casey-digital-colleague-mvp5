@@ -6,7 +6,7 @@ const S=window.CaseyDemoScript;if(!S)return;
 // CASEY_CONFIG is frozen: publish a frozen superset. Later scripts read the new object; earlier ones must read window.CASEY_CONFIG at call time.
 window.CASEY_CONFIG=Object.freeze({...(window.CASEY_CONFIG||{}),demoActive:true,demoAppBase:location.origin+'/'});
 const KEY='casey-demo-step',MAX_ERRORS=5,FATAL=['not-allowed','service-not-allowed','audio-capture'],timers=new Set(),pending=new Set();
-let revision=0,running=false,voiceOn=false,recognizer=null,audio=null,handing=false,errors=0;
+let revision=0,running=false,voiceOn=false,recognizer=null,audio=null,handing=false,errors=0,claimStep=null;
 const $=id=>document.getElementById(id);
 const avatar=k=>window.setAvatarState?.(k);
 const caption=t=>{const p=$('capText');if(p)p.textContent=t;};
@@ -48,8 +48,9 @@ async function advance(text){
   handing=true;let r;
   try{r=await window.handover?.(undefined,current.handoff.intent);}finally{handing=false;}
   if(rev!==revision){if(r?.status==='handoff_ready')void window.caseyHandoffCancel?.();return;}
-  // Failed handover keeps the step: the presenter retries with Shift+ArrowRight.
-  if(r?.status==='handoff_ready')setStep(i+1);
+  // The step advances only when the phone claims the link (casey:handoff-consumed). A failed, expired or
+  // cancelled link keeps the step: the presenter re-issues it with Shift+ArrowRight.
+  if(r?.status==='handoff_ready')claimStep=i;
  }finally{if(rev===revision){running=false;paint();if(voiceOn)later(300,listen);}}
 }
 function retry(){if(errors>=MAX_ERRORS){caption('Microfono in pausa dopo troppi errori. Premi il microfono per riprendere.');stop();return;}later(backoff(),listen);}
@@ -90,7 +91,7 @@ function stop(){
  window.shutUp?.();avatar('A');window.setState?.('idle','Pronto','');paint();
 }
 // goIdle() is a no-op while a link is on screen; resetAll() cancels the link and clears the transcript.
-function reset(){const active=!!window.caseyHandoffActive?.();stop();setStep(0);if(active)window.resetAll?.();else window.goIdle?.();}
+function reset(){const active=!!window.caseyHandoffActive?.();stop();claimStep=null;setStep(0);if(active)window.resetAll?.();else window.goIdle?.();}
 // Pre-recorded audio is Casey's only voice in demo mode: silence the browser TTS used by say().
 window.speak=(_text,done)=>{if(done)done();};
 window.send=custom=>{const input=$('q'),value=String(custom||input?.value||'').trim();if(!value)return;if(input)input.value='';return advance(value);};
@@ -101,10 +102,16 @@ document.addEventListener('keydown',e=>{
  if(e.key==='ArrowRight'){e.preventDefault();if(running)return;void advance(S.steps[step()]?.question||'');}
  else if(e.key==='Backspace'){e.preventDefault();reset();}
 });
+window.addEventListener('casey:handoff-consumed',()=>{if(claimStep===null)return;const n=claimStep;claimStep=null;setStep(n+1);});
 window.addEventListener('pagehide',()=>stop());
 document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')stop();});
 // Demo identity comes only from the phone app; hide totem sign-in and account entry points.
-const hideSignIn=()=>{for(const n of document.querySelectorAll('#settingsLink,#appLink,#tryCaseyLink,#caseyPasswordForm,.presentation-tools a[href^="settings.html"]'))n.hidden=true;};
+// The demo phone runtime lives only in app-blu.html, so the Farm scenario is hidden and coerced to College.
+const hideSignIn=()=>{for(const n of document.querySelectorAll('#settingsLink,#appLink,#tryCaseyLink,#caseyPasswordForm,#sc-FARM,.presentation-tools a[href^="settings.html"]'))n.hidden=true;};
+const scenario=window.setScenario;if(typeof scenario==='function')window.setScenario=s=>scenario(s==='FARM'?'COLLEGE':s);
+// No Gemini paths in demo: Live tool calls on the totem cannot classify, search knowledge or issue a QR.
+const unavailable=async()=>({status:'unavailable_in_demo',note:'Demo mode: no live tools.'});
+window.CaseyBridge=Object.freeze({liveMobileHandoff:unavailable,liveSearchKnowledge:unavailable});
 hideSignIn();document.addEventListener('DOMContentLoaded',hideSignIn);
 window.CaseyDemo=Object.freeze({active:true,step,stop,advance,reset});
 })();

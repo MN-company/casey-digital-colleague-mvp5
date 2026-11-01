@@ -1,6 +1,6 @@
 (() => {
  'use strict';const C=window.CASEY_CONFIG,A=window.HandoffAPI;
- let engine='',sessionPromise=null,revision=0,link=null,phoneUrl='',poll=null,expiry=null,busy=false;
+ let engine='',sessionPromise=null,revision=0,link=null,phoneUrl='',poll=null,expiry=null,busy=false;const MAX_POLL_FAILURES=5;
  const messages=window.CaseyDialogue;
  const text={
  'it-IT':{ready:'Preview · collegato',thinking:'Cerco nelle fonti…',transfer:'Continuiamo sul telefono: lì puoi accedere e ritrovare la conversazione.',expired:'QR scaduto. Chiedi di continuare sul telefono per generarne uno nuovo.',error:'Collegamento non disponibile. Riprova tra poco.',candidate:'Documento non confermato',verified:'Documento verificato',scope:'Farm è una dimostrazione grafica. Le risposte collegate riguardano College.',welcome:'Ciao, sono Casey. Come posso aiutarti?',placeholder:'Scrivi a Casey…'},
@@ -26,14 +26,17 @@
    const r=await A.call('issue',{context:messages.snapshot()});
    if(rev!==revision){await A.call('cancel',{id:r.id}).catch(()=>{});return;}
    // Read config at call time: demo-mode.js publishes a new frozen CASEY_CONFIG after this file loads.
-   const cfg=window.CASEY_CONFIG||{};link=r.id;const url=new URL((S==='FARM'?'app-rossa.html':'app-blu.html')+'?casey=1',cfg.demoAppBase||location.href);url.searchParams.set('lang',CaseyLanguage.get());if(cfg.demoActive)url.searchParams.set('demo','1');if(intent==='badge'||intent==='internship')url.searchParams.set('intent',intent);url.hash='handoff='+r.token;phoneUrl=url.href;
+   const cfg=window.CASEY_CONFIG||{};link=r.id;
+   // The demo phone runtime exists only in app-blu.html: in demo mode Farm never routes to app-rossa.
+   const farm=S==='FARM'&&!cfg.demoActive;const url=new URL((farm?'app-rossa.html':'app-blu.html')+'?casey=1',cfg.demoAppBase||location.href);url.searchParams.set('lang',CaseyLanguage.get());if(cfg.demoActive)url.searchParams.set('demo','1');if(intent==='badge'||intent==='internship')url.searchParams.set('intent',intent);url.hash='handoff='+r.token;phoneUrl=url.href;
    const code=qrcode(0,'M');code.addData(url.href);code.make();const n=code.getModuleCount(),svg=document.getElementById('qrCode');svg.setAttribute('viewBox','-4 -4 '+(n+8)+' '+(n+8));let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(code.isDark(y,x))path+='M'+x+' '+y+'h1v1h-1z';svg.innerHTML='<rect x="-4" y="-4" width="'+(n+8)+'" height="'+(n+8)+'" fill="white"/><path d="'+path+'" fill="#101828" shape-rendering="crispEdges"/>';
 
-   document.getElementById('qrTitle').textContent=S==='FARM'?'Casey · Campus':'Casey · College';document.getElementById('qrSub').textContent=typeof note==='string'?note:t().transfer;
+   document.getElementById('qrTitle').textContent=farm?'Casey · Campus':'Casey · College';document.getElementById('qrSub').textContent=typeof note==='string'?note:t().transfer;
    let until=Date.now()+r.expires_in*1000,reserved=false;const tick=()=>{document.getElementById('qrMeta').textContent=(reserved?'Completa l’accesso sull’app · ':'')+Math.max(0,Math.ceil((until-Date.now())/1000))+' s · uso singolo';};tick();
    // Demo lines follow immediately: skip the untracked 3.2 s 'hand' -> idle timer that would clobber the next avatar state.
    say(typeof note==='string'?note:t().transfer,null,'pr','Privacy',cfg.demoActive?undefined:'hand');
-   let checking=false;poll=setInterval(async()=>{if(checking||link!==r.id)return;checking=true;tick();try{const state=await A.call('status',{id:r.id});if(link!==r.id)return;const deadline=Date.parse(state.expires_at);if(Number.isFinite(deadline))until=deadline;reserved=state.reserved===true;tick();if(state.consumed){await window.CaseyVoiceSession?.stop();stopPoll();link=null;messages.clear();engine='';sessionPromise=null;revision++;document.getElementById('qrCard').classList.remove('on');goIdle();}else if(state.expired){stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;}}catch{status(t().error);}finally{checking=false;}},2500);
+   // After MAX_POLL_FAILURES consecutive status errors the link is cleared, so the totem never stays stuck on a dead QR.
+   let checking=false,failures=0;poll=setInterval(async()=>{if(checking||link!==r.id)return;checking=true;tick();try{const state=await A.call('status',{id:r.id});if(link!==r.id)return;failures=0;const deadline=Date.parse(state.expires_at);if(Number.isFinite(deadline))until=deadline;reserved=state.reserved===true;tick();if(state.consumed){await window.CaseyVoiceSession?.stop();stopPoll();link=null;messages.clear();engine='';sessionPromise=null;revision++;document.getElementById('qrCard').classList.remove('on');if(cfg.demoActive)window.dispatchEvent(new CustomEvent('casey:handoff-consumed',{detail:{id:r.id}}));goIdle();}else if(state.expired){stopPoll();link=null;phoneUrl='';document.getElementById('qrCode').replaceChildren();card.classList.add('expired');document.getElementById('qrMeta').textContent=t().expired;}}catch{status(t().error);if(++failures>=MAX_POLL_FAILURES&&link===r.id){await clearLink();status(t().error);showSilent(t().error);}}finally{checking=false;}},2500);
    // Server expiry includes the first scan's login grace; do not end it on the original local timer.
    return {status:'handoff_ready',expires_in:r.expires_in};
   }catch(e){card.classList.add('expired');document.getElementById('qrMeta').textContent=window.CaseyErrors?.message(e)||t().error;}

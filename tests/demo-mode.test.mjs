@@ -5,23 +5,23 @@ const result=(transcript,isFinal)=>Object.assign([{transcript}],{isFinal});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 // Loads the real definitivo-kiosk.js (stubbed HandoffAPI/qrcode/index.html globals), then demo-script.js and demo-mode.js.
 // The vm global object doubles as `window`, as in the browser.
-function fixture({search='?demo=1',storage=memory(),audioFails=false,issue=null,startThrows=0,href='http://localhost:3000/index.html'}={}){
+function fixture({search='?demo=1',storage=memory(),audioFails=false,issue=null,startThrows=0,href='http://localhost:3000/index.html',scenario='COLLEGE'}={}){
  const nodes=new Map(),timers=new Map(),intervals=new Map(),delays=[],keys=[],docEvents={},winEvents={},audios=[],recs=[],said=[],avatar=[],states=[],dialogue=[],fetches=[],api=[],qr=[];
- let tid=0,idles=0,resets=0,issued=0,throwsLeft=startThrows;
+ let tid=0,idles=0,resets=0,issued=0,throwsLeft=startThrows;const scenarios=[],silent=[],events=[];
  const el=id=>{if(!nodes.has(id)){const c=new Set();nodes.set(id,{id,textContent:'',value:'',placeholder:'',hidden:false,title:'',innerHTML:'',classList:{add:x=>c.add(x),remove:x=>c.delete(x),toggle:(x,on)=>on?c.add(x):c.delete(x),contains:x=>c.has(x)},setAttribute(){},getAttribute:()=>'',replaceChildren(){}});}return nodes.get(id);};
- const document={visibilityState:'visible',getElementById:el,querySelector:()=>el('bePill'),querySelectorAll:sel=>sel.split(',').map(s=>s.trim()).filter(s=>/^#\w+$/.test(s)).map(s=>el(s.slice(1))),addEventListener:(n,f)=>{if(n==='keydown')keys.push(f);(docEvents[n]||=[]).push(f);}};
+ const document={visibilityState:'visible',getElementById:el,querySelector:()=>el('bePill'),querySelectorAll:sel=>sel.split(',').map(s=>s.trim()).filter(s=>/^#[\w-]+$/.test(s)).map(s=>el(s.slice(1))),addEventListener:(n,f)=>{if(n==='keydown')keys.push(f);(docEvents[n]||=[]).push(f);}};
  class Audio{constructor(src){this.src=src;this.currentTime=0;audios.push(this);}play(){this.playing=true;return audioFails?Promise.reject(Error('missing')):Promise.resolve();}pause(){this.playing=false;}fire(n){this['on'+n]?.();}}
  class SR{constructor(){recs.push(this);}start(){if(throwsLeft>0){throwsLeft--;throw Error('InvalidStateError');}this.started=true;}stop(){this.stopped=true;}abort(){this.aborted=true;}}
  const messages=[];
  const HandoffAPI={call:async(action,body)=>{api.push([action,body]);if(action==='issue'){if(issue)return issue(body);issued++;return {id:'link-'+issued,token:'opaque-'+issued,expires_in:600};}if(action==='status')return {consumed:false,expired:false};if(action==='cancel')return {ok:true};throw Error('unexpected action '+action);}};
  const ctx={document,location:{search,origin:'https://demo.example',href},URL,URLSearchParams,sessionStorage:storage,Audio,SpeechRecognition:SR,Date,
   CASEY_CONFIG:Object.freeze({environment:'test',apiUrl:'https://example.invalid/functions/v1/casey-definitivo-ui',publishableKey:'public-test'}),
-  HandoffAPI,CaseyLanguage:{get:()=> 'it-IT'},S:'COLLEGE',capTimer:0,
+  HandoffAPI,CaseyLanguage:{get:()=> 'it-IT'},S:scenario,capTimer:0,
   CaseyDialogue:{append:(r,t)=>{dialogue.push([r,t]);messages.push({role:r,text:t});},snapshot:()=>messages.slice(),clear:()=>{messages.length=0;},replace(){}},
   qrcode:()=>({addData:u=>qr.push(u),make(){},getModuleCount:()=>1,isDark:()=>true}),
-  say:(t,_src,_kind,_label,end)=>said.push({text:t,end}),showSilent(){},shutUp(){},setState:(...a)=>states.push(a),setAvatarState:k=>avatar.push(k),
-  goIdle:()=>{idles++;},resetAll:()=>{resets++;},setScenario(){},
-  addEventListener:(n,f)=>{(winEvents[n]||=[]).push(f);},
+  say:(t,_src,_kind,_label,end)=>said.push({text:t,end}),showSilent:t=>silent.push(t),shutUp(){},setState:(...a)=>states.push(a),setAvatarState:k=>avatar.push(k),
+  goIdle:()=>{idles++;},resetAll:()=>{resets++;},setScenario:s=>scenarios.push(s),
+  addEventListener:(n,f)=>{(winEvents[n]||=[]).push(f);},dispatchEvent:e=>{events.push(e.type);for(const f of winEvents[e.type]||[])f(e);return true;},CustomEvent:class{constructor(type,init){this.type=type;this.detail=init?.detail;}},
   fetch:async url=>{fetches.push(String(url));throw Error('no network in tests');},
   setTimeout:(f,ms)=>{const id=++tid;timers.set(id,f);delays.push(ms);return id;},clearTimeout:id=>timers.delete(id),
   setInterval:f=>{const id=++tid;intervals.set(id,f);return id;},clearInterval:id=>intervals.delete(id)};
@@ -34,7 +34,7 @@ function fixture({search='?demo=1',storage=memory(),audioFails=false,issue=null,
  const key=(k,shiftKey=true)=>{for(const f of keys)f({key:k,shiftKey,preventDefault(){}});};
  const fire=(target,n)=>{for(const f of (target==='doc'?docEvents:winEvents)[n]||[])f({});};
  const end=async()=>{audios.at(-1).fire('ended');await run();};
- return {window:ctx,storage,el,audios,recs,said,texts:()=>said.map(x=>x.text),avatar,states,dialogue,fetches,api,qr,delays,run,poll,key,fire,end,document,kioskSend,kioskMic,
+ return {window:ctx,storage,scenarios,silent,events,el,audios,recs,said,texts:()=>said.map(x=>x.text),avatar,states,dialogue,fetches,api,qr,delays,run,poll,key,fire,end,document,kioskSend,kioskMic,
   cancels:()=>api.filter(x=>x[0]==='cancel').map(x=>x[1].id),issues:()=>api.filter(x=>x[0]==='issue').length,
   get idles(){return idles;},get resets(){return resets;},script:ctx.CaseyDemoScript,qrOn:()=>el('qrCard').classList.contains('on')};
 }
@@ -53,7 +53,7 @@ test('badge step issues one QR only after the audio ends, to the branch app with
  const f=fixture({storage:at(1)});void f.window.send('badge');await f.run();assert.equal(f.issues(),0);await f.end();
  assert.equal(f.issues(),1);assert.equal(f.qr.length,1);const url=new URL(f.qr[0]);
  assert.ok(f.qr[0].startsWith('https://demo.example/app-blu.html?casey=1'));assert.equal(url.searchParams.get('demo'),'1');assert.equal(url.searchParams.get('intent'),'badge');assert.match(url.hash,/^#handoff=opaque-1$/);
- assert.equal(f.window.CaseyDemo.step(),2);assert.equal(f.qrOn(),true);
+ assert.equal(f.window.CaseyDemo.step(),1,'step advances only on claim');assert.equal(f.qrOn(),true);
  assert.equal(f.said.at(-1).end,undefined,'demo QR line schedules no late idle gesture');
  f.audios[0].fire('ended');await f.run();assert.equal(f.issues(),1);
 });
@@ -66,7 +66,7 @@ test('speech, send and presenter key during an active link neither advance nor c
  assert.equal(f.window.caseyHandoffActive(),true);const recs=f.recs.length,said=f.said.length;
  await f.run(10);assert.equal(f.recs.length,recs,'no recognizer armed while the QR is on screen');
  void f.window.send('altro');f.key('ArrowRight');await f.run(10);
- assert.equal(f.said.length,said);assert.equal(f.window.CaseyDemo.step(),2);assert.deepEqual(f.cancels(),[]);assert.equal(f.qrOn(),true);
+ assert.equal(f.said.length,said);assert.equal(f.window.CaseyDemo.step(),1);assert.deepEqual(f.cancels(),[]);assert.equal(f.qrOn(),true);
  f.window.HandoffAPI.call=async(action,body)=>{f.api.push([action,body]);return {consumed:false,expired:true};};
  await f.poll();assert.equal(f.window.caseyHandoffActive(),false);await f.run(10);
  assert.ok(f.recs.length>recs,'listening resumes after the link is cleared');assert.equal(f.recs.at(-1).started,true);
@@ -74,7 +74,7 @@ test('speech, send and presenter key during an active link neither advance nor c
 test('handover failure keeps the step so the presenter can retry',async()=>{
  let fail=true;const f=fixture({storage:at(1),issue:()=>{if(fail)throw Error('offline');return {id:'retry',token:'t2',expires_in:600};}});
  void f.window.send('badge');await f.run();await f.end();assert.equal(f.window.CaseyDemo.step(),1);assert.equal(f.qr.length,0);
- fail=false;f.key('ArrowRight');await f.run();await f.end();assert.equal(f.window.CaseyDemo.step(),2);assert.equal(f.qr.length,1);
+ fail=false;f.key('ArrowRight');await f.run();await f.end();assert.equal(f.window.CaseyDemo.step(),1);assert.equal(f.qr.length,1);
 });
 test('stop() during a pending handover cancels the issued link and shows no QR',async()=>{
  const d=deferred();const f=fixture({storage:at(1),issue:()=>d.promise});void f.window.send('badge');await f.run();await f.end();
@@ -115,4 +115,50 @@ test('after the last step Casey repeats the fallback line',async()=>{const f=fix
 test('a full non-handoff step makes no network call; QR steps only use issue',async()=>{
  const f=fixture();void f.window.send('domanda');await f.run();await f.end();assert.equal(f.window.CaseyDemo.step(),1);assert.deepEqual(f.fetches,[]);assert.deepEqual(f.api,[]);
  void f.window.send('badge');await f.run();await f.end();assert.deepEqual(f.fetches,[]);assert.deepEqual(f.api.map(x=>x[0]),['issue']);
+});
+
+const statusReply=reply=>async function(action,body){this.api.push([action,body]);if(action==='status'){if(reply instanceof Error)throw reply;return reply;}if(action==='cancel')return {ok:true};throw Error('unexpected '+action);};
+test('Farm scenario in demo: QR always opens app-blu.html, Farm tab hidden and coerced to College',async()=>{
+ const f=fixture({storage:at(1),scenario:'FARM'});assert.equal(f.el('sc-FARM').hidden,true);
+ f.window.setScenario('FARM');assert.deepEqual(f.scenarios,['COLLEGE']);
+ void f.window.send('badge');await f.run();await f.end();
+ assert.ok(f.qr[0].startsWith('https://demo.example/app-blu.html?casey=1'),f.qr[0]);assert.equal(f.el('qrTitle').textContent,'Casey · College');
+ const g=fixture({search:'',scenario:'FARM'});await g.window.handover();assert.ok(g.qr[0].startsWith('http://localhost:3000/app-rossa.html?casey=1'),'non-demo Farm unchanged');assert.equal(g.el('sc-FARM').hidden,false);g.window.setScenario('FARM');assert.deepEqual(g.scenarios,['FARM']);
+});
+test('demo makes the totem CaseyBridge inert: no classify, knowledge_lookup or QR',async()=>{
+ const f=fixture();f.window.CaseyDialogue.append('user','vorrei prenotare');
+ const h=await f.window.CaseyBridge.liveMobileHandoff();const k=await f.window.CaseyBridge.liveSearchKnowledge('regolamento');
+ await f.run();assert.equal(h.status,'unavailable_in_demo');assert.equal(k.status,'unavailable_in_demo');assert.deepEqual(f.api,[]);assert.deepEqual(f.fetches,[]);assert.equal(f.qr.length,0);
+ const g=fixture({search:''});g.window.CaseyDialogue.append('user','x');await g.window.CaseyBridge.liveMobileHandoff().catch(()=>{});assert.ok(g.api.some(x=>x[0]==='classify'),'non-demo bridge unchanged');
+});
+test('step advances when the QR link is consumed, not when it is shown',async()=>{
+ const f=fixture({storage:at(1)});void f.window.send('badge');await f.run();await f.end();assert.equal(f.window.CaseyDemo.step(),1);
+ f.window.HandoffAPI.call=statusReply({consumed:true,expired:false}).bind(f);await f.poll();
+ assert.ok(f.events.includes('casey:handoff-consumed'));assert.equal(f.window.CaseyDemo.step(),2);assert.equal(f.window.caseyHandoffActive(),false);
+ const g=fixture({search:''});await g.window.handover();g.window.HandoffAPI.call=statusReply({consumed:true}).bind(g);await g.poll();assert.ok(!g.events.includes('casey:handoff-consumed'),'non-demo emits nothing new');
+});
+test('an expired QR keeps the step so Shift+ArrowRight re-issues it',async()=>{
+ const f=fixture({storage:at(1)});const call=f.window.HandoffAPI.call;void f.window.send('badge');await f.run();await f.end();
+ f.window.HandoffAPI.call=statusReply({consumed:false,expired:true}).bind(f);await f.poll();assert.equal(f.window.CaseyDemo.step(),1);assert.equal(f.window.caseyHandoffActive(),false);
+ f.window.HandoffAPI.call=call;f.key('ArrowRight');await f.run();await f.end();assert.equal(f.issues(),2);assert.equal(new URL(f.qr.at(-1)).searchParams.get('intent'),'badge');assert.equal(f.window.CaseyDemo.step(),1);
+});
+test('five consecutive status failures clear the link and show the error (demo and non-demo)',async()=>{
+ for(const search of ['?demo=1','']){
+  const f=fixture({search,storage:at(1)});await f.window.handover(undefined,'badge');assert.equal(f.window.caseyHandoffActive(),true);
+  f.window.HandoffAPI.call=statusReply(Error('offline')).bind(f);
+  for(let n=0;n<4;n++)await f.poll();assert.equal(f.window.caseyHandoffActive(),true,'four failures keep the link');
+  await f.poll();assert.equal(f.window.caseyHandoffActive(),false);assert.equal(f.qrOn(),false);assert.deepEqual(f.cancels(),['link-1']);
+  assert.equal(f.el('bePill').textContent,'Collegamento non disponibile. Riprova tra poco.');assert.ok(f.silent.includes('Collegamento non disponibile. Riprova tra poco.'));
+  if(search)assert.equal(f.window.CaseyDemo.step(),1);
+ }
+});
+test('a successful status poll resets the failure count',async()=>{
+ const f=fixture({search:''});await f.window.handover();
+ for(let n=0;n<4;n++){f.window.HandoffAPI.call=statusReply(Error('offline')).bind(f);await f.poll();}
+ f.window.HandoffAPI.call=statusReply({consumed:false,expired:false}).bind(f);await f.poll();
+ f.window.HandoffAPI.call=statusReply(Error('offline')).bind(f);for(let n=0;n<4;n++)await f.poll();assert.equal(f.window.caseyHandoffActive(),true);
+});
+test('Shift+Backspace forgets a pending claim so a later consumed event does not advance',async()=>{
+ const f=fixture({storage:at(1)});void f.window.send('badge');await f.run();await f.end();f.key('Backspace');await f.run();
+ f.window.dispatchEvent(new f.window.CustomEvent('casey:handoff-consumed',{detail:{}}));assert.equal(f.window.CaseyDemo.step(),0);
 });
