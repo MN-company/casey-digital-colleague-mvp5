@@ -1,0 +1,12 @@
+import test from 'node:test';import assert from 'node:assert/strict';import vm from 'node:vm';import fs from 'node:fs';
+const read=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
+const load=()=>{const window={};vm.runInNewContext(read('demo-script.js'),{window});return window.CaseyDemoScript;};
+const lines=s=>[...s.steps.flatMap(x=>[...x.totem,...x.phone]),s.fallback];
+test('demo steps follow the fixed order',()=>{assert.deepEqual([...load().steps.map(s=>s.id)],['checkin','badge','internship','booking']);});
+test('every line has a unique id and a matching audio path',()=>{const s=load(),all=lines(s),ids=all.map(l=>l.id);assert.equal(new Set(ids).size,ids.length);for(const l of all){assert.equal(l.audio,'assets/demo-audio/'+l.id+'.mp3');assert.ok(l.text.trim(),l.id);assert.ok(l.text.split(/\s+/).length<=45,l.id);}assert.equal(s.fallback.id,'fallback');});
+test('confirms matches keywords case- and accent-insensitively',()=>{const s=load();assert.equal(s.confirms(s.steps[0],'come funziona il CHECK-IN'),true);assert.equal(s.confirms(s.steps[2],'internship part time'),true);assert.equal(s.confirms(s.steps[3],'vorrei prenotare un appuntamento'),true);assert.equal(s.confirms(s.steps[0],''),false);});
+test('handoff intents and totem-only check-in',()=>{const s=load();assert.equal(s.steps[0].handoff,null);assert.equal(s.steps[1].handoff.intent,'badge');assert.equal(s.steps[2].handoff.intent,'internship');assert.equal(s.steps[3].handoff.intent,'badge');});
+test('booking line carries slot placeholders and no line claims a moved appointment',()=>{const s=load();assert.match(s.steps[3].totem.map(l=>l.text).join(' '),/\{\{SLOT_1\}\}[\s\S]*\{\{SLOT_2\}\}/);for(const l of lines(s))assert.doesNotMatch(l.text,/spostat|cancellat|approvat/i,l.id);});
+test('phone greeting uses the name when given',()=>{const s=load();assert.ok(s.phoneGreeting('Pietro').includes('Pietro'));assert.equal(s.phoneGreeting(null),'Eccoci sul tuo telefono.');});
+test('script data is frozen',()=>{const s=load();assert.ok(Object.isFrozen(s)&&Object.isFrozen(s.steps)&&Object.isFrozen(s.steps[1].totem[0]));});
+test('AUDIO_SCRIPT.md lists every line with its file and text',()=>{const s=load(),md=read('demo/AUDIO_SCRIPT.md');for(const l of lines(s)){assert.ok(md.includes(l.id),l.id);assert.ok(md.includes(l.audio),l.audio);assert.ok(md.includes(l.text),l.id+' text');}});
