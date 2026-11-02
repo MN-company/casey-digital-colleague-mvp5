@@ -34,6 +34,10 @@ const rome=(iso,opts)=>new Intl.DateTimeFormat('it-IT',{timeZone:'Europe/Rome',.
 // «venerdì 6 novembre alle 16:00» in Europe/Rome; '' for an invalid date.
 function slotDay(iso){const d=new Date(iso);if(Number.isNaN(d.getTime()))return '';return rome(d,{weekday:'long',day:'numeric',month:'long'})+' alle '+rome(d,{hour:'2-digit',minute:'2-digit',hour12:false});}
 const slotTime=iso=>{const d=new Date(iso);return Number.isNaN(d.getTime())?'':new Intl.DateTimeFormat('en-GB',{timeZone:'Europe/Rome',hour:'2-digit',minute:'2-digit',hour12:false}).format(d);};
-function careerConfirmed(iso){const l=slotDay(iso);return l?'Appuntamento confermato: '+l+' con il Career Service. Ti ho mandato la conferma via email. E in bocca al lupo per lo stage!':'';}
-window.CaseyDemoScript=freeze({steps,fallback:line('fallback','Scusa, non ho capito bene. Puoi ripetere?'),render,score,confirms,pick,phoneGreeting,slotDay,slotTime,careerConfirmed});
+// Europe/Rome date+time of a slot: offset-bearing starts_at/start, else local_start as Rome wall time (never parsed in browser TZ).
+function slotParts(slot){const iso=slot?.starts_at||slot?.start;if(iso){const d=new Date(iso);if(Number.isNaN(d.getTime()))return null;const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value]));return {date:p.year+'-'+p.month+'-'+p.day,time:p.hour+':'+p.minute};}
+ const m=/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(String(slot?.local_start||''));return m?{date:m[1],time:m[2]}:null;}
+// The email sentence is claimed only when the commit result reports email_status==='sent' (dc_v3_mail_outbox).
+function careerConfirmed(iso,emailSent=false){const l=slotDay(iso);return l?'Appuntamento confermato: '+l+' con il Career Service.'+(emailSent?' Ti ho mandato la conferma via email.':'')+' E in bocca al lupo per lo stage!':'';}
+window.CaseyDemoScript=freeze({steps,fallback:line('fallback','Scusa, non ho capito bene. Puoi ripetere?'),render,score,confirms,pick,phoneGreeting,slotDay,slotTime,slotParts,careerConfirmed});
 })();

@@ -39,6 +39,7 @@ function playLine(line,rev){
 // A QR still on screen is cancelled first: the new case (or the same case again) issues a fresh link.
 async function runCase(i,said){
  if(running||handing)return;
+ $('q')?.blur?.();
  const rev=revision,current=S.steps[i]||null;said=String(said||'').trim()||current?.question||'';
  running=true;dropRecognizer();paint();
  try{
@@ -101,12 +102,12 @@ function stop(){
 function reset(){const active=!!window.caseyHandoffActive?.();stop();claimStep=null;setStep(0);if(active)window.resetAll?.();else window.goIdle?.();}
 // Pre-recorded audio is Casey's only voice in demo mode: silence the browser TTS used by say().
 window.speak=(_text,done)=>{if(done)done();};
-window.send=custom=>{const input=$('q'),value=String(custom||input?.value||'').trim();if(!value)return;if(input)input.value='';return advance(value);};
+window.send=custom=>{const input=$('q'),value=String(custom||input?.value||'').trim();if(!value)return;if(input){input.value='';input.blur?.();}return advance(value);};
 window.toggleMic=()=>{if(voiceOn||running){stop();return;}voiceOn=true;errors=0;paint();listen();};
 window.toggleListen=()=>{if(voiceOn||running)stop();};
 // Presenter keys (event.code, layout independent). Never while typing; nothing visible marks a key press.
 const CASE_KEYS={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3};
-const typing=t=>{const n=t||document.activeElement;return !!n&&(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName||'')||n.isContentEditable===true);};
+const typing=t=>{const n=t||document.activeElement;if(n?.id==='q'&&!String(n.value||'').trim())return false;return !!n&&(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName||'')||n.isContentEditable===true);};
 document.addEventListener('keydown',e=>{
  if(e.ctrlKey||e.metaKey||e.altKey||typing(e.target))return;
  const c=e.code;

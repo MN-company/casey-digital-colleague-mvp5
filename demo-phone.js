@@ -61,12 +61,11 @@ async function send(i){const p=i.phone;if(!await N().say(p.sending))return;let r
 // only the scripted Europe/Rome times, in script order, rendered by the native slot card (prepare -> «Confermo appuntamento»).
 async function scriptedSlots(id){const want=step(id).phoneSlots||[],days=[...new Set(want.map(x=>x.day))],byDay=new Map();let connected=true;
  for(const day of days){const r=await N().fetchSlots({day});if(r?.calendar_connected===false)connected=false;byDay.set(day,r?.slots||[]);}
- const picked=[],seen=new Set();for(const w of want)for(const slot of byDay.get(w.day)||[]){const iso=slot.starts_at||slot.start||slot.local_start;if(S.slotTime(iso)===w.time&&!seen.has(slot.id)){seen.add(slot.id);picked.push(slot);}}
+ const picked=[],seen=new Set();for(const w of want)for(const slot of byDay.get(w.day)||[]){const at=S.slotParts(slot);if(at&&at.date===w.day&&at.time===w.time&&!seen.has(slot.id)){seen.add(slot.id);picked.push(slot);}}
  return N().renderSlots({calendar_connected:connected,slots:picked});}
 const slotKind=intent();if(slotKind==='badge'||slotKind==='career'){const n=N();if(n)n.slotsOverride=()=>{n.slotsOverride=undefined;return scriptedSlots(slotKind);};}
-// The email line is claimed only for google_sync==='created' (app-auth-shell) and never when the result reports an email failure.
-const emailFailed=r=>[r?.email,r?.email_status,r?.notification,r?.email_sent].some(v=>v===false||/fail|error|uncertain|pending|skip/i.test(String(v??'')));
-function career(){N().onCommitted=(r,slot)=>emailFailed(r)?undefined:(S.careerConfirmed(slot?.starts_at||slot?.start||slot?.local_start)||undefined);}
+// Called only for google_sync==='created' (app-auth-shell); the email sentence requires email_status==='sent'.
+function career(){N().onCommitted=(r,slot)=>S.careerConfirmed(slot?.starts_at||slot?.start||slot?.local_start,r?.email_status==='sent')||undefined;}
 // A claim whose slots failed (error) skips the intro: it would point at slots that are not shown.
 async function entered(kind,ctx,error){
  if(kind==='internship')return stage(ctx);

@@ -76,6 +76,12 @@ test('keys are ignored while typing, with modifiers, or while Casey is speaking'
  f.key('Digit1');await f.run();f.key('Digit2');f.key('ArrowRight');f.key('Digit1');await f.run();assert.equal(f.audios.length,1);assert.equal(f.said.length,1);
  f.key('Escape');assert.equal(f.audios[0].playing,false,'stop always works');
 });
+test('after a demo send #q is blurred, and keys work when #q is focused but empty',async()=>{
+ const f=fixture();const q=f.window.document.getElementById('q');let blurs=0;q.blur=()=>{blurs++;};q.id='q';q.tagName='INPUT';
+ q.value='badge';void f.window.send();await f.run();assert.ok(blurs>=1,'blurred after send');await f.end();
+ const n=f.audios.length;q.value='';f.key('Digit1',{target:q});await f.run();assert.equal(f.audios.length,n+1,'empty #q does not block keys');await f.end();
+ q.value='sto scrivendo';f.key('Digit2',{target:q});await f.run();assert.equal(f.audios.length,n+1,'typing in #q still blocks keys');
+});
 test('ArrowRight and PageDown run the next case in sequence; old Shift bindings are gone',async()=>{
  const f=fixture();f.key('ArrowRight');await f.run();await f.end();assert.equal(f.window.CaseyDemo.step(),1);f.key('PageDown');await f.run();assert.equal(f.audios.at(-1).src,'assets/demo-audio/caso2_badge.mp3');await f.end();assert.equal(f.window.CaseyDemo.step(),2);
  const g=fixture({storage:at(1)});g.key('Backspace',{shiftKey:true});assert.equal(g.window.CaseyDemo.step(),1);
