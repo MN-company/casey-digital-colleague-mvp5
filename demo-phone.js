@@ -2,7 +2,7 @@
 (()=>{'use strict';
 const q=new URLSearchParams(location.search),active=q.get('demo')==='1',setup=q.get('setup')==='1';
 let consumed=false;
-const intent=()=>{const v=q.get('intent');return active&&!consumed&&(v==='badge'||v==='internship')?v:null;};
+const intent=()=>{const v=q.get('intent');return active&&!consumed&&(v==='badge'||v==='internship'||v==='career')?v:null;};
 window.CaseyDemoPhone=Object.freeze({active,intent});
 if(!active)return;
 const S=window.CaseyDemoScript,A=window.HandoffAPI,N=()=>window.CaseyNativeHandoff,app=window.__casey;
@@ -39,16 +39,39 @@ if(N())N().answerOverride=async()=>({answer:fallback()});
 // sessionStorage and a new campus-cases session token, so neither the per-tab key nor the server's session_id
 // dedupe can see another tab's work; a line already in the server context is never appended or acted on again.
 const has=(ctx,t)=>(ctx||[]).some(x=>x?.role==='assistant'&&x.text===t);
-async function greet(ctx){let p=null;try{p=await window.CaseyAccount?.profile();}catch{}const name=String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0];if(name&&!has(ctx,S.phoneGreeting(name)))await N().say(S.phoneGreeting(name));}
+async function name(){let p=null;try{p=await window.CaseyAccount?.profile();}catch{}return String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0]||'';}
+// First line: «Ciao <nome>! <intro>», or the intro alone without a name. Any greeting variant already in the context counts.
+async function opening(ctx,intro){const n=await name(),l=S.phoneGreeting(n,intro);if(!l||has(ctx,l)||(ctx||[]).some(x=>x?.role==='assistant'&&intro&&String(x.text).endsWith(intro)))return true;return N().say(l);}
+async function sayOnce(ctx,l){return has(ctx,l)?true:N().say(l);}
 // service_case is idempotent per session (casey_service_reviews by session_id): one re-check with the same
 // campus-cases session reads the authoritative state without duplicating the request.
 const review=question=>Promise.resolve().then(()=>window.CaseyCampusCases.handle(question)).catch(()=>null);
-// Line A is written through say() (persisted server-side) BEFORE service_case, so any later tab sees it and skips the call.
-async function internship(ctx){const i=step('internship'),a=text(i.phone[0]);if(has(ctx,a)||has(ctx,text(i.phone[1])))return;if(!await N().say(a))return;let r=await review(i.question);
+// Stage: summary + question, then a native card button. service_case runs ONLY on tap. The "sending" marker
+// line is persisted through say() BEFORE service_case, so any later tab sees it and never shows the button again.
+async function stage(ctx){const i=step('stage'),p=i.phone;if(has(ctx,p.sending)||has(ctx,p.done))return;
+ if(!await opening(ctx,p.intro)||!await sayOnce(ctx,p.summary)||!await sayOnce(ctx,p.ask))return;
+ const c=N().operationCard?.();if(!c)return;c.setAttribute?.('aria-label','Richiesta Student Office');c.hidden=false;
+ const b=document.createElement('button');b.type='button';b.textContent=p.button;let used=false;
+ b.onclick=async()=>{if(used)return;used=true;b.disabled=true;try{await send(i);}catch(e){status(window.CaseyErrors?.message(e)||'Operazione non disponibile. Riprova.');}finally{c.replaceChildren();c.hidden=true;}};
+ c.replaceChildren(b);}
+async function send(i){const p=i.phone;if(!await N().say(p.sending))return;let r=await review(i.question);
  if(r?.review_saved!==true){await N().say(CHECKING);r=await review(i.question);}
- await N().say(r?.review_saved===true?text(i.phone[1]):UNCONFIRMED);}
-// A claim whose slots() failed (error) skips the badge line: it would point at slots that are not shown.
-async function entered(kind,ctx,error){await greet(ctx);if(kind==='internship')await internship(ctx);else if(kind==='badge'&&!error){const l=text(step('badge').phone[0]);if(!has(ctx,l))await N().say(l);}}
+ await N().say(r?.review_saved===true?p.done:UNCONFIRMED);}
+// Badge/career: the backend returns only the first free day without `day`, so fetch each scripted day and keep
+// only the scripted Europe/Rome times, in script order, rendered by the native slot card (prepare -> «Confermo appuntamento»).
+async function scriptedSlots(id){const want=step(id).phoneSlots||[],days=[...new Set(want.map(x=>x.day))],byDay=new Map();let connected=true;
+ for(const day of days){const r=await N().fetchSlots({day});if(r?.calendar_connected===false)connected=false;byDay.set(day,r?.slots||[]);}
+ const picked=[],seen=new Set();for(const w of want)for(const slot of byDay.get(w.day)||[]){const iso=slot.starts_at||slot.start||slot.local_start;if(S.slotTime(iso)===w.time&&!seen.has(slot.id)){seen.add(slot.id);picked.push(slot);}}
+ return N().renderSlots({calendar_connected:connected,slots:picked});}
+const slotKind=intent();if(slotKind==='badge'||slotKind==='career'){const n=N();if(n)n.slotsOverride=()=>{n.slotsOverride=undefined;return scriptedSlots(slotKind);};}
+// The email line is claimed only for google_sync==='created' (app-auth-shell) and never when the result reports an email failure.
+const emailFailed=r=>[r?.email,r?.email_status,r?.notification,r?.email_sent].some(v=>v===false||/fail|error|uncertain|pending|skip/i.test(String(v??'')));
+function career(){N().onCommitted=(r,slot)=>emailFailed(r)?undefined:(S.careerConfirmed(slot?.starts_at||slot?.start||slot?.local_start)||undefined);}
+// A claim whose slots failed (error) skips the intro: it would point at slots that are not shown.
+async function entered(kind,ctx,error){
+ if(kind==='internship')return stage(ctx);
+ if(kind==='badge'||kind==='career'){if(kind==='career')career();return opening(ctx,error?'':step(kind).phone.intro);}
+}
 // Single use: drop intent from the URL (demo and the rest kept), so reloads, restores and new chats never replay it.
 function forgetIntent(){if(!q.has('intent'))return;const next=new URLSearchParams(location.search);next.delete('intent');const search=next.toString();history.replaceState(null,'',location.pathname+(search?'?'+search:'')+(location.hash||''));}
 let queue=Promise.resolve();

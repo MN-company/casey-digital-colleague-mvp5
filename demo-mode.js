@@ -29,35 +29,39 @@ function playLine(line,rev){
   const finish=ok=>{if(done)return;done=true;pending.delete(finish);if(audio===a)audio=null;resolve(ok&&rev===revision);};
   pending.add(finish);
   const fallback=()=>{if(done||silent||rev!==revision)return;silent=true;if(audio===a)audio=null;avatar('C');later(Math.max(2000,text.length*55),()=>finish(true));};
-  try{a=new Audio(line.audio);}catch{a=null;}
+  a=clip(line.audio);
   if(!a){fallback();return;}
-  audio=a;a.onended=()=>{if(rev===revision&&!silent)finish(true);};a.onerror=fallback;
+  audio=a;try{a.currentTime=0;}catch{}a.onended=()=>{if(rev===revision&&!silent)finish(true);};a.onerror=fallback;
   try{const p=a.play();p?.catch?.(fallback);}catch{fallback();}
  }).then(ok=>{if(ok)avatar('A');return ok;});
 }
-async function advance(text){
- if(running||linkBusy())return;
- const rev=revision,i=step(),current=S.steps[i]||null,said=String(text||'').trim()||current?.question||'';
+// Runs case i (or the fallback when i<0) exactly like speech. `said` is shown as the user message.
+// A QR still on screen is cancelled first: the new case (or the same case again) issues a fresh link.
+async function runCase(i,said){
+ if(running||handing)return;
+ const rev=revision,current=S.steps[i]||null;said=String(said||'').trim()||current?.question||'';
  running=true;dropRecognizer();paint();
  try{
+  if(window.caseyHandoffActive?.()){claimStep=null;await window.caseyHandoffCancel?.();if(rev!==revision)return;window.CaseyDialogue?.clear?.();}
   if(said){window.CaseyDialogue?.append('user',said);caption(said);}
   avatar('E');if(!await wait(700,rev))return;
   for(const line of current?current.totem:[S.fallback])if(!await playLine(line,rev))return;
   if(!current)return;
   if(!current.handoff){setStep(i+1);return;}
+  if(rev!==revision)return;
   handing=true;let r;
   try{r=await window.handover?.(undefined,current.handoff.intent);}finally{handing=false;}
   if(rev!==revision){if(r?.status==='handoff_ready')void window.caseyHandoffCancel?.();return;}
-  // The step advances only when the phone claims the link (casey:handoff-consumed). A failed, expired or
-  // cancelled link keeps the step: the presenter re-issues it with Shift+ArrowRight.
-  if(r?.status==='handoff_ready')claimStep=i;
+  // The presenter may not scan: the sequence advances once the QR is on screen. A failed link keeps the step
+  // (press the case key again to retry). A later claim only confirms it (casey:handoff-consumed).
+  if(r?.status==='handoff_ready'){claimStep=i;setStep(i+1);}
  }finally{if(rev===revision){running=false;paint();if(voiceOn)later(300,listen);}}
 }
+// Free speech/text: keyword score picks the case; tie or no hit -> the expected next case (fallback after the last).
+function advance(text){const i=step();return runCase(S.pick(text,i<S.steps.length?i:-1),text);}
 function retry(){if(errors>=MAX_ERRORS){caption('Microfono in pausa dopo troppi errori. Premi il microfono per riprendere.');stop();return;}later(backoff(),listen);}
 function listen(){
  if(!voiceOn||running||recognizer)return;
- // QR on screen: wait (local check, no network) until it is consumed, expired or cleared.
- if(linkBusy()){later(1000,listen);return;}
  const SR=window.SpeechRecognition||window.webkitSpeechRecognition;
  if(!SR){caption('La voce non è disponibile in questo browser. Puoi continuare a scrivere.');stop();return;}
  const rev=revision,r=new SR();recognizer=r;r.lang='it-IT';r.interimResults=true;r.continuous=false;let failed=false;
@@ -65,7 +69,10 @@ function listen(){
   if(rev!==revision||recognizer!==r)return;errors=0;let text='',final=false;
   for(let k=0;k<e.results.length;k++){text+=e.results[k][0]?.transcript||'';if(e.results[k].isFinal)final=true;}
   text=text.trim();if(!text)return;caption(text);
-  if(final){dropRecognizer();void advance(text);}
+  if(!final)return;dropRecognizer();
+  // QR on screen: only a phrase that names a case moves on (cancelling the link); anything else keeps the QR.
+  if(linkBusy()){const n=S.pick(text,-1);if(n>=0&&!handing)void runCase(n,text);else later(350,listen);return;}
+  void advance(text);
  };
  r.onerror=e=>{
   if(rev!==revision||recognizer!==r)return;
@@ -97,10 +104,16 @@ window.speak=(_text,done)=>{if(done)done();};
 window.send=custom=>{const input=$('q'),value=String(custom||input?.value||'').trim();if(!value)return;if(input)input.value='';return advance(value);};
 window.toggleMic=()=>{if(voiceOn||running){stop();return;}voiceOn=true;errors=0;paint();listen();};
 window.toggleListen=()=>{if(voiceOn||running)stop();};
+// Presenter keys (event.code, layout independent). Never while typing; nothing visible marks a key press.
+const CASE_KEYS={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3};
+const typing=t=>{const n=t||document.activeElement;return !!n&&(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName||'')||n.isContentEditable===true);};
 document.addEventListener('keydown',e=>{
- if(!e.shiftKey)return;
- if(e.key==='ArrowRight'){e.preventDefault();if(running)return;void advance(S.steps[step()]?.question||'');}
- else if(e.key==='Backspace'){e.preventDefault();reset();}
+ if(e.ctrlKey||e.metaKey||e.altKey||typing(e.target))return;
+ const c=e.code;
+ if(c==='Escape'||c==='Digit0'||c==='Numpad0'){e.preventDefault?.();reset();return;}
+ let i=null;if(c in CASE_KEYS)i=CASE_KEYS[c];else if(c==='ArrowRight'||c==='PageDown'){const n=step();i=n<S.steps.length?n:-1;}
+ if(i===null)return;e.preventDefault?.();if(e.repeat||running||handing)return;
+ void runCase(i,S.steps[i]?.question||'');
 });
 window.addEventListener('casey:handoff-consumed',()=>{if(claimStep===null)return;const n=claimStep;claimStep=null;setStep(n+1);});
 window.addEventListener('pagehide',()=>stop());
@@ -113,5 +126,11 @@ const scenario=window.setScenario;if(typeof scenario==='function')window.setScen
 const unavailable=async()=>({status:'unavailable_in_demo',note:'Demo mode: no live tools.'});
 window.CaseyBridge=Object.freeze({liveMobileHandoff:unavailable,liveSearchKnowledge:unavailable});
 hideSignIn();document.addEventListener('DOMContentLoaded',hideSignIn);
-window.CaseyDemo=Object.freeze({active:true,step,stop,advance,reset});
+// Preload the case audio once and keep it in memory; a discreet dot on the status pill marks all files ready.
+// A missing file keeps the text fallback in playLine().
+const clips=new Map();let ready=0;
+function markReady(){if(++ready<clips.size)return;const pill=$('bePill');if(pill){pill.dataset&&(pill.dataset.demoAudio='ready');const dot=pill.querySelector?.('i');if(dot?.style)dot.style.boxShadow='0 0 0 2px #22c55e';}}
+for(const l of [...S.steps.flatMap(x=>x.totem),S.fallback]){if(clips.has(l.audio))continue;let a=null;try{a=new Audio(l.audio);a.preload='auto';let counted=false;a.oncanplaythrough=()=>{if(!counted){counted=true;markReady();}};a.load?.();}catch{a=null;}clips.set(l.audio,a);}
+function clip(src){const a=clips.get(src);if(a)return a;try{return new Audio(src);}catch{return null;}}
+window.CaseyDemo=Object.freeze({active:true,step,stop,advance,runCase,reset,audioReady:()=>clips.size>0&&ready>=clips.size});
 })();

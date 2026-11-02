@@ -28,7 +28,7 @@
    // Read config at call time: demo-mode.js publishes a new frozen CASEY_CONFIG after this file loads.
    const cfg=window.CASEY_CONFIG||{};link=r.id;
    // The demo phone runtime exists only in app-blu.html: in demo mode Farm never routes to app-rossa.
-   const farm=S==='FARM'&&!cfg.demoActive;const url=new URL((farm?'app-rossa.html':'app-blu.html')+'?casey=1',cfg.demoAppBase||location.href);url.searchParams.set('lang',CaseyLanguage.get());if(cfg.demoActive)url.searchParams.set('demo','1');if(intent==='badge'||intent==='internship')url.searchParams.set('intent',intent);url.hash='handoff='+r.token;phoneUrl=url.href;
+   const farm=S==='FARM'&&!cfg.demoActive;const url=new URL((farm?'app-rossa.html':'app-blu.html')+'?casey=1',cfg.demoAppBase||location.href);url.searchParams.set('lang',CaseyLanguage.get());if(cfg.demoActive)url.searchParams.set('demo','1');if(intent==='badge'||intent==='internship'||intent==='career')url.searchParams.set('intent',intent);url.hash='handoff='+r.token;phoneUrl=url.href;
    const code=qrcode(0,'M');code.addData(url.href);code.make();const n=code.getModuleCount(),svg=document.getElementById('qrCode');svg.setAttribute('viewBox','-4 -4 '+(n+8)+' '+(n+8));let path='';for(let y=0;y<n;y++)for(let x=0;x<n;x++)if(code.isDark(y,x))path+='M'+x+' '+y+'h1v1h-1z';svg.innerHTML='<rect x="-4" y="-4" width="'+(n+8)+'" height="'+(n+8)+'" fill="white"/><path d="'+path+'" fill="#101828" shape-rendering="crispEdges"/>';
 
    document.getElementById('qrTitle').textContent=farm?'Casey · Campus':'Casey · College';document.getElementById('qrSub').textContent=typeof note==='string'?note:t().transfer;
@@ -56,7 +56,7 @@
    messages.append('user',value);setState('think',t().thinking,'think');
    const campus=await window.CaseyCampusCases?.handle(value);if(rev!==revision)return;if(campus?.matched){messages.append('assistant',campus.answer);say(campus.answer,campus.citations?.map(x=>x.title+' · p. '+x.page).join(' · ')||null,'tra','Fonte verificata','point');return campus.answer;}
    const route=await A.call('classify',{message:value});if(rev!==revision)return;
-   if(route.route!=='public'){await handover();return;}
+   if(route.route!=='public'){await (window.handover||handover)();return;}
    await session();const history=messages.snapshot().slice(0,-1);const r=await call('turn',{message:value,history,language:CaseyLanguage.get()});if(rev!==revision)return;
    messages.append('assistant',r.answer);say(r.answer,r.citations?.map(x=>x.title+(x.page?' · p. '+x.page:'')).join(' · ')||null,r.source_status==='candidate'?'nc':'tra',r.source_status==='candidate'?t().candidate:t().verified,'point');status(t().ready);return r.answer;
   }catch(e){if(rev===revision){messages.replace(before);const message=window.CaseyErrors?.message(e)||t().error;showSilent(message);status(t().error);}}
@@ -69,6 +69,6 @@
  window.addEventListener('casey:language',()=>{revision++;shutUp();document.getElementById('q').placeholder=t().placeholder;status(t().ready);say(t().welcome);});
  window.addEventListener('casey:service-case',event=>{if(['checkin','internship_contract'].includes(event.detail?.case))void clearLink();});
  // Back-office action controls are demonstrations; label them persistently.
- window.CaseyBridge={liveMobileHandoff:async()=>{const latest=messages.snapshot().filter(t=>t.role==='user').at(-1)?.text||'';if(!latest)return {status:'clarification_required',note:'Ask a short clarification here. Do not suggest QR for uncertainty or missing sources.'};const decision=await A.call('classify',{message:latest});if(decision.route==='public')return {status:'public_question',note:'Continue answering here. For public procedures search verified knowledge; if needed ask which course. Do not propose a QR.'};return handover();},liveSearchKnowledge:async query=>{await session();return call('knowledge_lookup',{query,history:messages.snapshot().slice(-10),language:CaseyLanguage.get()});}};
+ window.CaseyBridge={liveMobileHandoff:async()=>{const latest=messages.snapshot().filter(t=>t.role==='user').at(-1)?.text||'';if(!latest)return {status:'clarification_required',note:'Ask a short clarification here. Do not suggest QR for uncertainty or missing sources.'};const decision=await A.call('classify',{message:latest});if(decision.route==='public')return {status:'public_question',note:'Continue answering here. For public procedures search verified knowledge; if needed ask which course. Do not propose a QR.'};return (window.handover||handover)();},liveSearchKnowledge:async query=>{await session();return call('knowledge_lookup',{query,history:messages.snapshot().slice(-10),language:CaseyLanguage.get()});}};
  status(t().ready);document.getElementById('q').placeholder=t().placeholder;
 })();
