@@ -71,10 +71,39 @@ test('keys 1-4 run each case like speech: scripted question as user message, aud
  for(const [n,code] of [[0,'Digit1'],[1,'Digit2'],[2,'Numpad3'],[3,'Digit4']]){const f=fixture();const e=f.key(code);assert.equal(e.prevented,true);await f.run();
   assert.equal(f.dialogue[0][1],f.script.steps[n].question);assert.equal(f.audios[0].src,'assets/demo-audio/'+ids[n]+'.mp3');await f.end();assert.equal(f.issues(),n===0?0:1,code);}
 });
-test('keys are ignored while typing, with modifiers, or while Casey is speaking',async()=>{
+test('keys are ignored while typing, with modifiers or on auto-repeat',async()=>{
  const f=fixture();for(const tagName of ['INPUT','TEXTAREA','SELECT'])f.key('Digit2',{target:{tagName}});f.key('Digit2',{target:{tagName:'DIV',isContentEditable:true}});f.key('Digit2',{ctrlKey:true});await f.run();assert.equal(f.audios.length,0);
- f.key('Digit1');await f.run();f.key('Digit2');f.key('ArrowRight');f.key('Digit1');await f.run();assert.equal(f.audios.length,1);assert.equal(f.said.length,1);
+ f.key('Digit1');await f.run();f.key('Digit2',{repeat:true});await f.run();assert.equal(f.audios.length,1);assert.equal(f.said.length,1);
  f.key('Escape');assert.equal(f.audios[0].playing,false,'stop always works');
+});
+test('key 3 during case 2 audio stops case 2 and runs case 3 with no double answer',async()=>{
+ const f=fixture();f.key('Digit2');await f.run();const a2=f.audios[0];assert.equal(a2.src,'assets/demo-audio/caso2_badge.mp3');
+ f.key('Digit3');await f.run();assert.equal(a2.playing,false);assert.equal(f.audios.at(-1).src,'assets/demo-audio/caso3_stage.mp3');
+ a2.fire('ended');await f.run();assert.equal(f.issues(),0,'late ended of case 2 is a no-op');
+ await f.end();assert.equal(f.issues(),1);assert.equal(new URL(f.qr.at(-1)).searchParams.get('intent'),'internship');
+ for(const n of [1,2])assert.equal(f.texts().filter(t=>t===f.script.render(f.script.steps[n].totem[0].text)).length,1,'each case answers once');
+});
+test('a key during case audio cancels the QR still on screen from the previous case',async()=>{
+ const f=fixture();f.key('Digit2');await f.run();await f.end();assert.equal(f.qrOn(),true);
+ f.key('Digit3');await f.run();assert.deepEqual(f.cancels(),['link-1']);const a3=f.audios.at(-1);
+ f.key('Digit4');await f.run();assert.equal(a3.playing,false);await f.end();assert.equal(f.issues(),2);assert.deepEqual(f.cancels(),['link-1']);
+ assert.equal(new URL(f.qr.at(-1)).searchParams.get('intent'),'career');assert.equal(f.window.caseyHandoffActive(),true);
+});
+test('a key during a silent fallback timer interrupts it',async()=>{
+ const f=fixture({audioFails:true});f.key('Digit1');await f.run(3);f.key('Digit4');await f.run();
+ assert.deepEqual(f.dialogue.filter(x=>x[0]==='user').map(x=>x[1]),[f.script.steps[0].question,f.script.steps[3].question]);assert.equal(f.issues(),1);assert.equal(f.window.CaseyDemo.step(),4);
+});
+test('a key during a pending handover cancels the pending link and runs the new case',async()=>{
+ const d=deferred();let n=0;const f=fixture({issue:()=>++n===1?d.promise:{id:'new',token:'new-token',expires_in:600}});
+ f.key('Digit2');await f.run();await f.end();assert.equal(f.issues(),1);
+ f.key('Digit3');await f.run();d.resolve({id:'late',token:'late-token',expires_in:600});await f.run();
+ assert.deepEqual(f.cancels(),['late']);assert.equal(f.qr.length,0);await f.end();
+ assert.equal(f.issues(),2);assert.equal(f.qr.length,1);assert.match(f.qr[0],/handoff=new-token$/);assert.equal(f.window.caseyHandoffActive(),true);assert.deepEqual(f.cancels(),['late']);
+});
+test('speech while Casey speaks is still ignored',async()=>{
+ const f=fixture();f.window.toggleMic();f.recs[0].onresult({results:[result('ciao',true)]});await f.run(3);const recs=f.recs.length,said=f.said.length;
+ f.recs.at(-1).onresult?.({results:[result('posso fare uno stage part-time?',true)]});await f.run(3);
+ assert.equal(f.recs.length,recs,'no recognizer while speaking');assert.equal(f.said.length,said);assert.equal(f.audios.length,1);
 });
 test('after a demo send #q is blurred, and keys work when #q is focused but empty',async()=>{
  const f=fixture();const q=f.window.document.getElementById('q');let blurs=0;q.blur=()=>{blurs++;};q.id='q';q.tagName='INPUT';

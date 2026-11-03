@@ -90,13 +90,16 @@ function listen(){
  window.setState?.('idle','Ti ascolto','listen');
 }
 function stop(){
- revision++;voiceOn=false;running=false;errors=0;dropRecognizer();
+ halt();voiceOn=false;window.shutUp?.();avatar('A');window.setState?.('idle','Pronto','');paint();
+}
+// Shared stop path: late callbacks of the current run no-op (revision), audio/timers/recognition end, a pending link is cancelled.
+function halt(){
+ revision++;running=false;errors=0;dropRecognizer();
  // A handover still waiting for its link: cancel it so no QR appears after Stop.
  if(handing){handing=false;void window.caseyHandoffCancel?.();}
  if(audio){const a=audio;audio=null;a.onended=a.onerror=null;try{a.pause();a.currentTime=0;}catch{}}
  for(const id of timers)clearTimeout(id);timers.clear();
  for(const res of [...pending])res(false);pending.clear();
- window.shutUp?.();avatar('A');window.setState?.('idle','Pronto','');paint();
 }
 // goIdle() is a no-op while a link is on screen; resetAll() cancels the link and clears the transcript.
 function reset(){const active=!!window.caseyHandoffActive?.();stop();claimStep=null;setStep(0);if(active)window.resetAll?.();else window.goIdle?.();}
@@ -105,6 +108,8 @@ window.speak=(_text,done)=>{if(done)done();};
 window.send=custom=>{const input=$('q'),value=String(custom||input?.value||'').trim();if(!value)return;if(input){input.value='';input.blur?.();}return advance(value);};
 window.toggleMic=()=>{if(voiceOn||running){stop();return;}voiceOn=true;errors=0;paint();listen();};
 window.toggleListen=()=>{if(voiceOn||running)stop();};
+// A presenter key interrupts the current case (audio, silent fallback, QR issuance) and runs the requested one; the mic mode is kept.
+function interrupt(i){if(running||handing){halt();window.shutUp?.();}claimStep=null;void runCase(i,S.steps[i]?.question||'');}
 // Presenter keys (event.code, layout independent). Never while typing; nothing visible marks a key press.
 const CASE_KEYS={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3};
 const typing=t=>{const n=t||document.activeElement;if(n?.id==='q'&&!String(n.value||'').trim())return false;return !!n&&(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName||'')||n.isContentEditable===true);};
@@ -113,8 +118,8 @@ document.addEventListener('keydown',e=>{
  const c=e.code;
  if(c==='Escape'||c==='Digit0'||c==='Numpad0'){e.preventDefault?.();reset();return;}
  let i=null;if(c in CASE_KEYS)i=CASE_KEYS[c];else if(c==='ArrowRight'||c==='PageDown'){const n=step();i=n<S.steps.length?n:-1;}
- if(i===null)return;e.preventDefault?.();if(e.repeat||running||handing)return;
- void runCase(i,S.steps[i]?.question||'');
+ if(i===null)return;e.preventDefault?.();if(e.repeat)return;
+ interrupt(i);
 });
 window.addEventListener('casey:handoff-consumed',()=>{if(claimStep===null)return;const n=claimStep;claimStep=null;setStep(n+1);});
 window.addEventListener('pagehide',()=>stop());
