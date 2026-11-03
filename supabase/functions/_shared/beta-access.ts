@@ -1,7 +1,7 @@
 export const BASE=Deno.env.get('SUPABASE_URL')||'';
 export const KEY=Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')||JSON.parse(Deno.env.get('SUPABASE_SECRET_KEYS')||'{}').default||'';
 export const SITE='https://casey-digital-colleague-live.vercel.app';
-export const allowedOrigins=new Set([SITE,'https://casey-digital-colleague-live-git-demo-casey-video-mnbrain.vercel.app','http://localhost:4173','http://localhost:8000']);
+export const allowedOrigins=new Set([SITE,'https://casey-digital-colleague-live-git-demo-casey-video-mnbrain.vercel.app','https://casey-hfarm-demo.vercel.app','http://localhost:4173','http://localhost:8000']);
 export async function hash(text:string){return [...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode(text)))].map(b=>b.toString(16).padStart(2,'0')).join('');}
 export async function db(path:string,body?:unknown){
  const r=await fetch(BASE+'/rest/v1/'+path,{method:body?'POST':'GET',headers:{apikey:KEY,Authorization:'Bearer '+KEY,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined,signal:AbortSignal.timeout(10000)});

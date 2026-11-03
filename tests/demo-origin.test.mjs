@@ -5,3 +5,6 @@ for(const file of files)test(`${file} allows the demo branch origin exactly once
  const source=readFileSync(new URL('../'+file,import.meta.url),'utf8');
  assert.equal(source.split(`'${origin}'`).length-1,1);
 });
+
+const shortOrigin='https://casey-hfarm-demo.vercel.app';
+for(const file of files)test(`${file} allows the short demo domain exactly once`,()=>{const source=readFileSync(new URL('../'+file,import.meta.url),'utf8');assert.equal(source.split("'"+shortOrigin+"'").length-1,1);});
