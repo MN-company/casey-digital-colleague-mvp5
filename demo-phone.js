@@ -6,17 +6,18 @@ const intent=()=>{const v=q.get('intent');return active&&!consumed&&(v==='badge'
 window.CaseyDemoPhone=Object.freeze({active,intent});
 if(!active)return;
 const S=window.CaseyDemoScript,A=window.HandoffAPI,N=()=>window.CaseyNativeHandoff,app=window.__casey;
-const OFF='Sessione demo non attiva',VOICE_OFF='La voce non è disponibile in questa demo.',CHECKING='Sto verificando lo stato della richiesta…',UNCONFIRMED='Non riesco a confermare l’invio adesso: lo staff può verificarlo dalla coda.';
+const VOICE_OFF='La voce non è disponibile in questa demo.',CHECKING='Sto verificando lo stato della richiesta…',UNCONFIRMED='Non riesco a confermare l’invio adesso: lo staff può verificarlo dalla coda.';
 const step=id=>S.steps.find(s=>s.id===id),text=l=>S.render(l.text),fallback=()=>S.render(S.fallback.text);
-const locked=()=>!setup&&!A?.auth();
+const signedIn=()=>!!A?.auth();
 function status(t){let n=document.getElementById('nativePrivateStatus');if(!n){n=document.createElement('p');n.id='nativePrivateStatus';n.className='native-private-status';n.setAttribute('role','status');document.getElementById('vCasey')?.append(n);}n.textContent=t;}
-// Login hidden: no sign-in sheet unless the presenter opens ?setup=1 before going live. No Gemini Live voice in demo.
+// Sign-in is never blocked: without auth, app-auth-shell open() scans the QR and opens the normal login sheet; after
+// OTP verify student-access calls openSheet() (casey-native-open-pending), which claims and enters the chat.
+// Entry buttons are hidden only once signed in (outside ?setup=1). No Gemini Live voice in demo.
 const access=window.CaseyStudentAccess;
-if(access)window.CaseyStudentAccess=Object.freeze({...access,open(...a){if(locked()){status(OFF);return;}return access.open(...a);},async voice(){status(VOICE_OFF);}});
-if(app?.ACT){for(const name of ['account','private-chat']){const previous=app.ACT[name];if(previous)app.ACT[name]=(...a)=>{if(locked()){status(OFF);return;}return previous(...a);};}
- if(app.ACT.mic)app.ACT.mic=()=>status('Nella demo scrivi qui sotto: la voce è disattivata.');}
+if(access)window.CaseyStudentAccess=Object.freeze({...access,async voice(){status(VOICE_OFF);}});
+if(app?.ACT?.mic)app.ACT.mic=()=>status('Nella demo scrivi qui sotto: la voce è disattivata.');
 const style=document.createElement('style');style.textContent='.casey-demo-locked [data-act="account"],.casey-demo-locked [data-act="private-chat"]{display:none!important}';document.head?.append(style);
-const paint=()=>document.documentElement?.classList.toggle('casey-demo-locked',locked());paint();window.addEventListener('casey:account-change',paint);
+const paint=()=>document.documentElement?.classList.toggle('casey-demo-locked',!setup&&signedIn());paint();for(const n of ['casey:account-change','casey:profile'])window.addEventListener(n,paint);
 // Setup mode: show that the session is saved for later QR tabs (demo-auth-bridge.js) and allow leaving the demo.
 function setupPanel(){
  if(!setup)return;let panel=document.getElementById('caseyDemoSetup');

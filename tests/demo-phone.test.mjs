@@ -25,7 +25,7 @@ function setup({search='?casey=1&lang=it-IT&demo=1&intent=internship',signed=tru
  window.addEventListener('casey:handoff-entered',e=>entered.push(e.detail));
  const ctx={window,document,location:{hash:'',pathname:'/app-blu.html',search},sessionStorage:{getItem:k=>storage.get(k)??null,setItem:(k,v)=>storage.set(k,String(v)),removeItem:k=>storage.delete(k)},localStorage:{getItem:k=>local.get(k)??null,setItem:(k,v)=>local.set(k,String(v)),removeItem:k=>local.delete(k)},URLSearchParams,crypto:webcrypto,history:{replaceState:(_s,_t,u)=>urls.push(u)},Intl,Date,CustomEvent:class{constructor(type,init){this.type=type;this.detail=init?.detail;}},console,setTimeout,clearTimeout};
  vm.createContext(ctx);for(const f of ['demo-auth-bridge.js','casey-dates.js','app-auth-shell.js','app-connected.js','demo-script.js','demo-phone.js'])vm.runInContext(read(f),ctx);
- return {window,calls,renders,handled,entered,urls,storage,local,elements,original,last:()=>renders.at(-1)||[],script:window.CaseyDemoScript};
+ return {window,calls,renders,handled,entered,urls,storage,local,elements,original,login:(v={access_token:'owner',user_id:'u1'})=>{auth=v;storage.set('casey-beta-auth-v1',JSON.stringify(v));window.dispatchEvent(new ctx.CustomEvent('casey:profile'));},last:()=>renders.at(-1)||[],script:window.CaseyDemoScript};
 }
 const step=(s,id)=>s.steps.find(x=>x.id===id);
 const P={display_name:'Pietro Bianchi',first_name:'Pietro'};
@@ -33,7 +33,18 @@ const card=e=>e.elements.get('nativeOperation');
 const buttons=e=>(card(e)?.children||[]).filter(c=>c.tag==='button');
 const stageLines=s=>step(s,'stage').phone;
 const opened=async opts=>{const e=setup({profile:P,...opts});await e.window.CaseyNativeHandoff.open();await flush();return e;};
-test('demo without auth never opens the sign-in sheet and shows the demo status',async()=>{const e=setup({signed:false});await e.window.CaseyStudentAccess.open();e.window.__casey.ACT.account();e.window.__casey.ACT['private-chat']();assert.ok(!e.calls.some(c=>['login-dialog','act-account','act-private'].includes(c.action)));assert.equal(e.elements.get('nativePrivateStatus').textContent,'Sessione demo non attiva');});
+test('demo without auth: QR scan opens the real login sheet; after login the claim runs and the session is saved',async()=>{
+ const e=setup({signed:false,profile:P});await e.window.CaseyNativeHandoff.open();await flush();
+ assert.ok(e.calls.some(c=>c.action==='scan'));assert.ok(e.calls.some(c=>c.action==='login-dialog'),'original CaseyStudentAccess.open called');
+ assert.equal(e.storage.get('casey-native-open-pending'),'1');assert.equal(e.entered.length,0);assert.ok(!e.calls.some(c=>c.action==='claim'));
+ assert.notEqual(e.elements.get('nativePrivateStatus')?.textContent,'Sessione demo non attiva');
+ e.login();e.window.openSheet();await flush();
+ assert.equal(e.calls.filter(c=>c.action==='claim').length,1);assert.deepEqual(e.entered.map(d=>d.source),['claim']);
+ assert.ok(e.last().includes('Ciao Pietro! '+stageLines(e.script).intro));
+ assert.equal(e.local.get('casey-demo-auth-v1'),JSON.stringify({access_token:'owner',user_id:'u1'}),'first save after a QR login');
+});
+test('demo without auth: account and private-chat entries reach the sign-in',()=>{const e=setup({signed:false,pending:false});e.window.__casey.ACT.account();e.window.__casey.ACT['private-chat']();e.window.CaseyStudentAccess.open();assert.ok(e.calls.some(c=>c.action==='act-account'));assert.ok(e.calls.some(c=>c.action==='act-private'));assert.ok(e.calls.some(c=>c.action==='login-dialog'));});
+test('demo without a QR: login does not create the persistent copy',()=>{const e=setup({signed:false,pending:false});e.login();assert.equal(e.local.size,0);});
 test('demo with ?setup=1 keeps the original sign-in',async()=>{const e=setup({signed:false,search:'?casey=1&demo=1&setup=1'});e.window.CaseyStudentAccess.open();e.window.__casey.ACT.account();assert.ok(e.calls.some(c=>c.action==='login-dialog'));assert.ok(e.calls.some(c=>c.action==='act-account'));});
 test('stage: greeting, summary and question, then a native button; no service_case before the tap',async()=>{
  const e=await opened();const p=stageLines(e.script);
