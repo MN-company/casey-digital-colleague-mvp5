@@ -43,3 +43,4 @@ body.calendar-only #cal{grid-template-rows:20px repeat(var(--calendar-weeks,5),m
 body:not(.calendar-only):not(.show) .grid{align-items:start}
 body:not(.calendar-only):not(.show) .panel{height:660px;min-height:0}
 .panel .view{min-height:0}
+body.calendar-only .top .seg.calendar-view-switch{display:flex;flex:none}
