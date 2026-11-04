@@ -40,23 +40,30 @@ if(N())N().answerOverride=async()=>({answer:fallback()});
 // sessionStorage and a new campus-cases session token, so neither the per-tab key nor the server's session_id
 // dedupe can see another tab's work; a line already in the server context is never appended or acted on again.
 const has=(ctx,t)=>(ctx||[]).some(x=>x?.role==='assistant'&&x.text===t);
-async function name(){let p=null;try{p=await window.CaseyAccount?.profile();}catch{}return String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0]||'';}
+async function profile(){try{return await window.CaseyAccount?.profile();}catch{return null;}}
+const firstName=p=>String(p?.first_name||p?.display_name||'').trim().split(/\s+/)[0]||'';
+// Full name for the stage card/query; S.stageRows falls back to «Studente College».
+const fullName=p=>{const f=String(p?.first_name||'').trim(),l=String(p?.last_name||'').trim();return f&&l?f+' '+l:String(p?.display_name||f).trim();};
 // First line: «Ciao <nome>! <intro>», or the intro alone without a name. Any greeting variant already in the context counts.
-async function opening(ctx,intro){const n=await name(),l=S.phoneGreeting(n,intro);if(!l||has(ctx,l)||(ctx||[]).some(x=>x?.role==='assistant'&&intro&&String(x.text).endsWith(intro)))return true;return N().say(l);}
+async function opening(ctx,intro,prof){const n=firstName(prof===undefined?await profile():prof),l=S.phoneGreeting(n,intro);if(!l||has(ctx,l)||(ctx||[]).some(x=>x?.role==='assistant'&&intro&&String(x.text).endsWith(intro)))return true;return N().say(l);}
 async function sayOnce(ctx,l){return has(ctx,l)?true:N().say(l);}
 // service_case is idempotent per session (casey_service_reviews by session_id): one re-check with the same
 // campus-cases session reads the authoritative state without duplicating the request.
 const review=question=>Promise.resolve().then(()=>window.CaseyCampusCases.handle(question)).catch(()=>null);
-// Stage: summary + question, then a native card button. service_case runs ONLY on tap. The "sending" marker
+// Stage: intro + question, then the request card and a native button. service_case runs ONLY on tap. The "sending" marker
 // line is persisted through say() BEFORE service_case, so any later tab sees it and never shows the button again.
-async function stage(ctx){const i=step('stage'),p=i.phone;if(has(ctx,p.sending)||has(ctx,p.done))return;
- if(!await opening(ctx,p.intro)||!await sayOnce(ctx,p.summary)||!await sayOnce(ctx,p.ask))return;
+// The request is a structured card (textContent rows) in the native operation card, above the send button.
+async function stage(ctx){const i=step('stage'),p=i.phone;if(has(ctx,p.sending)||has(ctx,p.done))return;const prof=await profile();
+ if(!await opening(ctx,p.intro,prof)||!await sayOnce(ctx,p.ask))return;
  const c=N().operationCard?.();if(!c)return;c.setAttribute?.('aria-label','Richiesta Student Office');c.hidden=false;
+ const student=fullName(prof),rows=S.stageRows(student),query=S.stageQuery(student);
+ const sheet=document.createElement('p');sheet.className='casey-stage-request';
+ for(const [label,value] of rows){const b=document.createElement('b');b.textContent=label+': ';const v=document.createElement('span');v.textContent=value;sheet.append(b,v,document.createElement('br'));}
  const b=document.createElement('button');b.type='button';b.textContent=p.button;let used=false;
- b.onclick=async()=>{if(used)return;used=true;b.disabled=true;try{await send(i);}catch(e){status(window.CaseyErrors?.message(e)||'Operazione non disponibile. Riprova.');}finally{c.replaceChildren();c.hidden=true;}};
- c.replaceChildren(b);}
-async function send(i){const p=i.phone;if(!await N().say(p.sending))return;let r=await review(i.question);
- if(r?.review_saved!==true){await N().say(CHECKING);r=await review(i.question);}
+ b.onclick=async()=>{if(used)return;used=true;b.disabled=true;try{await send(i,query);}catch(e){status(window.CaseyErrors?.message(e)||'Operazione non disponibile. Riprova.');}finally{c.replaceChildren();c.hidden=true;}};
+ c.replaceChildren(sheet,b);}
+async function send(i,query){const p=i.phone;if(!await N().say(p.sending))return;let r=await review(query);
+ if(r?.review_saved!==true){await N().say(CHECKING);r=await review(query);}
  await N().say(r?.review_saved===true?p.done:UNCONFIRMED);}
 // Badge/career: the backend returns only the first free day without `day`, so fetch each scripted day and keep
 // only the scripted Europe/Rome times, in script order, rendered by the native slot card (prepare -> «Confermo appuntamento»).

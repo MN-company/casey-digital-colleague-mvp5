@@ -46,14 +46,31 @@ test('demo without auth: QR scan opens the real login sheet; after login the cla
 test('demo without auth: account and private-chat entries reach the sign-in',()=>{const e=setup({signed:false,pending:false});e.window.__casey.ACT.account();e.window.__casey.ACT['private-chat']();e.window.CaseyStudentAccess.open();assert.ok(e.calls.some(c=>c.action==='act-account'));assert.ok(e.calls.some(c=>c.action==='act-private'));assert.ok(e.calls.some(c=>c.action==='login-dialog'));});
 test('demo without a QR: login does not create the persistent copy',()=>{const e=setup({signed:false,pending:false});e.login();assert.equal(e.local.size,0);});
 test('demo with ?setup=1 keeps the original sign-in',async()=>{const e=setup({signed:false,search:'?casey=1&demo=1&setup=1'});e.window.CaseyStudentAccess.open();e.window.__casey.ACT.account();assert.ok(e.calls.some(c=>c.action==='login-dialog'));assert.ok(e.calls.some(c=>c.action==='act-account'));});
-test('stage: greeting, summary and question, then a native button; no service_case before the tap',async()=>{
+const sheetRows=e=>{const sh=(card(e)?.children||[]).find(c=>c.className==='casey-stage-request');if(!sh)return null;const out=[];for(let i=0;i<sh.children.length;i+=3)out.push([sh.children[i].textContent,sh.children[i+1].textContent]);return out;};
+test('stage: greeting and question, structured request card, then a native button; no service_case before the tap',async()=>{
  const e=await opened();const p=stageLines(e.script);
- assert.deepEqual(e.last().slice(-3),['Ciao Pietro! Ho preparato la tua richiesta di stage part-time:','Stage part-time · durante i corsi · 20 ore/settimana · Azienda Demo Srl','La invio allo Student Office per la revisione?']);
- assert.equal(e.handled.length,0,'nothing sent before the tap');const [b]=buttons(e);assert.equal(b.textContent,p.button);assert.equal(buttons(e).length,1);
+ assert.deepEqual(e.last().slice(-2),['Ciao Pietro! Ho preparato la tua richiesta di stage part-time:','La invio allo Student Office per la revisione?']);
+ assert.deepEqual(sheetRows(e),[['Studente: ','Pietro Bianchi'],['Corso: ','AI & Data Science (anno 2)'],['Azienda: ','Azienda Demo Srl (nome di fantasia)'],['Ruolo: ','Data Analyst Intern'],['Impegno: ','part-time · 20 ore/settimana'],['Periodo: ','gennaio – giugno 2027'],['Sede: ','ibrida · Treviso'],['Lezioni da conciliare: ','lunedì–mercoledì mattina'],['Richiesta allo staff: ','verificare la compatibilità dello stage con la frequenza dei corsi'],['Allegati: ','nessuno (il contratto va inviato allo staff)']]);
+ assert.equal(e.calls.filter(c=>c.action==='account_profile').length,1,'profile read once');
+ assert.equal(e.handled.length,0,'nothing sent before the tap');const [b]=buttons(e);assert.equal(b.textContent,p.button);assert.equal(buttons(e).length,1);assert.equal(card(e).children.at(-1),b,'button below the card');
+});
+test('stage card: first+last name preferred, fallback «Studente College», values via textContent only',async()=>{
+ const full=await opened({profile:{first_name:'Anna',last_name:'Verdi',display_name:'Annie'}});assert.equal(sheetRows(full)[0][1],'Anna Verdi');
+ const none=await opened({profile:null});assert.equal(sheetRows(none)[0][1],'Studente College');
+ const evil=await opened({profile:{display_name:'<img src=x onerror=1>'}});assert.equal(sheetRows(evil)[0][1],'<img src=x onerror=1>');
+});
+test('stage query: scripted question first, all details, ≤950 chars, classified as internship by the server',async()=>{
+ const {campusCase}=await import('../supabase/functions/_shared/campus-cases.ts').catch(()=>({}));
+ const e=await opened();await buttons(e)[0].onclick();await flush();const [q]=e.handled,st=step(e.script,'stage');
+ assert.ok(q.startsWith(st.question+'\nDettagli richiesta:\n- Studente: Pietro Bianchi\n'));assert.ok(q.length<=950&&q.length<=e.script.STAGE_MAX);
+ for(const [l,v] of e.script.stageRows('Pietro Bianchi'))assert.ok(q.includes('\n- '+l+': '+v),l);
+ const norm=q.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();assert.ok(/internship|tirocinio|\bstage\b/.test(norm)&&/part[\s-]?time/.test(norm),'server classifier regex');
+ if(campusCase)assert.equal(campusCase(q),'internship_contract');
+ const long=e.script.stageQuery('X'.repeat(5000));assert.ok(long.length<=950);assert.ok(long.startsWith(st.question+'\nDettagli richiesta:'));
 });
 test('stage tap: disabled while sending, marker persisted before service_case, «in coda» only on review_saved===true',async()=>{
  const e=await opened();const p=stageLines(e.script),[b]=buttons(e);const run=b.onclick();assert.equal(b.disabled,true);const again=b.onclick();await run;await again;await flush();
- assert.deepEqual(e.handled,[step(e.script,'stage').question],'single service_case call');assert.deepEqual(e.last().slice(-2),[p.sending,p.done]);
+ assert.deepEqual(e.handled,[e.script.stageQuery('Pietro Bianchi')],'single service_case call');assert.deepEqual(e.last().slice(-2),[p.sending,p.done]);
  const saveMarker=e.calls.findIndex(c=>c.action==='save'&&c.args.context.some(t=>t.text===p.sending)),review=e.calls.findIndex(c=>c.action==='service_case');assert.ok(saveMarker>=0&&review>saveMarker);
  assert.equal(buttons(e).length,0,'button gone after use');
 });
@@ -65,8 +82,8 @@ test('stage failure: one idempotent re-check, then success or the neutral line',
 test('stage greeting without a profile name drops the name',async()=>{const e=await opened({profile:null});assert.ok(e.last().includes('Ho preparato la tua richiesta di stage part-time:'));assert.ok(!e.last().some(t=>/^Ciao /.test(t)));});
 test('stage server-context dedupe: marker or success line hides the button; partial lines are not repeated',async()=>{
  const probe=setup({pending:false}),p=stageLines(probe.script),hi='Ciao Pietro! '+p.intro;
- for(const texts of [[hi,p.summary,p.ask,p.sending],[p.sending,p.done],[p.done]]){const e=await opened({context:ctxOf(...texts)});assert.equal(buttons(e).length,0,JSON.stringify(texts));assert.equal(e.handled.length,0);for(const t of [hi,p.summary,p.ask,p.sending,p.done])assert.ok(e.last().filter(x=>x===t).length<=1,t);}
- const e=await opened({context:ctxOf(hi,p.summary)});assert.equal(e.last().filter(x=>x===hi).length,1);assert.equal(e.last().filter(x=>x===p.summary).length,1);assert.equal(e.last().at(-1),p.ask);assert.equal(buttons(e).length,1,'no marker yet: button shown again');
+ for(const texts of [[hi,p.ask,p.sending],[p.sending,p.done],[p.done]]){const e=await opened({context:ctxOf(...texts)});assert.equal(buttons(e).length,0,JSON.stringify(texts));assert.equal(e.handled.length,0);for(const t of [hi,p.ask,p.sending,p.done])assert.ok(e.last().filter(x=>x===t).length<=1,t);}
+ const e=await opened({context:ctxOf(hi)});assert.equal(e.last().filter(x=>x===hi).length,1);assert.equal(e.last().at(-1),p.ask);assert.equal(buttons(e).length,1,'no marker yet: button shown again');
 });
 test('second load of the same chat (same tab) does not replay the intent',async()=>{const first=await opened();const kept=[...first.storage].filter(([k])=>k.startsWith('casey-demo-'));const again=await opened({storage:kept});assert.equal(again.handled.length,0);assert.ok(!again.last().includes(stageLines(again.script).ask));});
 test('badge: only the scripted days/times are fetched and shown, in script order, after the greeting',async()=>{
