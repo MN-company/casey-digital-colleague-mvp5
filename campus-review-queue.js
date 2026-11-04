@@ -1,9 +1,9 @@
 /* Public totem receives only its own saved result; full queue access requires staff auth. */
 (()=>{'use strict';const escape=s=>String(s||'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const records=new Map(),drafts=new Map(),notes=new Map(),busy=new Set();
-// ?demo=1: show only reviews created after this page loaded (5 s tolerance for clock skew), newest first.
-const DEMO=new URLSearchParams((window.location&&window.location.search)||'').get('demo')==='1',LOADED=Date.now(),SKEW=5000;
-const fresh=r=>{if(!DEMO)return true;const t=Date.parse(r?.created_at||'');return Number.isFinite(t)&&t>=LOADED-SKEW;};
+// ?demo=1: show only non-closed reviews created within 20 min before page load, newest first.
+const DEMO=new URLSearchParams((window.location&&window.location.search)||'').get('demo')==='1',LOADED=Date.now(),WINDOW=20*60000;
+const fresh=r=>{if(!DEMO)return true;if(r?.status==='closed')return false;const t=new Date(r?.created_at||'').getTime();return Number.isFinite(t)&&t>=LOADED-WINDOW;};
 const staffToken=()=>sessionStorage.getItem('casey-v3-admin');
 function upsert(r,{force=false}={}){if(!r?.id||(!force&&!fresh(r)))return;records.set(r.id,r);const t={status:r.status==='open'?'PENDING':'IN_REVIEW',id:r.id,real:true,q:r.subject,question:r.question||'',reviewStatus:r.status,created_at:r.created_at,staff_reply:r.staff_reply||''};const i=queue.findIndex(x=>x.id===t.id);if(i>=0)queue[i]=t;else queue.unshift(t);
  const real=queue.filter(x=>x.real).sort((a,b)=>(Date.parse(b.created_at||'')||0)-(Date.parse(a.created_at||'')||0));queue.splice(0,queue.length,...real,...queue.filter(x=>!x.real));renderQueue();renderTabs();}

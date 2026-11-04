@@ -38,13 +38,14 @@ const flush=async(n=10)=>{for(let i=0;i<n;i++)await new Promise(r=>setImmediate(
 const ID='abcdef12-0000-0000-0000-000000000001',ID2='abcdef12-0000-0000-0000-000000000002';
 const STAGE="Casey, stage part-time?\nDettagli richiesta:\n- Studente: Pietro Bianchi\n- Email: pietro@example.com\n- Impegno: part-time · 20 ore/settimana\n- Ruolo: Data Analyst Intern\n- Azienda: Nordest Analytics Srl\n- Periodo: gennaio – giugno 2027\n- Lezioni da conciliare: lunedì–mercoledì mattina";
 const iso=ms=>new Date(ms).toISOString(),NOW=Date.parse('2026-11-04T10:00:00Z');
-test('?demo=1: only reviews created after page load (5 s skew) are shown, newest first; outside demo unchanged',async()=>{
- const rows=[{id:'old',subject:'old',status:'open',created_at:iso(NOW-60000)},{id:'a',subject:'a',status:'open',created_at:iso(NOW-4000)},{id:'b',subject:'b',status:'open',created_at:iso(NOW+30000)},{id:'nodate',subject:'n',status:'open'}];
+test('?demo=1: non-closed reviews created within 20 min before load are shown, newest first; outside demo unchanged',async()=>{
+ const rows=[{id:'old',subject:'old',status:'open',created_at:iso(NOW-30*60000)},{id:'a',subject:'a',status:'open',created_at:iso(NOW-10*60000)},{id:'b',subject:'b',status:'in_review',created_at:iso(NOW+30000)},{id:'shut',subject:'x',status:'closed',created_at:iso(NOW-60000)},{id:'nodate',subject:'n',status:'open'}];
  const demo=reviewQueue({admin:'t',search:'?demo=1',now:NOW,reply:()=>({status:200,body:{reviews:rows}})});demo.ctx.queue.push({id:'SO-2026-1042'});await demo.win.DOMContentLoaded();await flush();
- assert.deepEqual(demo.ctx.queue.map(t=>t.id),['b','a','SO-2026-1042']);assert.equal(demo.calls[0].body.include_test,true);
+ assert.deepEqual(demo.ctx.queue.map(t=>t.id),['b','a','SO-2026-1042'],'10 min shown; 30 min, closed, undated hidden');assert.equal(demo.calls[0].body.include_test,true);
  demo.win['casey:review-created']({detail:{id:'c',subject:'c',status:'open',created_at:iso(NOW+60000)}});assert.equal(demo.ctx.queue[0].id,'c','new ticket on top');
+ demo.win['casey:review-created']({detail:{id:'e',subject:'e',status:'closed',created_at:iso(NOW-60*60000)}});assert.ok(demo.ctx.queue.some(t=>t.id==='e'),'event always shown');
  const plain=reviewQueue({admin:'t',now:NOW,reply:()=>({status:200,body:{reviews:rows}})});await plain.win.DOMContentLoaded();await flush();
- assert.equal(plain.ctx.queue.length,4);assert.equal(plain.calls[0].body.include_test,undefined);
+ assert.equal(plain.ctx.queue.length,5);assert.equal(plain.calls[0].body.include_test,undefined);
 });
 test('draft template is built from the ticket lines and degrades gracefully',()=>{const w=reviewQueue();
  assert.equal(w.campusReviewDraft(STAGE),'Buongiorno Pietro,\n\nabbiamo ricevuto la tua richiesta per lo stage part-time (part-time · 20 ore/settimana) come Data Analyst Intern presso Nordest Analytics Srl, nel periodo gennaio – giugno 2027. Verificheremo la compatibilità con le lezioni (lunedì–mercoledì mattina) e ti risponderemo a breve. Per completare la valutazione inviaci la bozza del contratto.\n\nStudent Office');
