@@ -17,7 +17,7 @@ const access=window.CaseyStudentAccess;
 if(access)window.CaseyStudentAccess=Object.freeze({...access,async voice(){status(VOICE_OFF);}});
 if(app?.ACT?.mic)app.ACT.mic=()=>status('Nella demo scrivi qui sotto: la voce è disattivata.');
 const style=document.createElement('style');style.textContent='.casey-demo-locked [data-act="account"],.casey-demo-locked [data-act="private-chat"]{display:none!important}';document.head?.append(style);
-const paint=()=>document.documentElement?.classList.toggle('casey-demo-locked',!setup&&signedIn());paint();for(const n of ['casey:account-change','casey:profile'])window.addEventListener(n,paint);
+const paint=()=>document.documentElement?.classList.toggle('casey-demo-locked',!setup&&signedIn());paint();for(const n of ['casey:account-change','casey:profile','casey:demo-auth'])window.addEventListener(n,paint);window.CaseyDemoAuth?.ready?.then(paint);
 // Setup mode: show that the session is saved for later QR tabs (demo-auth-bridge.js) and allow leaving the demo.
 function setupPanel(){
  if(!setup)return;let panel=document.getElementById('caseyDemoSetup');

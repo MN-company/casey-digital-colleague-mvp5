@@ -38,5 +38,23 @@ document.addEventListener('visibilitychange',sync);
 // Rotation inside handoff-client/beta-client emits no event: a local 1 s check (no network) catches it.
 if(typeof setInterval==='function')setInterval(sync,1000);
 sync();
-window.CaseyDemoAuth=Object.freeze({sync,clear,saved:()=>!!get(localStorage,COPY)});
+// Expired copy: Supabase access tokens last ~1 h, so a QR tab opened later would look signed out. `ready` refreshes it
+// once (via CaseyBeta.refresh after DOMContentLoaded, else the same request beta-client makes), mirrors the rotated token
+// through sync() (same-user rules) and resolves within 8 s regardless. A rejected refresh token clears the copy; a
+// network error keeps it (the session may still be valid). Callers await it before deciding to show sign-in.
+async function renew(){
+ const a=parse(get(sessionStorage,AUTH));if(!a?.refresh_token||!(a.expires_at<=Date.now()+60000))return;
+ try{
+  if(window.CaseyBeta?.refresh)await window.CaseyBeta.refresh();
+  else{const C=window.CASEY_CONFIG||{};const r=await fetch(C.supabaseUrl+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:C.publishableKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:a.refresh_token})});
+   const d=await r.json().catch(()=>({}));
+   if(!r.ok||!d.access_token||!d.refresh_token){sessionStorage.removeItem(AUTH);window.dispatchEvent?.(new CustomEvent('casey:account-change',{detail:{signedOut:true}}));}
+   else sessionStorage.setItem(AUTH,JSON.stringify({access_token:d.access_token,refresh_token:d.refresh_token,expires_at:Date.now()+d.expires_in*1000,email:d.user?.email||'',user_id:d.user?.id||''}));}
+ }catch{}
+ if(!get(sessionStorage,AUTH)){clear();return;}
+ sync();
+}
+const loaded=()=>new Promise(r=>{if(document.readyState!=='loading')return r();document.addEventListener('DOMContentLoaded',()=>r(),{once:true});});
+let timer;const ready=Promise.race([loaded().then(renew).catch(()=>{}),new Promise(r=>{if(typeof setTimeout==='function')timer=setTimeout(r,8000);})]).then(()=>{if(timer)clearTimeout(timer);emit();});
+window.CaseyDemoAuth=Object.freeze({sync,clear,ready,saved:()=>!!get(localStorage,COPY)});
 })();
