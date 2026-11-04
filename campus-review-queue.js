@@ -42,4 +42,11 @@ document.addEventListener('click',e=>{const b=e.target.closest?.('[data-campus-r
  b.disabled=true;void act(id,d.campusReview?'take':d.reviewSave?'save':'send');});
 const loadScenario=window.loadScenario;window.loadScenario=function(){loadScenario();for(const row of records.values())upsert(row,{force:true});};
 window.addEventListener('focus',()=>void refresh());window.addEventListener('DOMContentLoaded',()=>void refresh());
-window.__caseyReviewQueue={upsert,refresh,act,drafts,notes,busy,records};})();
+// Phone claimed QR / demo step: poll every 4 s for up to 120 s until a new review id appears; one burst at a time.
+const BURST_MS=4000,BURST_MAX=120000;let burst=null;
+function stopBurst(){if(burst){clearInterval(burst.timer);burst=null;}}
+function startBurst(){stopBurst();if(!staffToken())return;const known=new Set(records.keys()),b={timer:0,ticks:0};burst=b;
+ const check=()=>{if(burst===b&&[...records.keys()].some(k=>!known.has(k)))stopBurst();};
+ b.timer=setInterval(()=>{if(burst!==b)return;if(++b.ticks*BURST_MS>=BURST_MAX)stopBurst();void refresh().then(check);},BURST_MS);void refresh().then(check);}
+window.addEventListener('casey:handoff-consumed',startBurst);window.addEventListener('casey:demo-step',startBurst);
+window.__caseyReviewQueue={upsert,refresh,act,drafts,notes,busy,records,startBurst,stopBurst};})();

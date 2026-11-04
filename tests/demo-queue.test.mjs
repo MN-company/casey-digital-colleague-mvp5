@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';import fs f
 const read=f=>fs.readFileSync(new URL('../'+f,import.meta.url),'utf8');
 function reviewQueue({admin=null,search='',now=Date.now(),reply=()=>({status:200,body:{}})}={}){const win={},doc={},calls=[];
  const ctx={window:{location:{search},addEventListener:(n,f)=>{win[n]=f;}},sessionStorage:{getItem:k=>k==='casey-v3-admin'?admin:null},document:{addEventListener:(n,f)=>{doc[n]=f;}},queue:[],renders:0,renderTabs(){},loadScenario(){},Intl,URLSearchParams,AbortSignal,
-  Date:class extends Date{static now(){return now;}},CASEY_CONFIG:{settingsApiUrl:'https://api.invalid/s'},
+  Date:class extends Date{static now(){return now;}},timers:new Map(),setInterval(f,ms){const id=ctx.timers.size+1+Math.random();ctx.timers.set(id,{f,ms});return id;},clearInterval(id){ctx.timers.delete(id);},CASEY_CONFIG:{settingsApiUrl:'https://api.invalid/s'},
   fetch:async(_u,init)=>{const body=JSON.parse(init.body);calls.push({body,token:init.headers['x-admin-token']});const r=reply(body);return{ok:r.status<400,status:r.status,json:async()=>r.body};}};
  ctx.renderQueue=()=>{ctx.renders++;};ctx.window.loadScenario=ctx.loadScenario;vm.createContext(ctx);vm.runInContext(read('campus-review-queue.js'),ctx);Object.assign(ctx.window,{win,doc,calls,ctx});return ctx.window;}
 const Q="Casey, un'azienda mi ha proposto uno stage part-time. Posso farlo?\nDettagli richiesta:\n- Studente: Pietro <b>Bianchi</b>\n- Impegno: part-time · 20 ore/settimana\n- Allegati: nessuno";
@@ -84,6 +84,17 @@ test('fixtures: realistic unique practice numbers, every one with a draft, no de
  for(const S of ['COLLEGE','CAMPUS']){const {ctx,box}=workspace(S);for(const t of ctx.queue){assert.match(t.id,/^(SO|CS)-2026-\d{4}$/);assert.ok(t.draft.trim().length>40,t.id);}
   const visible=JSON.stringify([ctx.queue.map(({id,who,to,q,rule,lvlTxt,draft,details})=>({id,who,to,q,rule,lvlTxt,draft,details})),ctx.mailOffice.map(({from,to,subj,body})=>({from,to,subj,body})),ctx.mailPerson.map(({from,to,subj,body})=>({from,to,subj,body})),ctx.feed.map(({so,q,out})=>({so,q,out}))]);
   assert.doesNotMatch(visible,/demo|dimostrativ|fixture/i,S);ctx.window.renderQueue();ctx.window.renderMail();ctx.window.renderFeed();assert.doesNotMatch(box.children.map(n=>n.textContent).join(' '),/demo|dimostrativ|fixture/i);}
+});
+test('casey:handoff-consumed: bounded refresh burst every 4 s, stops on new id or after 120 s, single timer',async()=>{
+ const tick=async w=>{for(const t of [...w.ctx.timers.values()]){assert.equal(t.ms,4000);t.f();}await flush();};
+ let rows=[];const w=reviewQueue({admin:'t',now:NOW,reply:()=>({status:200,body:{reviews:rows}})});
+ w.win['casey:handoff-consumed']({});await flush();assert.equal(w.calls.length,1,'immediate refresh');assert.equal(w.ctx.timers.size,1);
+ w.win['casey:demo-step']({});await flush();assert.equal(w.ctx.timers.size,1,'restart never leaves two timers');assert.equal(w.calls.length,2);
+ await tick(w);await tick(w);assert.equal(w.calls.length,4);assert.equal(w.ctx.timers.size,1);
+ rows=[{id:ID,subject:'s',status:'open',created_at:iso(NOW)}];await tick(w);assert.equal(w.calls.length,5);assert.equal(w.ctx.timers.size,0,'stops on new id');assert.equal(w.ctx.queue[0].id,ID);
+ rows=[];w.win['casey:handoff-consumed']({});await flush();for(let i=0;i<40;i++)await tick(w);
+ assert.equal(w.calls.length,5+1+30,'30 ticks = 120 s max');assert.equal(w.ctx.timers.size,0);
+ const anon=reviewQueue();anon.win['casey:handoff-consumed']({});await flush();assert.equal(anon.calls.length,0);assert.equal(anon.ctx.timers.size,0);
 });
 test('fixture approval stays local: toast says draft saved, never sent; no student mail entry',()=>{const {ctx}=workspace('COLLEGE');const toasts=[];ctx.toast=(a,b)=>toasts.push([a,b]);
  ctx.approve=i=>{ctx.mailPerson.unshift({demo:true,subj:'Bozza approvata — pratica '+ctx.queue[i].id});ctx.toast('Bozza approvata','Salvata nella demo.');};vm.runInContext(read('demo-workspace.js'),ctx);
