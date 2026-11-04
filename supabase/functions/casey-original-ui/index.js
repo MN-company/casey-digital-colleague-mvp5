@@ -140,6 +140,8 @@ async function saveEmail(book,recipient){
 }
 function base64Mime(text){const data=encoder.encode(text);let result='';for(const x of data)result+=String.fromCharCode(x);return btoa(result);}
 function mimeWord(text){return '=?UTF-8?B?'+base64Mime(text)+'?=';}
+// Recipient comes ONLY from the stored ticket's '- Email:' line; never from the request.
+function reviewRecipient(question){const m=/^- Email:\s*(\S+@\S+)\s*$/m.exec(String(question||''));if(!m)return null;const email=m[1].toLowerCase();return /^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)+$/.test(email)&&email.length<=254?email:null;}
 async function sendEmail(book,c,token,event){
  const rows=await db('dc_v3_mail_outbox?'+qs({select:'booking_id,recipient,status,attempts,gmail_message_id',booking_id:'eq.'+book.id}));
  const row=rows[0];if(!row)return 'not_queued';if(row.status==='sent')return 'sent';if(row.status==='sending'||row.status==='uncertain')return row.status;
@@ -498,7 +500,21 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
      if(!ready()||!scoped(c))return json({connected:false,events:[],reason:'Connetti lo Student Office Google nelle Impostazioni.'},200,origin);
      const token=await accessToken(c);return json({connected:true,google_email:c.google_email,events:await googleCalendarEvents(c.calendar_id,token,month.begin,month.end)},200,origin);
    }
-   if(b.action==='admin_service_reviews'){const rows=await db('casey_service_reviews?'+qs({select:'id,kind,subject,question,status,staff_reply,created_at',is_test:'eq.false',order:'created_at.desc',limit:'100'}));return json({reviews:rows},200,origin);}
+   if(b.action==='admin_service_reviews'){const filter={select:'id,kind,subject,question,status,staff_reply,reviewed_by,created_at,updated_at',order:'created_at.desc',limit:'100'};if(b.include_test!==true)filter.is_test='eq.false';const rows=await db('casey_service_reviews?'+qs(filter));return json({reviews:rows},200,origin);}
+   if(b.action==='admin_service_review_delete'){if(!UUID.test(b.id||''))return json({error:'ID non valido'},400,origin);await takeRate('admin-review-delete:'+admin.google_email,60);
+    const rows=await db('casey_service_reviews?'+qs({id:'eq.'+b.id}),undefined,'DELETE');
+    await db('dc_v4_admin_audit',{staff_email:admin.google_email,action:'service_review_delete',target_id:b.id},'POST');
+    return json({deleted:rows.length>0},200,origin);}
+   if(b.action==='admin_service_review_send'){if(!UUID.test(b.id||'')||typeof b.staff_reply!=='string'||!b.staff_reply.trim()||b.staff_reply.length>3000)return json({error:'Risposta non valida'},400,origin);await takeRate('admin-review-send:'+admin.google_email,20);
+    const review=(await db('casey_service_reviews?'+qs({select:'id,subject,question',id:'eq.'+b.id,limit:'1'})))[0];if(!review)return json({error:'Richiesta non trovata'},404,origin);
+    const recipient=reviewRecipient(review.question);if(!recipient)return json({error:'La richiesta non contiene un indirizzo email dello studente.'},422,origin);
+    const c=await connection();if(!ready()||!scoped(c)||!c.granted_scopes?.includes(NEEDED[2]))return json({error:'Google Calendar e Gmail non sono autorizzati. Apri Impostazioni.'},503,origin);
+    const token=await accessToken(c);
+    const raw=['From: '+c.google_email,'To: '+recipient,'Subject: '+mimeWord('Re: '+String(review.subject||'Richiesta Student Office').replace(/[\r\n]+/g,' ')),'MIME-Version: 1.0','Content-Type: text/plain; charset=UTF-8','Content-Transfer-Encoding: base64','',''+base64Mime(b.staff_reply)].join('\r\n');
+    let sent;try{sent=await google('https://gmail.googleapis.com/gmail/v1/users/me/messages/send',token,'POST',{raw:b64(encoder.encode(raw))});if(!sent?.id)throw new Error('missing id');}catch(_e){return json({error:'Invio email tramite Gmail non riuscito: la richiesta non è stata modificata. Riprova o verifica il collegamento Google.'},502,origin);}
+    await db('casey_service_reviews?'+qs({id:'eq.'+b.id}),{staff_reply:b.staff_reply,status:'resolved',reviewed_by:admin.google_email,updated_at:new Date().toISOString()},'PATCH');
+    await db('dc_v4_admin_audit',{staff_email:admin.google_email,action:'service_review_send',target_id:b.id},'POST');
+    return json({sent:true,gmail_message_id:sent.id,recipient},200,origin);}
    if(b.action==='admin_service_review_update'){if(!UUID.test(b.id||'')||!['in_review','resolved','closed'].includes(b.status)||typeof b.staff_reply!=='string'||b.staff_reply.length>3000)return json({error:'Aggiornamento non valido'},400,origin);const rows=await db('casey_service_reviews?'+qs({id:'eq.'+b.id}),{status:b.status,staff_reply:b.staff_reply,reviewed_by:admin.google_email,updated_at:new Date().toISOString()},'PATCH');return json({saved:rows.length>0},200,origin);}
    if(b.action==='admin_requests')return json(await officeRequests(),200,origin);
    if(b.action==='admin_request_update'){
