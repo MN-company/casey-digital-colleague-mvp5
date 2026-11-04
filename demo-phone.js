@@ -56,7 +56,7 @@ const review=question=>Promise.resolve().then(()=>window.CaseyCampusCases.handle
 async function stage(ctx){const i=step('stage'),p=i.phone;if(has(ctx,p.sending)||has(ctx,p.done))return;const prof=await profile();
  if(!await opening(ctx,p.intro,prof)||!await sayOnce(ctx,p.ask))return;
  const c=N().operationCard?.();if(!c)return;c.setAttribute?.('aria-label','Richiesta Student Office');c.hidden=false;
- const student=fullName(prof),rows=S.stageRows(student),query=S.stageQuery(student);
+ const student=fullName(prof),rows=S.stageRows(student,prof?.email),query=S.stageQuery(student,prof?.email);
  const sheet=document.createElement('p');sheet.className='casey-stage-request';
  for(const [label,value] of rows){const b=document.createElement('b');b.textContent=label+': ';const v=document.createElement('span');v.textContent=value;sheet.append(b,v,document.createElement('br'));}
  const b=document.createElement('button');b.type='button';b.textContent=p.button;let used=false;

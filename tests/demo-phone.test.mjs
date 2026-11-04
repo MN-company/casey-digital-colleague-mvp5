@@ -50,7 +50,7 @@ const sheetRows=e=>{const sh=(card(e)?.children||[]).find(c=>c.className==='case
 test('stage: greeting and question, structured request card, then a native button; no service_case before the tap',async()=>{
  const e=await opened();const p=stageLines(e.script);
  assert.deepEqual(e.last().slice(-2),['Ciao Pietro! Ho preparato la tua richiesta di stage part-time:','La invio allo Student Office per la revisione?']);
- assert.deepEqual(sheetRows(e),[['Studente: ','Pietro Bianchi'],['Corso: ','AI & Data Science (anno 2)'],['Azienda: ','Azienda Demo Srl (nome di fantasia)'],['Ruolo: ','Data Analyst Intern'],['Impegno: ','part-time · 20 ore/settimana'],['Periodo: ','gennaio – giugno 2027'],['Sede: ','ibrida · Treviso'],['Lezioni da conciliare: ','lunedì–mercoledì mattina'],['Richiesta allo staff: ','verificare la compatibilità dello stage con la frequenza dei corsi'],['Allegati: ','nessuno (il contratto va inviato allo staff)']]);
+ assert.deepEqual(sheetRows(e),[['Studente: ','Pietro Bianchi'],['Corso: ','AI & Data Science (anno 2)'],['Azienda: ','Nordest Analytics Srl'],['Ruolo: ','Data Analyst Intern'],['Impegno: ','part-time · 20 ore/settimana'],['Periodo: ','gennaio – giugno 2027'],['Sede: ','ibrida · Treviso'],['Lezioni da conciliare: ','lunedì–mercoledì mattina'],['Richiesta allo staff: ','verificare la compatibilità dello stage con la frequenza dei corsi'],['Allegati: ','nessuno (il contratto va inviato allo staff)']]);
  assert.equal(e.calls.filter(c=>c.action==='account_profile').length,1,'profile read once');
  assert.equal(e.handled.length,0,'nothing sent before the tap');const [b]=buttons(e);assert.equal(b.textContent,p.button);assert.equal(buttons(e).length,1);assert.equal(card(e).children.at(-1),b,'button below the card');
 });

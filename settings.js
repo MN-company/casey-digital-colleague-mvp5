@@ -40,6 +40,8 @@
   for(const item of r.documents||[]){const p=document.createElement('p');p.className='sync-item';p.textContent=`${item.institution} · ${item.title} · ${item.verified?'VERIFICATO':'Bozza'} · ${item.source_url}`;box.append(p);}
   if(!(r.documents||[]).length)box.textContent='Nessuna fonte ufficiale caricata.';
  }
+ // Review list errors stay inline in the section (settings-reviews.js) and never block the console.
+ async function refreshReviews(){const box=$('reviewList');if(window.CaseyServiceReviews&&box)await window.CaseyServiceReviews.mount(box,{call}).load();}
  async function init(){let fragment=new URLSearchParams(window.location.hash.slice(1));const received=fragment.get('admin_token'),error=fragment.get('oauth_error');
   if(received){token=received;store(token);}else{try{token=window.CaseyDemoAdmin?.token()??sessionStorage.getItem(key);}catch{token=null;}}
   try{history.replaceState(null,'',window.location.pathname+window.location.search);}catch{window.location.hash='';}
@@ -53,10 +55,10 @@
   $('disconnectButton').addEventListener('click',async()=>{if(!confirm('Scollegare Google? Casey non potrà creare nuovi appuntamenti o inviare email finché non ricolleghi l’account.'))return;try{await call('admin_disconnect');banner('Account scollegato. Le prenotazioni e gli eventi già creati rimangono invariati.','good');await refresh();}catch(e){banner(e.message,'bad');}});
   if(error)banner(error,'bad');
   let notice=false; // keep the expiry/unreachable banner visible over the generic "Pronto" one
-  if(token){try{await refresh();await Promise.all([refreshRoster(),refreshDocuments()]);if(!error)banner('Accesso amministrativo attivo. Controlla lo stato delle integrazioni.','good');return;}catch(e){const rejected=token;token=null;notice=true;if(e.status===401){forget(rejected);banner('Accesso scaduto: autentica nuovamente il tuo account Google.','bad');}else{banner('Stato Student Office non raggiungibile: '+e.message+'. Ricarica la pagina per riprovare.','bad');}}}
+  if(token){try{await refresh();await Promise.all([refreshRoster(),refreshDocuments(),refreshReviews()]);if(!error)banner('Accesso amministrativo attivo. Controlla lo stato delle integrazioni.','good');return;}catch(e){const rejected=token;token=null;notice=true;if(e.status===401){forget(rejected);banner('Accesso scaduto: autentica nuovamente il tuo account Google.','bad');}else{banner('Stato Student Office non raggiungibile: '+e.message+'. Ricarica la pagina per riprovare.','bad');}}}
   signed(false);
   try{const c=await call('public_config');if(c.oauth_configured){$('connectGoogle').classList.remove('disabled-link');$('connectGoogle').removeAttribute('aria-disabled');$('connectHelp').textContent='Accesso riservato agli account staff configurati. La prima autorizzazione Google potrebbe mostrare la schermata di consenso.';if(!error&&!notice)banner('Pronto per il collegamento OAuth. Accedi con il tuo account staff.');}
-  else{banner('Google Calendar e Gmail non sono ancora collegati a questa demo.');$('connectHelp').textContent='Le impostazioni sono disponibili. Il collegamento Google richiede prima la configurazione dell’account autorizzato.';}}
+  else{banner('Google Calendar e Gmail non sono ancora collegati a Casey.');$('connectHelp').textContent='Le impostazioni sono disponibili. Il collegamento Google richiede prima la configurazione dell’account autorizzato.';}}
   catch(e){banner('Impossibile raggiungere la configurazione server: '+e.message,'bad');}
  }
  document.addEventListener('DOMContentLoaded',init);

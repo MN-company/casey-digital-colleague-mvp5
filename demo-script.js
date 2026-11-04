@@ -16,7 +16,7 @@ const steps=[
 {id:'stage',question:'Casey, un\'azienda mi ha proposto uno stage part-time, tipo venti ore a settimana. Posso farlo mentre seguo le lezioni?',
  keywords:['stage','tirocinio','internship','part-time','part time'],handoff:{intent:'internship'},
  totem:[line('caso3_stage','Complimenti, bella notizia! Si può fare, ma non decido io: uno stage durante i corsi va approvato dallo Student Office, che verifica che sia compatibile con le lezioni. Io però posso prepararti la richiesta e metterla in coda per loro. Continuiamo sul telefono: inquadra il QR.')],
- request:{corso:'AI & Data Science (anno 2)',azienda:'Azienda Demo Srl (nome di fantasia)',ruolo:'Data Analyst Intern',impegno:'part-time · 20 ore/settimana',periodo:'gennaio – giugno 2027',sede:'ibrida · Treviso',lezioni:'lunedì–mercoledì mattina',richiesta:'verificare la compatibilità dello stage con la frequenza dei corsi',allegati:'nessuno (il contratto va inviato allo staff)'},
+ request:{corso:'AI & Data Science (anno 2)',azienda:'Nordest Analytics Srl',ruolo:'Data Analyst Intern',impegno:'part-time · 20 ore/settimana',periodo:'gennaio – giugno 2027',sede:'ibrida · Treviso',lezioni:'lunedì–mercoledì mattina',richiesta:'verificare la compatibilità dello stage con la frequenza dei corsi',allegati:'nessuno (il contratto va inviato allo staff)'},
  phone:{intro:'Ho preparato la tua richiesta di stage part-time:',ask:'La invio allo Student Office per la revisione?',button:'Invia allo Student Office',sending:'Invio la richiesta allo Student Office, un attimo.',done:'Fatto! La richiesta è nella coda dello Student Office: la valuterà una persona dello staff.'}},
 {id:'career',question:'Ultima cosa, Casey: prima di accettare vorrei parlarne con qualcuno del Career Service. Quando posso prenotare un incontro?',
  keywords:['career','carrier','carriera','appuntamento','incontro','prenotare','prenotazione'],handoff:{intent:'career'},
@@ -39,14 +39,16 @@ const slotTime=iso=>{const d=new Date(iso);return Number.isNaN(d.getTime())?'':n
 function slotParts(slot){const iso=slot?.starts_at||slot?.start;if(iso){const d=new Date(iso);if(Number.isNaN(d.getTime()))return null;const p=Object.fromEntries(new Intl.DateTimeFormat('en-CA',{timeZone:'Europe/Rome',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',hourCycle:'h23'}).formatToParts(d).map(x=>[x.type,x.value]));return {date:p.year+'-'+p.month+'-'+p.day,time:p.hour+':'+p.minute};}
  const m=/^(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})/.exec(String(slot?.local_start||''));return m?{date:m[1],time:m[2]}:null;}
 // Stage request card rows (label, value); most important first, so a truncated query keeps them.
-const STAGE_LABELS=[['studente','Studente'],['richiesta','Richiesta allo staff'],['impegno','Impegno'],['lezioni','Lezioni da conciliare'],['periodo','Periodo'],['corso','Corso'],['ruolo','Ruolo'],['azienda','Azienda'],['sede','Sede'],['allegati','Allegati']];
-const CARD_ORDER=['studente','corso','azienda','ruolo','impegno','periodo','sede','lezioni','richiesta','allegati'];
+const STAGE_LABELS=[['studente','Studente'],['email','Email'],['richiesta','Richiesta allo staff'],['impegno','Impegno'],['lezioni','Lezioni da conciliare'],['periodo','Periodo'],['corso','Corso'],['ruolo','Ruolo'],['azienda','Azienda'],['sede','Sede'],['allegati','Allegati']];
+const CARD_ORDER=['studente','email','corso','azienda','ruolo','impegno','periodo','sede','lezioni','richiesta','allegati'];
 const STAGE_FALLBACK='Studente College';
-function stageRows(student){const st=steps.find(s=>s.id==='stage'),r={studente:String(student||'').trim().slice(0,80)||STAGE_FALLBACK,...st.request},label=Object.fromEntries(STAGE_LABELS);return CARD_ORDER.map(k=>[label[k],r[k]]);}
+// Email = verified server profile email (CaseyAccount.profile().email); the row is omitted when absent or malformed.
+const cleanEmail=e=>{const v=String(e||'').trim();return v.length<=120&&/^[^\s@<>]+@[^\s@<>]+\.[^\s@<>]+$/.test(v)?v:'';};
+function stageRows(student,email){const st=steps.find(s=>s.id==='stage'),r={studente:String(student||'').trim().slice(0,80)||STAGE_FALLBACK,email:cleanEmail(email),...st.request},label=Object.fromEntries(STAGE_LABELS);return CARD_ORDER.filter(k=>r[k]).map(k=>[label[k],r[k]]);}
 // Query for service_case (server limit 1000; kept ≤950): scripted question first (internship classifier), then details.
 const STAGE_MAX=950;
-function stageQuery(student){const st=steps.find(s=>s.id==='stage'),by=Object.fromEntries(stageRows(student));let q=st.question+'\nDettagli richiesta:';
- for(const [,l] of STAGE_LABELS){const add='\n- '+l+': '+by[l];if((q+add).length>STAGE_MAX)break;q+=add;}return q;}
+function stageQuery(student,email){const st=steps.find(s=>s.id==='stage'),by=Object.fromEntries(stageRows(student,email));let q=st.question+'\nDettagli richiesta:';
+ for(const [,l] of STAGE_LABELS){if(!by[l])continue;const add='\n- '+l+': '+by[l];if((q+add).length>STAGE_MAX)break;q+=add;}return q;}
 // The email sentence is claimed only when the commit result reports email_status==='sent' (dc_v3_mail_outbox).
 function careerConfirmed(iso,emailSent=false){const l=slotDay(iso);return l?'Appuntamento confermato: '+l+' con il Career Service.'+(emailSent?' Ti ho mandato la conferma via email.':'')+' E in bocca al lupo per lo stage!':'';}
 window.CaseyDemoScript=freeze({steps,fallback:line('fallback','Scusa, non ho capito bene. Puoi ripetere?'),render,score,confirms,pick,phoneGreeting,stageRows,stageQuery,STAGE_MAX,slotDay,slotTime,slotParts,careerConfirmed});

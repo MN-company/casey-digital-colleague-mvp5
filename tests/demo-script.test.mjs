@@ -27,3 +27,8 @@ test('script data is deep-frozen',()=>{const s=load(),seen=new Set();const walk=
 test('demo-mode speaks rendered text only',()=>{const src=read('demo-mode.js');assert.doesNotMatch(src,/say\(line\.text\)|append\('assistant',line\.text\)/);assert.match(src,/S\.render\(line\.text\)/);});
 test('AUDIO_SCRIPT.md is byte-identical to the generator output',()=>{assert.equal(read('demo/AUDIO_SCRIPT.md'),generate(load()));});
 test('AUDIO_SCRIPT.md lists file, ElevenLabs text (speech||text) and screen text',()=>{const s=load(),md=read('demo/AUDIO_SCRIPT.md');assert.match(md,/\| file \| testo per ElevenLabs \| testo a schermo \| note \|/);for(const l of lines(s))assert.ok(md.includes('| `'+l.audio+'` | '+(l.speech||l.text)+' | '+l.text+' |'),l.id);});
+test('stage request carries the verified profile email (high priority) and omits it when absent',()=>{const s=load();
+ const q=s.stageQuery('Pietro Bianchi','pietro@example.com');assert.ok(q.includes('\n- Studente: Pietro Bianchi\n- Email: pietro@example.com\n'));assert.ok(q.length<=950);
+ assert.ok(!s.stageQuery('Pietro Bianchi').includes('Email:'));assert.ok(!s.stageQuery('P','not an email').includes('Email:'));
+ assert.ok(s.stageQuery('X'.repeat(80),'a'.repeat(100)+'@example.com').includes('- Email: '));assert.deepEqual([...s.stageRows('P','p@x.it')[1]],['Email','p@x.it']);
+ assert.doesNotMatch(JSON.stringify(s.steps.find(x=>x.id==='stage').request),/demo|fantasia/i);});
