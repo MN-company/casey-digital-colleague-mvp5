@@ -25,14 +25,22 @@ function playLine(line,rev){
  // No `end` argument: say() would otherwise schedule an untracked idle timer. The avatar is re-asserted after say() for every line.
  const text=S.render(line.text);window.say(text);window.CaseyDialogue?.append('assistant',text);avatar('C');
  return new Promise(resolve=>{
-  let done=false,silent=false,a=null;
+  let done=false,silent=false,a=null,retried=false;
   const finish=ok=>{if(done)return;done=true;pending.delete(finish);if(audio===a)audio=null;resolve(ok&&rev===revision);};
   pending.add(finish);
-  const fallback=()=>{if(done||silent||rev!==revision)return;silent=true;if(audio===a)audio=null;avatar('C');later(Math.max(2000,text.length*55),()=>finish(true));};
+  const live=()=>!done&&!silent&&rev===revision;
+  const fallback=()=>{if(!live())return;silent=true;if(audio===a)audio=null;avatar('C');later(Math.max(2000,text.length*55),()=>finish(true));};
+  // Autoplay policy: a play() rejected for lack of a user gesture is retried once after unlocking the clips.
+  const start=()=>{if(!live())return;try{const p=a.play();p?.catch?.(e=>{if(!live())return;if(e?.name==='NotAllowedError'&&!retried){retried=true;Promise.resolve(unlockAudio(true)).then(start);}else fallback();});}catch{fallback();}};
   a=clip(line.audio);
   if(!a){fallback();return;}
   audio=a;try{a.currentTime=0;}catch{}a.onended=()=>{if(rev===revision&&!silent)finish(true);};a.onerror=fallback;
-  try{const p=a.play();p?.catch?.(fallback);}catch{fallback();}
+  // Not buffered yet: wait for canplaythrough (max 3 s) instead of dropping to silent text at once.
+  if(typeof a.readyState==='number'&&a.readyState<3){
+   let waiting=true;const go=()=>{if(!waiting)return;waiting=false;a.removeEventListener?.('canplaythrough',go);start();};
+   a.addEventListener?.('canplaythrough',go);
+   later(3000,()=>{if(!waiting)return;waiting=false;a.removeEventListener?.('canplaythrough',go);fallback();});
+  }else start();
  }).then(ok=>{if(ok)avatar('A');return ok;});
 }
 // Runs case i (or the fallback when i<0) exactly like speech. `said` is shown as the user message.
@@ -56,7 +64,7 @@ async function runCase(i,said){
   // The presenter may not scan: the sequence advances once the QR is on screen. A failed link keeps the step
   // (press the case key again to retry). A later claim only confirms it (casey:handoff-consumed).
   if(r?.status==='handoff_ready'){claimStep=i;setStep(i+1);}
- }finally{if(rev===revision){running=false;paint();if(voiceOn)later(300,listen);}}
+ }finally{if(rev===revision){running=false;micOff();}}
 }
 // Free speech/text: keyword score picks the case; tie or no hit -> the expected next case (fallback after the last).
 function advance(text){const i=step();return runCase(S.pick(text,i<S.steps.length?i:-1),text);}
@@ -89,6 +97,8 @@ function listen(){
  try{r.start();}catch{recognizer=null;r.onresult=r.onend=r.onerror=null;errors++;retry();return;}
  window.setState?.('idle','Ti ascolto','listen');
 }
+// After each reply the mic turns off: the presenter taps it again (or uses a key) for the next turn.
+function micOff(){const was=voiceOn;voiceOn=false;dropRecognizer();errors=0;paint();if(was)window.setState?.('idle','Pronto','');}
 function stop(){
  halt();voiceOn=false;window.shutUp?.();avatar('A');window.setState?.('idle','Pronto','');paint();
 }
@@ -106,7 +116,7 @@ function reset(){const active=!!window.caseyHandoffActive?.();stop();claimStep=n
 // Pre-recorded audio is Casey's only voice in demo mode: silence the browser TTS used by say().
 window.speak=(_text,done)=>{if(done)done();};
 window.send=custom=>{const input=$('q'),value=String(custom||input?.value||'').trim();if(!value)return;if(input){input.value='';input.blur?.();}return advance(value);};
-window.toggleMic=()=>{if(voiceOn||running){stop();return;}voiceOn=true;errors=0;paint();listen();};
+window.toggleMic=()=>{unlockAudio();if(voiceOn||running){stop();return;}voiceOn=true;errors=0;paint();listen();};
 window.toggleListen=()=>{if(voiceOn||running)stop();};
 // A presenter key interrupts the current case (audio, silent fallback, QR issuance) and runs the requested one; the mic mode is kept.
 function interrupt(i){if(running||handing){halt();window.shutUp?.();}claimStep=null;void runCase(i,S.steps[i]?.question||'');}
@@ -114,6 +124,7 @@ function interrupt(i){if(running||handing){halt();window.shutUp?.();}claimStep=n
 const CASE_KEYS={Digit1:0,Digit2:1,Digit3:2,Digit4:3,Numpad1:0,Numpad2:1,Numpad3:2,Numpad4:3};
 const typing=t=>{const n=t||document.activeElement;if(n?.id==='q'&&!String(n.value||'').trim())return false;return !!n&&(/^(INPUT|TEXTAREA|SELECT)$/.test(n.tagName||'')||n.isContentEditable===true);};
 document.addEventListener('keydown',e=>{
+ if(e.code in CASE_KEYS||/^(Escape|Digit0|Numpad0|ArrowRight|PageDown)$/.test(e.code||''))unlockAudio();
  if(e.ctrlKey||e.metaKey||e.altKey||typing(e.target))return;
  const c=e.code;
  if(c==='Escape'||c==='Digit0'||c==='Numpad0'){e.preventDefault?.();reset();return;}
@@ -137,6 +148,15 @@ hideSignIn();document.addEventListener('DOMContentLoaded',hideSignIn);
 const clips=new Map();let ready=0;
 function markReady(){if(++ready<clips.size)return;const pill=$('bePill');if(pill){pill.dataset&&(pill.dataset.demoAudio='ready');const dot=pill.querySelector?.('i');if(dot?.style)dot.style.boxShadow='0 0 0 2px #22c55e';}}
 for(const l of [...S.steps.flatMap(x=>x.totem),S.fallback]){if(clips.has(l.audio))continue;let a=null;try{a=new Audio(l.audio);a.preload='auto';let counted=false;a.oncanplaythrough=()=>{if(!counted){counted=true;markReady();}};a.load?.();}catch{a=null;}clips.set(l.audio,a);}
+// First user gesture: play/pause every preloaded clip muted so later play() calls are allowed by the autoplay policy.
+let unlocked=false;
+function unlockAudio(force){
+ if(unlocked&&!force)return Promise.resolve();unlocked=true;
+ return Promise.all([...clips.values()].filter(a=>a&&a!==audio).map(a=>{try{a.muted=true;const p=a.play();
+  const reset=()=>{if(audio===a){a.muted=false;return;}try{a.pause();a.currentTime=0;}catch{}a.muted=false;};
+  return Promise.resolve(p).then(reset,reset);}catch{a.muted=false;return null;}}));
+}
+document.addEventListener('pointerdown',()=>{void unlockAudio();});
 function clip(src){const a=clips.get(src);if(a)return a;try{return new Audio(src);}catch{return null;}}
 window.CaseyDemo=Object.freeze({active:true,step,stop,advance,runCase,reset,audioReady:()=>clips.size>0&&ready>=clips.size});
 })();

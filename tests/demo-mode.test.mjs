@@ -5,12 +5,16 @@ const result=(transcript,isFinal)=>Object.assign([{transcript}],{isFinal});
 const deferred=()=>{let resolve,reject;const promise=new Promise((a,b)=>{resolve=a;reject=b;});return {promise,resolve,reject};};
 // Loads the real definitivo-kiosk.js (stubbed HandoffAPI/qrcode/index.html globals), then demo-script.js and demo-mode.js.
 // The vm global object doubles as `window`, as in the browser.
-function fixture({search='?demo=1',storage=memory(),audioFails=false,issue=null,startThrows=0,href='http://localhost:3000/index.html',scenario='COLLEGE'}={}){
+function fixture({playHook=null,search='?demo=1',storage=memory(),audioFails=false,issue=null,startThrows=0,href='http://localhost:3000/index.html',scenario='COLLEGE'}={}){
  const nodes=new Map(),timers=new Map(),intervals=new Map(),delays=[],keys=[],docEvents={},winEvents={},audios=[],recs=[],said=[],avatar=[],states=[],dialogue=[],fetches=[],api=[],qr=[];
- let tid=0,idles=0,resets=0,issued=0,throwsLeft=startThrows;const scenarios=[],silent=[],events=[],created=[];
+ let tid=0,idles=0,resets=0,issued=0,throwsLeft=startThrows;const scenarios=[],silent=[],events=[],created=[],unlocks=[];
  const el=id=>{if(!nodes.has(id)){const c=new Set();nodes.set(id,{id,textContent:'',value:'',placeholder:'',hidden:false,title:'',innerHTML:'',dataset:{},classList:{add:x=>c.add(x),remove:x=>c.delete(x),toggle:(x,on)=>on?c.add(x):c.delete(x),contains:x=>c.has(x)},setAttribute(){},getAttribute:()=>'',replaceChildren(){}});}return nodes.get(id);};
  const document={visibilityState:'visible',getElementById:el,querySelector:()=>el('bePill'),querySelectorAll:sel=>sel.split(',').map(s=>s.trim()).filter(s=>/^#[\w-]+$/.test(s)).map(s=>el(s.slice(1))),addEventListener:(n,f)=>{if(n==='keydown')keys.push(f);(docEvents[n]||=[]).push(f);}};
- class Audio{constructor(src){this.src=src;this.currentTime=0;created.push(this);}load(){this.loaded=true;}play(){this.playing=true;audios.push(this);return audioFails?Promise.reject(Error('missing')):Promise.resolve();}pause(){this.playing=false;}fire(n){this['on'+n]?.();}}
+ class Audio{constructor(src){this.src=src;this.currentTime=0;this.muted=false;this.listeners={};created.push(this);}load(){this.loaded=true;}
+  // Muted plays are the gesture unlock: recorded apart so `audios` lists only audible playback.
+  play(){if(this.muted){unlocks.push(this);return Promise.resolve();}if(playHook){const r=playHook(this);if(r)return r;}this.playing=true;audios.push(this);return audioFails?Promise.reject(Error('missing')):Promise.resolve();}pause(){this.playing=false;}
+  addEventListener(n,f){(this.listeners[n]||=[]).push(f);}removeEventListener(n,f){this.listeners[n]=(this.listeners[n]||[]).filter(x=>x!==f);}
+  fire(n){this['on'+n]?.();for(const f of [...(this.listeners[n]||[])])f({});}}
  class SR{constructor(){recs.push(this);}start(){if(throwsLeft>0){throwsLeft--;throw Error('InvalidStateError');}this.started=true;}stop(){this.stopped=true;}abort(){this.aborted=true;}}
  const messages=[];
  const HandoffAPI={call:async(action,body)=>{api.push([action,body]);if(action==='issue'){if(issue)return issue(body);issued++;return {id:'link-'+issued,token:'opaque-'+issued,expires_in:600};}if(action==='status')return {consumed:false,expired:false};if(action==='cancel')return {ok:true};throw Error('unexpected action '+action);}};
@@ -34,7 +38,7 @@ function fixture({search='?demo=1',storage=memory(),audioFails=false,issue=null,
  const key=(code,extra={})=>{const e={code,key:code,target:{tagName:'BODY'},prevented:false,preventDefault(){e.prevented=true;},...extra};for(const f of keys)f(e);return e;};
  const fire=(target,n)=>{for(const f of (target==='doc'?docEvents:winEvents)[n]||[])f({});};
  const end=async()=>{audios.at(-1).fire('ended');await run();};
- return {window:ctx,created,storage,scenarios,silent,events,el,audios,recs,said,texts:()=>said.map(x=>x.text),avatar,states,dialogue,fetches,api,qr,delays,run,poll,key,fire,end,document,kioskSend,kioskMic,
+ return {window:ctx,unlocks,created,storage,scenarios,silent,events,el,audios,recs,said,texts:()=>said.map(x=>x.text),avatar,states,dialogue,fetches,api,qr,delays,run,poll,key,fire,end,document,kioskSend,kioskMic,
   cancels:()=>api.filter(x=>x[0]==='cancel').map(x=>x[1].id),issues:()=>api.filter(x=>x[0]==='issue').length,
   get idles(){return idles;},get resets(){return resets;},script:ctx.CaseyDemoScript,qrOn:()=>el('qrCard').classList.contains('on')};
 }
@@ -132,7 +136,7 @@ test('a late speech result after a key never produces a second answer',async()=>
 });
 test('during a QR, speech that names a case moves on; other speech keeps the QR',async()=>{
  const f=fixture({storage:at(1)});f.window.toggleMic();f.recs[0].onresult({results:[result('badge',true)]});await f.run();await f.end();
- assert.equal(f.window.caseyHandoffActive(),true);await f.run(3);const r=f.recs.at(-1);assert.equal(r.started,true,'still listening while the QR is shown');
+ assert.equal(f.window.caseyHandoffActive(),true);f.window.toggleMic();await f.run(3);const r=f.recs.at(-1);assert.equal(r.started,true,'listening again after the presenter taps the mic while the QR is shown');
  const said=f.said.length;r.onresult({results:[result('buongiorno a tutti',true)]});await f.run(3);assert.equal(f.said.length,said);assert.deepEqual(f.cancels(),[]);assert.equal(f.qrOn(),true);
  f.recs.at(-1).onresult({results:[result('posso fare uno stage part-time?',true)]});await f.run();assert.deepEqual(f.cancels(),['link-1']);assert.equal(f.audios.at(-1).src,'assets/demo-audio/caso3_stage.mp3');
 });
@@ -160,7 +164,7 @@ test('case audio and fallback are preloaded once and reused; readiness dot when 
  f.created[4].fire('canplaythrough');assert.equal(f.window.CaseyDemo.audioReady(),true);assert.equal(f.el('bePill').dataset.demoAudio,'ready');
  void f.window.send('x');await f.run();assert.equal(f.audios[0],f.created[0],'playback reuses the preloaded element');assert.equal(f.created.length,5);
 });
-test('interim recognition updates #capText without advancing; final result advances',async()=>{const f=fixture();f.window.toggleMic();const r=f.recs[0];assert.equal(r.started,true);assert.equal(r.lang,'it-IT');assert.equal(r.interimResults,true);assert.equal(r.continuous,false);r.onresult({resultIndex:0,results:[result('come funz',false)]});assert.equal(f.el('capText').textContent,'come funz');assert.equal(f.said.length,0);assert.equal(f.audios.length,0);r.onresult({resultIndex:0,results:[result('come funziona il check-in',true)]});await f.run();assert.equal(f.said.length,1);assert.equal(f.dialogue[0][1],'come funziona il check-in');await f.end();assert.ok(f.recs.length>=2,'listens again after Casey finishes');assert.equal(f.recs.at(-1).started,true);});
+test('interim recognition updates #capText without advancing; final result advances',async()=>{const f=fixture();f.window.toggleMic();const r=f.recs[0];assert.equal(r.started,true);assert.equal(r.lang,'it-IT');assert.equal(r.interimResults,true);assert.equal(r.continuous,false);r.onresult({resultIndex:0,results:[result('come funz',false)]});assert.equal(f.el('capText').textContent,'come funz');assert.equal(f.said.length,0);assert.equal(f.audios.length,0);r.onresult({resultIndex:0,results:[result('come funziona il check-in',true)]});await f.run();assert.equal(f.said.length,1);assert.equal(f.dialogue[0][1],'come funziona il check-in');await f.end();assert.equal(f.recs.length,1,'no re-arm after Casey finishes');});
 test('a throwing recognizer start() is dropped and retried with backoff',async()=>{const f=fixture({startThrows:1});f.window.toggleMic();assert.equal(f.recs.length,1);assert.notEqual(f.recs[0].started,true);await f.run(3);assert.equal(f.recs.length,2);assert.equal(f.recs[1].started,true);});
 test('consecutive recognizer errors back off and stop after five with a subtitle notice',async()=>{
  const f=fixture();f.window.toggleMic();const waits=[];
@@ -254,4 +258,40 @@ function voice(demo){
 test('CaseyVoiceSession.start() is inert on the demo totem: no Live token, no microphone',async()=>{
  const d=voice(true);await d.voice.start();await d.voice.start({microphone:false});assert.deepEqual(d.calls,[]);assert.equal(d.voice.state,'idle');
  const n=voice(false);await n.voice.start();assert.deepEqual(n.calls.map(c=>c[0]),['prepare','live-start']);assert.equal(n.voice.state,'live');
+});
+
+test('after a reply the mic turns off: recognizer not restarted, idle label, no captions',async()=>{
+ const f=fixture();f.window.toggleMic();assert.equal(f.el('micBtn').classList.contains('on'),true);
+ f.recs[0].onresult({results:[result('come funziona il check-in',true)]});await f.run();await f.end();await f.run();
+ assert.equal(f.recs.length,1,'recognizer not restarted');assert.equal(f.el('micBtn').classList.contains('on'),false);assert.equal(f.el('micBtn').title,'Parla con Casey');
+ assert.deepEqual([...f.states.at(-1)],['idle','Pronto','']);
+ f.window.toggleMic();assert.equal(f.recs.length,2,'presenter taps the mic for the next turn');assert.equal(f.recs[1].started,true);
+});
+test('silent fallback end and QR consumed do not re-arm the mic',async()=>{
+ const f=fixture({audioFails:true});f.window.toggleMic();f.recs[0].onresult({results:[result('ciao',true)]});await f.run();assert.equal(f.recs.length,1);assert.equal(f.el('micBtn').classList.contains('on'),false);
+ const g=fixture({storage:at(1)});g.window.toggleMic();g.recs[0].onresult({results:[result('badge',true)]});await g.run();await g.end();await g.run();assert.equal(g.qrOn(),true);assert.equal(g.recs.length,1);
+ g.window.dispatchEvent(new g.window.CustomEvent('casey:handoff-consumed'));await g.run();assert.equal(g.recs.length,1);assert.equal(g.el('micBtn').classList.contains('on'),false);
+});
+test('audio unlock runs once on the first gesture (mic, key or pointerdown)',async()=>{
+ const f=fixture();assert.equal(f.unlocks.length,0);f.fire('doc','pointerdown');await f.run();assert.equal(f.unlocks.length,5);
+ assert.ok(f.created.every(a=>a.muted===false&&a.currentTime===0&&!a.playing));
+ f.window.toggleMic();f.key('Digit1');f.fire('doc','pointerdown');await f.run();assert.equal(f.unlocks.length,5,'only once');
+ const g=fixture();g.key('Digit1');await g.run();assert.equal(g.unlocks.length,5);assert.equal(g.audios.length,1,'case audio played audibly');
+ const h=fixture();h.window.toggleMic();await h.run();assert.equal(h.unlocks.length,5);
+});
+test('play() rejected with NotAllowedError is retried once after unlock',async()=>{
+ let n=0;const f=fixture({playHook:()=>n++===0?Promise.reject(Object.assign(Error('blocked'),{name:'NotAllowedError'})):null});
+ void f.window.send('x');await f.run(3);assert.equal(f.unlocks.length>0,true);assert.equal(f.audios.length,1);assert.equal(f.audios[0].playing,true);await f.end();assert.equal(f.window.CaseyDemo.step(),1);
+ let m=0;const g=fixture({playHook:()=>{m++;return Promise.reject(Object.assign(Error('blocked'),{name:'NotAllowedError'}));}});void g.window.send('x');await g.run();assert.equal(m,2,'only one retry');assert.equal(g.window.CaseyDemo.step(),1,'then silent fallback');
+});
+test('not-ready audio waits for canplaythrough, then plays',async()=>{
+ const f=fixture();f.created[0].readyState=1;void f.window.send('x');await f.run(1);await new Promise(r=>setImmediate(r));assert.equal(f.audios.length,0,'waiting');assert.ok(f.delays.includes(3000));
+ f.created[0].readyState=4;f.created[0].fire('canplaythrough');assert.equal(f.audios.length,1);assert.equal(f.audios[0],f.created[0]);await f.end();assert.equal(f.window.CaseyDemo.step(),1);
+});
+test('not-ready audio falls back to silent text after 3 s',async()=>{
+ const f=fixture();f.created[0].readyState=0;void f.window.send('x');await f.run();assert.equal(f.audios.length,0);assert.equal(f.said.length,1);assert.equal(f.window.CaseyDemo.step(),1);
+ f.created[0].fire('canplaythrough');await f.run();assert.equal(f.audios.length,0,'late canplaythrough is a no-op');
+});
+test('stop while waiting for canplaythrough: late event plays nothing',async()=>{
+ const f=fixture();f.created[0].readyState=1;void f.window.send('x');await f.run(2);f.window.CaseyDemo.stop();f.created[0].fire('canplaythrough');await f.run();assert.equal(f.audios.length,0);assert.equal(f.window.CaseyDemo.step(),0);
 });
