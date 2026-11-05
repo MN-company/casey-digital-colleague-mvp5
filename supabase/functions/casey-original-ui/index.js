@@ -134,6 +134,41 @@ async function checkEvent(c,token,book){
    if(ev.extendedProperties?.private?.caseyBookingId!==book.id)throw new Error('Evento Calendar ID occupato da un’altra prenotazione');return ev;
  }catch(e){if(e.status===404)return null;throw e;}
 }
+/* reconcile:start — release slots whose Casey Google event was deleted/cancelled by staff.
+ * Releases only on positive evidence (404/410 or status cancelled); any other Google outcome leaves data untouched. */
+const RECONCILE_MAX=20,RECONCILE_GRACE_MS=120000,RECONCILE_BUDGET_MS=4000;
+async function reconcileCancelled(c,token,rows,deadline=Date.now()+RECONCILE_BUDGET_MS){
+ const now=Date.now(),slots=(rows||[]).filter(s=>new Date(s.starts_at).getTime()>now).slice(0,RECONCILE_MAX);if(!slots.length)return [];
+ const books=await db('dc_bookings?'+qs({select:'id,slot_id,created_at,calendar_status,google_event_id',slot_id:'in.('+slots.map(s=>s.id).join(',')+')',is_seed:'eq.false',calendar_status:'eq.created'}));
+ const released=[];
+ for(const book of books){
+  if(Date.now()>deadline)break;
+  if(book.calendar_status!=='created'||!book.slot_id||!(now-new Date(book.created_at).getTime()>RECONCILE_GRACE_MS))continue;
+  let gone=false;
+  try{const ev=await google(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(c.calendar_id)}/events/${encodeURIComponent(book.google_event_id||eventId(book.id))}`,token);
+   const owner=ev?.extendedProperties?.private?.caseyBookingId;gone=ev?.status==='cancelled'&&(!owner||owner===book.id);
+  }catch(e){gone=!e.uncertain&&(e.status===404||e.status===410);}
+  if(!gone||Date.now()>deadline)continue;
+  try{
+   await db('dc_v3_mail_outbox?'+qs({booking_id:'eq.'+book.id}),undefined,'DELETE');
+   await db('dc_tickets?'+qs({booking_id:'eq.'+book.id}),undefined,'DELETE');
+   const del=await db('dc_bookings?'+qs({id:'eq.'+book.id,slot_id:'eq.'+book.slot_id,calendar_status:'eq.created'}),undefined,'DELETE');
+   if(!Array.isArray(del)||!del.length)continue;
+   await db('dc_slots?'+qs({id:'eq.'+book.slot_id,booked:'eq.true'}),{booked:false},'PATCH');
+   released.push(book.slot_id);console.log(JSON.stringify({event:'slot_released_google_event_gone',booking_id:book.id,slot_id:book.slot_id}));
+  }catch(e){console.log(JSON.stringify({event:'slot_release_failed',booking_id:book.id,status:e?.status||null}));}
+ }
+ return released;
+}
+async function reconcileWindow(c,token,begin,end){
+ const deadline=Date.now()+RECONCILE_BUDGET_MS;let timer;
+ const work=(async()=>{const from=new Date(Math.max(Date.parse(begin),Date.now())).toISOString();
+  const rows=await db('dc_slots?'+qs({select:'id,starts_at',booked:'eq.true',and:`(starts_at.gt.${from},starts_at.lt.${end})`,order:'starts_at.asc',limit:String(RECONCILE_MAX)}));
+  return reconcileCancelled(c,token,rows,deadline);})();
+ try{return await Promise.race([work,new Promise(r=>{timer=setTimeout(()=>r([]),RECONCILE_BUDGET_MS);})]);}catch{return [];}finally{clearTimeout(timer);work.catch(()=>{});}
+}
+function romeDayBounds(day){const probe=Date.parse(day+'T12:00:00Z');return {begin:new Date(probe-14*3600000).toISOString(),end:new Date(probe+14*3600000).toISOString()};}
+/* reconcile:end */
 async function markCalendar(bookId,status,event=null){await db('dc_bookings?'+qs({id:'eq.'+bookId}),{calendar_status:status,google_event_id:event?.id||null},'PATCH');}
 async function saveEmail(book,recipient){
  await db('dc_v3_mail_outbox?on_conflict=booking_id',{booking_id:book.id,recipient,status:'pending'},'POST',{prefer:'resolution=ignore-duplicates,return=representation'});
@@ -452,6 +487,7 @@ async function monthlyAvailability(b,session){
  await takeRate('caseyv5:availability:'+session,80);
  const c=await connection();if(!ready()||!scoped(c))return {events:[],slots:[],connected:false,reason:'Lo Student Office deve ancora collegare Google Calendar dalle Impostazioni.'};
  const token=await accessToken(c);
+ await reconcileWindow(c,token,month.begin,month.end);
  const rows=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',booked:'eq.false',starts_at:'gt.'+new Date().toISOString(),order:'starts_at.asc',limit:'750'}));
  const candidates=rows.filter(s=>s.starts_at>=month.begin&&s.starts_at<month.end).slice(0,450);
  if(!candidates.length)return {events:[],slots:[],connected:true};
@@ -498,7 +534,7 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(b.action==='admin_live_calendar'){
      const month=calendarMonth(b);const c=await connection();
      if(!ready()||!scoped(c))return json({connected:false,events:[],reason:'Connetti lo Student Office Google nelle Impostazioni.'},200,origin);
-     const token=await accessToken(c);return json({connected:true,google_email:c.google_email,events:await googleCalendarEvents(c.calendar_id,token,month.begin,month.end)},200,origin);
+     const token=await accessToken(c);await reconcileWindow(c,token,month.begin,month.end);return json({connected:true,google_email:c.google_email,events:await googleCalendarEvents(c.calendar_id,token,month.begin,month.end)},200,origin);
    }
    if(b.action==='admin_service_reviews'){const filter={select:'id,kind,subject,question,status,staff_reply,reviewed_by,created_at,updated_at',order:'created_at.desc',limit:'100'};if(b.include_test!==true)filter.is_test='eq.false';const rows=await db('casey_service_reviews?'+qs(filter));return json({reviews:rows},200,origin);}
    if(b.action==='admin_service_review_delete'){if(!UUID.test(b.id||''))return json({error:'ID non valido'},400,origin);await takeRate('admin-review-delete:'+admin.google_email,60);
@@ -750,6 +786,9 @@ async function handle(req){const origin=req.headers.get('origin')||'',url=new UR
    if(b.time&&!/^([01]\d|2[0-3]):[0-5]\d$/.test(b.time))return json({error:'Orario non valido'},400,origin);
    const c=await connection();if(!ready()||!scoped(c))return json({slots:[],calendar_connected:false,error:'Collega Google Calendar dalle Impostazioni prima di prenotare.'},200,origin);
    const token=await accessToken(c);
+   {const nowIso=new Date().toISOString(),next=b.day?null:(await db('dc_slots?'+qs({select:'starts_at',booked:'eq.false',starts_at:'gt.'+nowIso,order:'starts_at.asc',limit:'1'})))[0];
+    const w=b.day?romeDayBounds(b.day):{begin:nowIso,end:next?romeDayBounds(dateRome(next.starts_at)).end:new Date(Date.now()+60*86400000).toISOString()};
+    await reconcileWindow(c,token,w.begin,w.end);}
    const all=await db('dc_slots?'+qs({select:'id,starts_at,ends_at',booked:'eq.false',starts_at:'gt.'+new Date().toISOString(),order:'starts_at.asc',limit:'750'}));
    let rows=all.filter(s=>(!b.day||dateRome(s.starts_at)===b.day)&&(b.period!=='morning'&&b.period!=='afternoon'||(b.period==='morning'?minutesRome(s.starts_at)<720:minutesRome(s.starts_at)>=720)));
    if(!b.day&&rows.length){const date=dateRome(rows[0].starts_at);rows=rows.filter(s=>dateRome(s.starts_at)===date);}
