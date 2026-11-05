@@ -30,9 +30,9 @@ test('expired saved token + valid refresh: refreshed before open(), QR claim pro
  assert.equal(e.local.get(COPY),e.storage.get(AUTH),'rotated token mirrored to the copy');
  assert.ok(e.calls.some(c=>c.action==='claim'));assert.ok(!e.calls.some(c=>c.action==='login-dialog'));assert.ok(!e.calls.some(c=>c.action==='scan'));
 });
-test('expired saved token + rejected refresh: copy cleared and login sheet shown',async()=>{
+test('expired saved token + rejected refresh: copy kept, login sheet shown',async()=>{
  const e=setup({refresh:false});await e.window.CaseyNativeHandoff.open();await flush();
- assert.equal(e.fetches.length,1);assert.equal(e.local.has(COPY),false);assert.equal(e.storage.has(AUTH),false);
+ assert.equal(e.fetches.length,1);assert.equal(e.local.get(COPY),JSON.stringify(expired));assert.equal(e.storage.has(AUTH),false);
  assert.ok(e.calls.some(c=>c.action==='scan'));assert.ok(e.calls.some(c=>c.action==='login-dialog'));assert.ok(!e.calls.some(c=>c.action==='claim'));
 });
 test('fresh saved token: no refresh request',async()=>{
@@ -46,4 +46,54 @@ test('non-demo: no CaseyDemoAuth/ready and no refresh request',async()=>{
  const e=setup({search:'?casey=1',refresh:true});await e.window.CaseyNativeHandoff.open();await flush();
  assert.equal(e.window.CaseyDemoAuth,undefined);assert.equal(e.fetches.length,0);assert.equal(e.local.get(COPY),JSON.stringify(expired),'localStorage untouched');
  assert.ok(e.calls.some(c=>c.action==='login-dialog'));
+});
+
+// Multi-tab bridge tests: shared localStorage, separate sessionStorage, no network except the stubbed refresh.
+const T0=Date.now()+3600000,tok=(n,{user='u1',exp=T0}={})=>JSON.stringify({access_token:'a'+n,refresh_token:'r'+n,expires_at:exp,email:'demo@example.test',user_id:user});
+const rotated=n=>({access_token:'a'+n,refresh_token:'r'+n,expires_in:3600,user:{id:'u1',email:'demo@example.test'}});
+function tab(local,{session=new Map(),reply,files=['demo-auth-bridge.js']}={}){
+ const listeners={},doc={},fetches=[],store=m=>({getItem:k=>m.get(k)??null,setItem:(k,v)=>m.set(k,String(v)),removeItem:k=>m.delete(k)});
+ const ctx={location:{search:'?casey=1&demo=1',pathname:'/app-blu.html',hash:''},sessionStorage:store(session),localStorage:store(local),URLSearchParams,JSON,Date,AbortSignal,setTimeout,clearTimeout,setInterval:()=>0,
+  CASEY_CONFIG:{supabaseUrl:'https://sb.test',publishableKey:'pk',handoffUrl:'https://sb.test/functions/v1/h'},CustomEvent:class{constructor(type,init){this.type=type;this.detail=init?.detail;}},
+  document:{readyState:'complete',visibilityState:'visible',addEventListener:(n,f)=>(doc[n]||=[]).push(f)},
+  addEventListener:(n,f)=>(listeners[n]||=[]).push(f),dispatchEvent:e=>{for(const f of listeners[e.type]||[])f(e);return true;},
+  fetch:async(url,init)=>{fetches.push({url,init});const r=reply?.(JSON.parse(init.body));return r?{ok:true,status:200,json:async()=>r}:{ok:false,status:400,json:async()=>({error:'invalid_grant'})};}};
+ ctx.window=ctx;vm.createContext(ctx);for(const f of files)vm.runInContext(read(f),ctx);
+ const events=[];ctx.addEventListener('casey:demo-auth',()=>events.push(1));
+ return {ctx,session,fetches,events,emit:n=>ctx.dispatchEvent(new ctx.CustomEvent(n)),visible:()=>{for(const f of doc.visibilitychange||[])f();}};
+}
+test('stale tab: refresh failure removes its session but never the saved copy; a newer copy is adopted',()=>{
+ const local=new Map([[COPY,tok(1)]]);const stale=tab(local,{session:new Map([[AUTH,tok(1)]])});
+ local.set(COPY,tok(2));// another tab rotated; the frozen tab missed the storage event
+ stale.session.delete(AUTH);stale.emit('casey:account-change');
+ assert.equal(local.get(COPY),tok(2));assert.equal(stale.session.get(AUTH),tok(2),'newer copy adopted');assert.ok(stale.events.length>0);
+ const lone=new Map([[COPY,tok(1)]]);const t=tab(lone,{session:new Map([[AUTH,tok(1)]])});t.session.delete(AUTH);t.emit('casey:account-change');
+ assert.equal(lone.get(COPY),tok(1),'copy kept even when it is the failed token');assert.equal(t.session.has(AUTH),false,'failed token not re-adopted');
+});
+test('resumed tab adopts a newer same-user copy on visibilitychange, never another identity',()=>{
+ const local=new Map([[COPY,tok(1)]]);const t=tab(local,{session:new Map([[AUTH,tok(1,{exp:Date.now()+600000})]])});
+ local.set(COPY,tok(2,{exp:T0+1000}));t.visible();assert.equal(t.session.get(AUTH),tok(2,{exp:T0+1000}));
+ local.set(COPY,tok(3,{user:'u2',exp:Date.now()+9e6}));t.emit('pageshow');t.emit('focus');assert.equal(t.session.get(AUTH),tok(2,{exp:T0+1000}));
+});
+test('explicit logout (CaseyBeta.logout) and CaseyDemoAuth.clear remove the copy',async()=>{
+ const local=new Map([[COPY,tok(1)]]);const t=tab(local);assert.equal(t.session.get(AUTH),tok(1));
+ let called=0;t.ctx.CaseyBeta=Object.freeze({logout:async()=>{called++;t.session.delete(AUTH);t.emit('casey:account-change');}});
+ await t.ctx.CaseyBeta.logout();assert.equal(called,1);assert.equal(local.has(COPY),false);assert.equal(t.session.has(AUTH),false,'not re-adopted');
+ const l2=new Map([[COPY,tok(1)]]);const u=tab(l2);u.ctx.CaseyDemoAuth.clear();assert.equal(l2.has(COPY),false);
+});
+test('refresh lock: a second tab waits for the rotated copy instead of refreshing again',async()=>{
+ const local=new Map([[COPY,tok(1,{exp:Date.now()-1000})]]);
+ const a=tab(local,{reply:b=>b.refresh_token==='r1'?rotated(2):null});const b=tab(local,{reply:()=>null});
+ await Promise.all([a.ctx.CaseyDemoAuth.ready,b.ctx.CaseyDemoAuth.ready]);
+ assert.equal(a.fetches.length+b.fetches.length,1,'only one refresh request');
+ assert.equal(JSON.parse(local.get(COPY)).refresh_token,'r2');assert.equal(JSON.parse(b.session.get(AUTH)).refresh_token,'r2','second tab adopted');
+ assert.equal(local.has('casey-demo-auth-lock'),false,'lock released');
+});
+test('handoff-client: rejected refresh (401 path) keeps the copy and recovers with the newer copy',async()=>{
+ const local=new Map();const t=tab(local,{files:['demo-auth-bridge.js','handoff-client.js'],reply:b=>b.refresh_token==='r2'?rotated(3):null});
+ await t.ctx.CaseyDemoAuth.ready;t.session.set(AUTH,tok(1,{exp:Date.now()-1000}));local.set(COPY,tok(2,{exp:Date.now()-500}));// another tab rotated to r2 (also expired)
+ t.ctx.HandoffAPI.invalidateAuth();await t.ctx.HandoffAPI.refresh();
+ assert.equal(JSON.parse(t.session.get(AUTH)).refresh_token,'r3','recovered via the newer copy');assert.equal(JSON.parse(local.get(COPY)).refresh_token,'r3');
+ const l2=new Map([[COPY,tok(1,{exp:Date.now()-1000})]]);const u=tab(l2,{files:['demo-auth-bridge.js','handoff-client.js']});await u.ctx.CaseyDemoAuth.ready;u.session.set(AUTH,l2.get(COPY));
+ u.ctx.HandoffAPI.invalidateAuth();await assert.rejects(u.ctx.HandoffAPI.refresh(),e=>e.status===401);assert.ok(l2.has(COPY),'copy kept after 401');
 });

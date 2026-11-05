@@ -192,8 +192,9 @@ test('a newer copy from another tab is adopted for the same user only',()=>{
  local.set(COPY,token(2));t.storageEvent(COPY,token(2),token(1));assert.equal(t.ctx.HandoffAPI.auth().access_token,'access-2');
  t.storageEvent(COPY,token(3,'other'),token(2));assert.equal(t.ctx.HandoffAPI.auth().access_token,'access-2');
 });
-test('logout removes the demo copy; a stale tab logging out keeps a newer copy',()=>{
- const local=new Map([[COPY,token(1)]]);const t=tab({local});t.session.delete(AUTH);t.emit('casey:account-change',{signedOut:true});assert.equal(local.has(COPY),false);
+test('a vanished session keeps the demo copy; only CaseyBeta.logout removes it',async()=>{
+ const local=new Map([[COPY,token(1)]]);const t=tab({local});t.session.delete(AUTH);t.emit('casey:account-change',{signedOut:true});assert.equal(local.get(COPY),token(1));
+ t.session.set(AUTH,token(1));t.tick();t.ctx.CaseyBeta={logout:async()=>{t.session.delete(AUTH);}};await t.ctx.CaseyBeta.logout();assert.equal(local.has(COPY),false);
  const shared=new Map([[COPY,token(1)]]);const stale=tab({local:shared});shared.set(COPY,token(2));stale.session.delete(AUTH);stale.emit('casey:account-change',{signedOut:true});assert.equal(shared.get(COPY),token(2));
 });
 test('without ?demo=1, or outside app-blu, localStorage is never written',()=>{
@@ -222,7 +223,7 @@ test('demo bridge: a different identity never overwrites or adopts the saved cop
  const setupOther=tab({search:'?demo=1&setup=1',local,session:new Map([[AUTH,token(7,'u2')]])});setupOther.tick();assert.equal(local.get(COPY),token(1),'not even from setup');
  const same=tab({local});same.session.set(AUTH,token(8));same.tick();assert.equal(local.get(COPY),token(8));
 });
-test('demo bridge: logout of another identity keeps the copy; logout of the saved user removes it',()=>{
+test('demo bridge: a vanished session of another identity or of the saved user keeps the copy',()=>{
  const local=new Map([[COPY,token(1)]]);const other=tab({local,session:new Map([[AUTH,token(5,'u2')]])});other.session.delete(AUTH);other.emit('casey:account-change',{signedOut:true});assert.equal(local.get(COPY),token(1));
- const saved=tab({local});saved.session.delete(AUTH);saved.emit('casey:account-change',{signedOut:true});assert.equal(local.has(COPY),false);
+ const saved=tab({local});saved.session.delete(AUTH);saved.emit('casey:account-change',{signedOut:true});assert.equal(local.get(COPY),token(1));
 });
